@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+
+{% block title %}Personel & Ekip | GÖLGEDE YAŞAM{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6">
+    <div>
+        <h2 class="text-2xl font-bold text-slate-900">Personel / Ekip Yönetimi</h2>
+        <p class="text-sm text-slate-500">Ekipleri ve personelleri tanımlayın, şirket numarasıyla WA toplu servis gönderimi yapın.</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <form method="post" class="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-3">
+            {% csrf_token %}
+            <input type="hidden" name="add_team" value="1">
+            <h3 class="font-bold text-slate-900">Yeni Ekip</h3>
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-wide">Ekip Adı</label>
+                {{ team_form.name }}
+            </div>
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-wide">Yetenekli Ürün Grupları</label>
+                {{ team_form.product_groups }}
+                <p class="text-[11px] text-slate-400">Ctrl/Cmd ile birden fazla seçim yapabilirsiniz.</p>
+            </div>
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-wide">Şirket Hattı</label>
+                {{ team_form.company_phone }}
+            </div>
+            <label class="inline-flex items-center gap-2 text-sm text-slate-700">{{ team_form.is_active }} Aktif</label>
+            <button type="submit" class="w-full bg-brand-600 text-white py-2.5 rounded-xl font-bold hover:bg-brand-700">Ekip Ekle</button>
+        </form>
+
+        <form method="post" class="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-3">
+            {% csrf_token %}
+            <input type="hidden" name="add_personnel" value="1">
+            <h3 class="font-bold text-slate-900">Yeni Personel</h3>
+            <div class="space-y-2"><label class="text-xs font-bold text-slate-500 uppercase tracking-wide">Ad Soyad</label>{{ personnel_form.name }}</div>
+            <div class="space-y-2"><label class="text-xs font-bold text-slate-500 uppercase tracking-wide">Ekip</label>{{ personnel_form.team }}</div>
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-wide">Yetenekli Ürün Grupları</label>
+                {{ personnel_form.product_groups }}
+                <p class="text-[11px] text-slate-400">Ctrl/Cmd ile birden fazla seçim yapabilirsiniz.</p>
+            </div>
+            <div class="space-y-2"><label class="text-xs font-bold text-slate-500 uppercase tracking-wide">Şirket Numarası</label>{{ personnel_form.company_phone }}</div>
+            <div class="space-y-2"><label class="text-xs font-bold text-slate-500 uppercase tracking-wide">Not</label>{{ personnel_form.notes }}</div>
+            <label class="inline-flex items-center gap-2 text-sm text-slate-700">{{ personnel_form.is_active }} Aktif</label>
+            <button type="submit" class="w-full bg-slate-900 text-white py-2.5 rounded-xl font-bold hover:bg-slate-800">Personel Ekle</button>
+        </form>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <section class="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 space-y-2">
+            <h3 class="font-bold text-slate-900 px-2">Ekipler</h3>
+            {% for t in teams %}
+            <div class="rounded-xl border border-slate-100 bg-slate-50/80 p-3 flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="text-sm font-bold text-slate-800 truncate">{{ t.name }}</p>
+                    <p class="text-xs text-slate-500">{{ t.company_phone|default:"Numara yok" }}</p>
+                    <div class="mt-1 flex flex-wrap gap-1">
+                        {% for product in t.product_groups.all %}
+                        <span class="px-1.5 py-0.5 text-[10px] rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">{{ product.name }}</span>
+                        {% empty %}
+                        <span class="text-[10px] text-slate-400">Yetenekli ürün grubu seçilmemiş</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="flex items-center gap-1">
+                    <button type="button" class="team-edit-toggle p-2 text-slate-400 hover:text-brand-600 rounded-lg">
+                        <i data-lucide="pencil" class="w-4 h-4"></i>
+                    </button>
+                    <form method="post" class="inline" onsubmit="return confirm('Silinsin mi?');">
+                        {% csrf_token %}
+                        <input type="hidden" name="delete_team" value="1">
+                        <input type="hidden" name="id" value="{{ t.id }}">
+                        <button type="submit" class="p-2 text-slate-300 hover:text-red-500 rounded-lg"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </form>
+                </div>
+            </div>
+            <div class="team-edit-panel hidden border border-slate-100 border-t-0 rounded-b-xl bg-white p-3 -mt-2">
+                <form method="post" class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="update_team" value="1">
+                    <input type="hidden" name="id" value="{{ t.id }}">
+                    <input type="text" name="name" value="{{ t.name }}" required class="w-full p-2 bg-slate-50 border-none rounded-xl text-sm">
+                    <input type="text" name="company_phone" value="{{ t.company_phone|default:'' }}" class="w-full p-2 bg-slate-50 border-none rounded-xl text-sm" placeholder="Şirket hattı">
+                    <select name="product_groups" multiple class="w-full p-2 bg-slate-50 border-none rounded-xl text-sm md:col-span-2" size="6">
+                        {% for product in team_form.fields.product_groups.queryset %}
+                        <option value="{{ product.id }}" {% if product in t.product_groups.all %}selected{% endif %}>{{ product.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+                        <input type="checkbox" name="is_active" class="w-4 h-4 accent-brand-600 rounded" {% if t.is_active %}checked{% endif %}> Aktif
+                    </label>
+                    <button type="submit" class="bg-brand-600 text-white py-2 rounded-xl text-sm font-bold hover:bg-brand-700">Kaydet</button>
+                </form>
+            </div>
+            {% empty %}
+            <p class="text-sm text-slate-400 p-2">Ekip yok.</p>
+            {% endfor %}
+        </section>
+
+        <section class="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 space-y-2">
+            <h3 class="font-bold text-slate-900 px-2">Personeller</h3>
+            {% for p in personnel_list %}
+            <div class="rounded-xl border border-slate-100 bg-slate-50/80 p-3 flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                    <p class="text-sm font-bold text-slate-800 truncate">{{ p.name }}</p>
+                    <p class="text-xs text-slate-500">{% if p.team %}{{ p.team.name }}{% else %}Ekip yok{% endif %} • {{ p.company_phone|default:"Numara yok" }}</p>
+                    <div class="mt-1 flex flex-wrap gap-1">
+                        {% for product in p.product_groups.all %}
+                        <span class="px-1.5 py-0.5 text-[10px] rounded-md bg-sky-50 text-sky-700 border border-sky-200">{{ product.name }}</span>
+                        {% empty %}
+                        <span class="text-[10px] text-slate-400">Yetenekli ürün grubu seçilmemiş</span>
+                        {% endfor %}
+                    </div>
+                    {% if p.notes %}<p class="text-xs text-slate-500 mt-1">Not: {{ p.notes }}</p>{% endif %}
+                </div>
+                <div class="flex items-center gap-1">
+                    <button type="button" class="personnel-edit-toggle p-2 text-slate-400 hover:text-brand-600 rounded-lg">
+                        <i data-lucide="pencil" class="w-4 h-4"></i>
+                    </button>
+                    <form method="post" class="inline" onsubmit="return confirm('Silinsin mi?');">
+                        {% csrf_token %}
+                        <input type="hidden" name="delete_personnel" value="1">
+                        <input type="hidden" name="id" value="{{ p.id }}">
+                        <button type="submit" class="p-2 text-slate-300 hover:text-red-500 rounded-lg"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </form>
+                </div>
+            </div>
+            <div class="personnel-edit-panel hidden border border-slate-100 border-t-0 rounded-b-xl bg-white p-3 -mt-2">
+                <form method="post" class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    {% csrf_token %}
+                    <input type="hidden" name="update_personnel" value="1">
+                    <input type="hidden" name="id" value="{{ p.id }}">
+                    <input type="text" name="name" value="{{ p.name }}" required class="w-full p-2 bg-slate-50 border-none rounded-xl text-sm">
+                    <select name="team" class="w-full p-2 bg-slate-50 border-none rounded-xl text-sm">
+                        <option value="">Ekip seçin</option>
+                        {% for t in teams %}
+                        <option value="{{ t.id }}" {% if p.team_id == t.id %}selected{% endif %}>{{ t.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="product_groups" multiple class="w-full p-2 bg-slate-50 border-none rounded-xl text-sm md:col-span-2" size="6">
+                        {% for product in personnel_form.fields.product_groups.queryset %}
+                        <option value="{{ product.id }}" {% if product in p.product_groups.all %}selected{% endif %}>{{ product.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <input type="text" name="company_phone" value="{{ p.company_phone|default:'' }}" class="w-full p-2 bg-slate-50 border-none rounded-xl text-sm" placeholder="Şirket numarası">
+                    <input type="text" name="notes" value="{{ p.notes|default:'' }}" class="w-full p-2 bg-slate-50 border-none rounded-xl text-sm" placeholder="Not">
+                    <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+                        <input type="checkbox" name="is_active" class="w-4 h-4 accent-brand-600 rounded" {% if p.is_active %}checked{% endif %}> Aktif
+                    </label>
+                    <button type="submit" class="bg-brand-600 text-white py-2 rounded-xl text-sm font-bold hover:bg-brand-700">Kaydet</button>
+                </form>
+            </div>
+            {% empty %}
+            <p class="text-sm text-slate-400 p-2">Personel yok.</p>
+            {% endfor %}
+        </section>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.team-edit-toggle').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const panel = btn.closest('.rounded-xl').nextElementSibling;
+                if (panel) panel.classList.toggle('hidden');
+                if (window.lucide) lucide.createIcons();
+            });
+        });
+        document.querySelectorAll('.personnel-edit-toggle').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const panel = btn.closest('.rounded-xl').nextElementSibling;
+                if (panel) panel.classList.toggle('hidden');
+                if (window.lucide) lucide.createIcons();
+            });
+        });
+    });
+</script>
+{% endblock %}

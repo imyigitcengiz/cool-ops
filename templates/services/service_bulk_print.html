@@ -1,0 +1,434 @@
+{% load option_colors %}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Servis Listesi Raporu</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; color: #333; line-height: 1.4; margin: 0; background: #f1f5f9; --print-font-size: 12px; }
+        .page { background: white; padding: 40px; margin: 0 auto; box-shadow: 0 0 10px rgba(0,0,0,0.1); width: 210mm; min-height: 297mm; transition: all 0.3s ease; }
+        
+        .portrait { width: 210mm; min-height: 297mm; }
+        .landscape { width: 297mm; min-height: 210mm; }
+
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #333; padding-bottom: 20px; margin-bottom: 20px; }
+        .logo { font-size: 24px; font-weight: bold; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: var(--print-font-size); table-layout: fixed; }
+        th { background: #f8fafc; text-align: left; padding: 10px; border: 1px solid #e2e8f0; font-weight: bold; white-space: nowrap; position: relative; }
+        td { padding: 10px; border: 1px solid #e2e8f0; vertical-align: top; }
+        #serviceTable thead th { cursor: grab; user-select: none; }
+        #serviceTable thead th.dragging { opacity: 0.35; cursor: grabbing; }
+        #serviceTable thead th.drop-target { outline: 2px dashed #0284c7; outline-offset: -3px; }
+        .col-resizer { position: absolute; top: 0; right: -3px; width: 6px; height: 100%; cursor: col-resize; z-index: 5; }
+        .col-resizer:hover { background: rgba(2, 132, 199, 0.25); }
+        
+        .status-badge { padding: 2px 6px; font-weight: bold; font-size: 9px; text-transform: uppercase; border-radius: 4px; border: 1px solid #eee; display: inline-block; }
+        .stack-list { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
+        .stack-item { display: block; width: 100%; line-height: 1.25; }
+        .chip { padding: 1px 6px; border-radius: 999px; font-size: 9px; font-weight: 700; border: 1px solid transparent; display: inline-block; }
+        
+        .footer { margin-top: 30px; text-align: right; font-size: 10px; color: #666; }
+
+        .no-print { position: fixed; top: 10px; left: 10px; right: 10px; z-index: 1000; background: white; padding: 15px 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); display: flex; flex-direction: column; gap: 10px; }
+        .controls-top { display: flex; gap: 10px; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        .print-tune { display: flex; align-items: center; gap: 8px; margin-left: 8px; }
+        .print-tune label { font-size: 11px; color: #64748b; font-weight: bold; }
+        .print-input { width: 52px; padding: 6px 8px; border: 1px solid #e2e8f0; border-radius: 8px; font-size: 12px; }
+        .print-range { width: 120px; }
+        .print-hint { font-size: 11px; color: #64748b; font-weight: 600; }
+        .fit-status { font-size: 11px; color: #334155; font-weight: 600; margin-left: 6px; }
+        .column-picker { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+        .column-picker label { font-size: 11px; font-weight: bold; color: #64748b; display: flex; items-center gap: 4px; cursor: pointer; }
+        
+        .btn { padding: 8px 16px; border: none; border-radius: 12px; cursor: pointer; font-weight: bold; font-size: 13px; transition: all 0.2s; }
+        .btn-primary { background: #0284c7; color: white; }
+        .btn-secondary { background: #64748b; color: white; }
+        .btn-outline { background: white; border: 1px solid #e2e8f0; color: #64748b; }
+        .btn-active { background: #0f172a; color: white; border-color: #0f172a; }
+
+        .hidden-col { display: none !important; }
+        .wrap-rows th,
+        .wrap-rows td { white-space: normal !important; word-break: break-word; overflow-wrap: anywhere; }
+        .nowrap-rows th,
+        .nowrap-rows td { white-space: nowrap !important; }
+
+        @media print {
+            body { background: white; padding: 0; }
+            .page { box-shadow: none; margin: 0; padding: 0; width: 100% !important; min-height: auto; }
+            .no-print { display: none; }
+            @page { margin: 1cm; }
+        }
+    </style>
+    <style id="printPageOrientation">
+        @media print { @page { size: portrait; } }
+    </style>
+</head>
+<body class="portrait-mode">
+    <div class="no-print">
+        <div class="controls-top">
+            <span style="font-size: 12px; font-weight: bold; color: #0f172a;">Görünüm:</span>
+            <button onclick="setOrientation('portrait')" id="btnPortrait" class="btn btn-outline btn-active">Dikey</button>
+            <button onclick="setOrientation('landscape')" id="btnLandscape" class="btn btn-outline">Yatay</button>
+            <div style="flex: 1;"></div>
+            <div class="print-tune">
+                <label for="targetPages">Sayfa</label>
+                <input id="targetPages" type="number" min="1" value="1" class="print-input">
+                <button onclick="fitToPages()" class="btn btn-outline" type="button">Sığdır</button>
+            </div>
+            <div class="print-tune">
+                <label for="fontSizeRange">Punto</label>
+                <input id="fontSizeRange" type="range" min="8" max="16" step="1" value="12" class="print-range" oninput="applyFontSize(this.value)">
+                <span id="fontSizeValue" class="print-hint">12px</span>
+            </div>
+            <div class="print-tune">
+                <label for="sortType">Sıralama</label>
+                <select id="sortType" class="print-input" style="width: 220px;" onchange="setSortType(this.value)">
+                    {% for value, label in sort_options %}
+                    <option value="{{ value }}" {% if current_sort == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <span id="fitStatus" class="fit-status"></span>
+            <a href="{% if request.GET %}{{ request.get_full_path }}&download=csv{% else %}?download=csv{% endif %}" class="btn btn-outline">
+                CSV (Excel/Sheets) İndir
+            </a>
+            <button onclick="window.print()" class="btn btn-primary" type="button">Yazdır</button>
+            <button onclick="window.close()" class="btn btn-secondary">Kapat</button>
+        </div>
+        <div class="column-picker">
+            <span style="font-size: 11px; font-weight: bold; color: #94a3b8; text-transform: uppercase;">Sütunları Göster/Gizle:</span>
+            <span style="font-size: 11px; color: #64748b; font-weight: 600;">| Sütun kenarını sürükleyerek satır kaydırmayı Excel gibi ayarlayın</span>
+            <label><input type="checkbox" checked onchange="toggleColumn(0)"> Müşteri</label>
+            <label><input type="checkbox" checked onchange="toggleColumn(1)"> Bölge</label>
+            <label><input type="checkbox" checked onchange="toggleColumn(2)"> Ürünler</label>
+            <label><input type="checkbox" checked onchange="toggleColumn(3)"> Arıza Tipi</label>
+            <label><input type="checkbox" checked onchange="toggleColumn(4)"> Servis Notları</label>
+            <label><input type="checkbox" checked onchange="toggleColumn(5)"> Durum</label>
+            <label><input type="checkbox" checked onchange="toggleColumn(6)"> Öncelik</label>
+            <label><input type="checkbox" checked onchange="toggleColumn(7)"> Oluşturma Tarihi</label>
+        </div>
+    </div>
+
+    <div class="page" id="printPage">
+        <div class="header">
+            <div class="logo">
+                {% if site_settings.logo %}
+                    <img src="{{ site_settings.logo.url }}" style="height: 40px;">
+                {% else %}
+                    {{ site_settings.site_name }}
+                {% endif %}
+            </div>
+            <div style="text-align: right;">
+                <div style="font-size: 18px; font-weight: bold;">SERVİS LİSTESİ RAPORU</div>
+                <div style="color: #666; font-size: 12px;">Oluşturma: {{ "now"|date:"d.m.Y H:i" }}</div>
+            </div>
+        </div>
+
+        <table id="serviceTable" class="wrap-rows">
+            <thead>
+                <tr>
+                    <th>Müşteri</th>
+                    <th>Bölge</th>
+                    <th>Ürünler</th>
+                    <th>Arıza Tipi</th>
+                    <th>Servis Notları</th>
+                    <th>Durum</th>
+                    <th>Öncelik</th>
+                    <th>Oluşturma Tarihi</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in services %}
+                <tr>
+                    <td>
+                        <strong>{{ s.customer.name }}</strong><br>
+                        <span style="color: #666;">{{ s.customer.phone }}</span>
+                    </td>
+                    <td>{{ s.customer.region|default:"-" }}</td>
+                    <td>
+                        <div class="stack-list">
+                            {% for p in s.products.all %}
+                            <span class="chip stack-item"
+                                  style="background-color: {{ p.color_hex|option_badge_bg }}; color: {{ p.color_hex|option_badge_text }}; border-color: {{ p.color_hex|option_badge_border }};">
+                                {{ p.name }}
+                            </span>
+                            {% empty %}-{% endfor %}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="stack-list">
+                            {% for st in s.service_types.all %}
+                            {% with st_color=st|service_type_color_for_products:s.products.all %}
+                            <span class="chip stack-item"
+                                  style="background-color: {{ st_color|option_badge_bg }}; color: {{ st_color|option_badge_text }}; border-color: {{ st_color|option_badge_border }};">
+                                {{ st.name }}
+                            </span>
+                            {% endwith %}
+                            {% empty %}-{% endfor %}
+                        </div>
+                    </td>
+                    <td style="white-space: normal; word-break: break-word; overflow-wrap: anywhere;">{{ s.notes|default:"-" }}</td>
+                    <td>
+                        <span class="status-badge"
+                              style="background-color: {{ s.status.color_hex|option_badge_bg }}; color: {{ s.status.color_hex|option_badge_text }}; border-color: {{ s.status.color_hex|option_badge_border }};">
+                            {{ s.status.name }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="status-badge"
+                              style="background-color: {{ s.priority.color_hex|option_badge_bg }}; color: {{ s.priority.color_hex|option_badge_text }}; border-color: {{ s.priority.color_hex|option_badge_border }};">
+                            {{ s.priority.name }}
+                        </span>
+                    </td>
+                    <td>{{ s.created_at|date:"d.m.Y" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="8" style="text-align: center; padding: 40px;">Kayıt bulunamadı.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <div class="footer">
+            <strong>{{ site_settings.site_name }}</strong> - Dijital Servis Yönetim Sistemi
+        </div>
+    </div>
+
+    <script>
+        function getMmPxRatio() {
+            const probe = document.createElement('div');
+            probe.style.width = '100mm';
+            probe.style.position = 'absolute';
+            probe.style.visibility = 'hidden';
+            document.body.appendChild(probe);
+            const px = probe.getBoundingClientRect().width;
+            document.body.removeChild(probe);
+            return px / 100;
+        }
+
+        function applyFontSize(sizePx) {
+            const value = parseInt(sizePx, 10) || 11;
+            document.body.style.setProperty('--print-font-size', `${value}px`);
+            const text = document.getElementById('fontSizeValue');
+            if (text) text.textContent = `${value}px`;
+        }
+
+        function fitToPages() {
+            const page = document.getElementById('printPage');
+            if (!page) return;
+
+            const target = Math.max(1, parseInt(document.getElementById('targetPages')?.value || '1', 10));
+            const fontSlider = document.getElementById('fontSizeRange');
+            const fontMin = parseInt(fontSlider?.min || '8', 10);
+            const fontMax = parseInt(fontSlider?.max || '16', 10);
+            page.style.zoom = '1';
+
+            requestAnimationFrame(() => {
+                const mmToPx = getMmPxRatio();
+                const isLandscape = page.classList.contains('landscape');
+                const printableHeightMm = (isLandscape ? 210 : 297) - 20; // @page 1cm top + bottom
+                const maxHeightPx = printableHeightMm * mmToPx * target;
+
+                // Find the biggest readable font that still fits target page count.
+                let low = fontMin;
+                let high = fontMax;
+                let best = fontMin;
+                while (low <= high) {
+                    const mid = Math.floor((low + high) / 2);
+                    applyFontSize(mid);
+                    page.style.zoom = '1';
+                    const h = page.scrollHeight;
+                    if (h <= maxHeightPx) {
+                        best = mid;
+                        low = mid + 1;
+                    } else {
+                        high = mid - 1;
+                    }
+                }
+                if (fontSlider) fontSlider.value = String(best);
+                applyFontSize(best);
+                page.style.zoom = '1';
+
+                // Fine-tune with zoom after font is maximized.
+                const currentHeightPx = page.scrollHeight;
+                const rawScale = maxHeightPx / currentHeightPx;
+                const scale = Math.max(0.45, Math.min(2.2, rawScale));
+                page.style.zoom = scale.toFixed(3);
+
+                const fitStatus = document.getElementById('fitStatus');
+                if (fitStatus) fitStatus.textContent = `Sığdırıldı: ${target} sayfa (%${Math.round(scale * 100)})`;
+            });
+        }
+
+        function setOrientation(mode) {
+            const page = document.getElementById('printPage');
+            const body = document.body;
+            const btnP = document.getElementById('btnPortrait');
+            const btnL = document.getElementById('btnLandscape');
+            const orientationStyle = document.getElementById('printPageOrientation');
+
+            if (mode === 'landscape') {
+                page.classList.remove('portrait');
+                page.classList.add('landscape');
+                body.classList.remove('portrait-mode');
+                body.classList.add('landscape-mode');
+                btnL.classList.add('btn-active');
+                btnP.classList.remove('btn-active');
+                orientationStyle.innerHTML = '@media print { @page { size: landscape; } }';
+            } else {
+                page.classList.remove('landscape');
+                page.classList.add('portrait');
+                body.classList.remove('landscape-mode');
+                body.classList.add('portrait-mode');
+                btnP.classList.add('btn-active');
+                btnL.classList.remove('btn-active');
+                orientationStyle.innerHTML = '@media print { @page { size: portrait; } }';
+            }
+            fitToPages();
+        }
+
+        function toggleColumn(index) {
+            const table = document.getElementById('serviceTable');
+            const rows = table.rows;
+            for (let i = 0; i < rows.length; i++) {
+                const cell = rows[i].cells[index];
+                if (cell) {
+                    cell.classList.toggle('hidden-col');
+                }
+            }
+        }
+
+        function setSortType(sortValue) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('sort', sortValue);
+            window.location.href = url.toString();
+        }
+
+        function moveColumn(table, fromIndex, toIndex) {
+            if (!table || fromIndex === toIndex) return;
+            Array.from(table.rows).forEach((row) => {
+                const cells = row.children;
+                if (!cells[fromIndex] || !cells[toIndex]) return;
+                const movingCell = cells[fromIndex];
+                const targetCell = cells[toIndex];
+                if (fromIndex < toIndex) {
+                    row.insertBefore(movingCell, targetCell.nextSibling);
+                } else {
+                    row.insertBefore(movingCell, targetCell);
+                }
+            });
+        }
+
+        let isResizingColumn = false;
+
+        function setupColumnDragAndDrop() {
+            const table = document.getElementById('serviceTable');
+            if (!table) return;
+            const headerRow = table.tHead?.rows?.[0];
+            if (!headerRow) return;
+            const headers = Array.from(headerRow.cells);
+            let draggedIndex = null;
+            let activeTarget = null;
+
+            headers.forEach((th) => {
+                th.draggable = true;
+
+                th.addEventListener('dragstart', (e) => {
+                    if (isResizingColumn) {
+                        e.preventDefault();
+                        return;
+                    }
+                    draggedIndex = Array.from(headerRow.cells).indexOf(th);
+                    th.classList.add('dragging');
+                    if (e.dataTransfer) {
+                        e.dataTransfer.effectAllowed = 'move';
+                        e.dataTransfer.setData('text/plain', String(draggedIndex));
+                    }
+                });
+
+                th.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    const overIndex = Array.from(headerRow.cells).indexOf(th);
+                    if (draggedIndex === null || overIndex === draggedIndex) return;
+                    if (activeTarget) activeTarget.classList.remove('drop-target');
+                    th.classList.add('drop-target');
+                    activeTarget = th;
+                    if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+                });
+
+                th.addEventListener('dragleave', () => {
+                    th.classList.remove('drop-target');
+                    if (activeTarget === th) activeTarget = null;
+                });
+
+                th.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    const toIndex = Array.from(headerRow.cells).indexOf(th);
+                    if (draggedIndex === null || toIndex === draggedIndex) return;
+                    moveColumn(table, draggedIndex, toIndex);
+                    draggedIndex = null;
+                    if (activeTarget) activeTarget.classList.remove('drop-target');
+                    activeTarget = null;
+                });
+
+                th.addEventListener('dragend', () => {
+                    th.classList.remove('dragging');
+                    if (activeTarget) activeTarget.classList.remove('drop-target');
+                    activeTarget = null;
+                    draggedIndex = null;
+                });
+            });
+        }
+
+        function setupColumnResizing() {
+            const table = document.getElementById('serviceTable');
+            const headerRow = table?.tHead?.rows?.[0];
+            if (!table || !headerRow) return;
+
+            Array.from(headerRow.cells).forEach((th) => {
+                if (th.querySelector('.col-resizer')) return;
+                const handle = document.createElement('span');
+                handle.className = 'col-resizer';
+                th.appendChild(handle);
+
+                handle.addEventListener('mousedown', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    isResizingColumn = true;
+
+                    const startX = event.clientX;
+                    const startWidth = th.getBoundingClientRect().width;
+                    const colIndex = Array.from(headerRow.cells).indexOf(th);
+
+                    const onMove = (moveEvent) => {
+                        const nextWidth = Math.max(70, startWidth + (moveEvent.clientX - startX));
+                        Array.from(table.rows).forEach((row) => {
+                            const cell = row.cells[colIndex];
+                            if (!cell) return;
+                            cell.style.width = `${nextWidth}px`;
+                            cell.style.minWidth = `${nextWidth}px`;
+                        });
+                    };
+
+                    const onUp = () => {
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup', onUp);
+                        isResizingColumn = false;
+                        fitToPages();
+                    };
+
+                    document.addEventListener('mousemove', onMove);
+                    document.addEventListener('mouseup', onUp);
+                });
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            applyFontSize(document.getElementById('fontSizeRange')?.value || 12);
+            setupColumnDragAndDrop();
+            setupColumnResizing();
+            fitToPages();
+        });
+    </script>
+</body>
+</html>

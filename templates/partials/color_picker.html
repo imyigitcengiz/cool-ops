@@ -1,0 +1,30 @@
+{% load option_colors %}
+<div class="color-picker space-y-3" data-color-picker>
+    <div class="flex gap-3 items-start">
+        <div class="cp-preview w-11 h-11 rounded-xl border-2 border-white shadow-md ring-1 ring-slate-200 shrink-0"
+             style="background-color: {{ value|default:'#3b82f6'|option_hex }};"></div>
+        <div class="flex-1 space-y-2 min-w-0">
+            <div class="cp-sv relative h-28 w-full rounded-xl cursor-crosshair overflow-hidden ring-1 ring-slate-200"
+                 style="background-color: hsl(210, 100%, 50%);">
+                <div class="absolute inset-0" style="background: linear-gradient(to right, #fff, transparent);"></div>
+                <div class="absolute inset-0" style="background: linear-gradient(to top, #000, transparent);"></div>
+                <div class="cp-sv-thumb absolute w-4 h-4 -ml-2 -mt-2 rounded-full border-2 border-white shadow-lg pointer-events-none"
+                     style="left: 50%; top: 50%;"></div>
+            </div>
+            <input type="range" class="cp-hue w-full h-2 rounded-full appearance-none cursor-pointer"
+                   min="0" max="360" value="210"
+                   style="background: linear-gradient(to right, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00);">
+        </div>
+    </div>
+    <div class="flex gap-2 items-center">
+        <input type="text" class="cp-hex flex-1 px-3 py-2 text-xs font-mono bg-slate-50 border border-slate-200 rounded-lg uppercase"
+               value="{{ value|default:'#3b82f6'|option_hex }}" maxlength="7" spellcheck="false" autocomplete="off">
+        <input type="color" class="cp-native w-10 h-10 rounded-lg border border-slate-200 cursor-pointer p-0.5 bg-white"
+               value="{{ value|default:'#3b82f6'|option_hex }}" title="Sistem renk seçici">
+    </div>
+    {% if field_name %}
+    <input type="hidden" name="{{ field_name }}" class="color-picker-value" value="{{ value|default:'#3b82f6'|option_hex }}">
+    {% else %}
+    <input type="hidden" class="color-picker-value" value="{{ value|default:'#3b82f6'|option_hex }}">
+    {% endif %}
+</div>

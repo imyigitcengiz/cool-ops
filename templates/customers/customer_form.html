@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+
+{% block title %}{% if object %}Müşteri Düzenle{% else %}Yeni Müşteri{% endif %} | GÖLGEDE YAŞAM{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+    <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-bold text-slate-900">{% if object %}Müşteri Düzenle{% else %}Yeni Müşteri{% endif %}</h2>
+    </div>
+
+    <form method="post" class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+        {% csrf_token %}
+        
+        {% for field in form %}
+        <div class="space-y-2">
+            <label class="text-sm font-semibold text-slate-700">{{ field.label }}</label>
+            {% if field.name == 'products' %}
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    {% for checkbox in field %}
+                        <label class="flex items-center gap-2 p-2 hover:bg-white rounded-lg transition-colors cursor-pointer group">
+                            {{ checkbox.tag }}
+                            <span class="text-sm text-slate-600 group-hover:text-brand-600">{{ checkbox.choice_label }}</span>
+                        </label>
+                    {% endfor %}
+                </div>
+            {% else %}
+                {{ field }}
+            {% endif %}
+            {% if field.errors %}
+                <p class="text-red-500 text-xs">{{ field.errors.0 }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <div class="flex gap-4 pt-4">
+            <button type="submit" class="flex-1 bg-brand-600 hover:bg-brand-700 text-white py-3 rounded-2xl font-bold transition-all shadow-lg shadow-brand-200">
+                Kaydet
+            </button>
+            <a href="{% url 'customers' %}" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-2xl font-bold text-center transition-all">
+                İptal
+            </a>
+        </div>
+    </form>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const phoneInput = document.querySelector('input[name="phone"]');
+        if (phoneInput) {
+            const iti = window.intlTelInput(phoneInput, {
+                initialCountry: "tr",
+                separateDialCode: true,
+                utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.10/build/js/utils.js",
+            });
+
+            // On submit, put full number into the field
+            const form = phoneInput.closest('form');
+            form.addEventListener('submit', function() {
+                if (iti.isValidNumber()) {
+                    phoneInput.value = iti.getNumber();
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

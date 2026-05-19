@@ -1,0 +1,47 @@
+{# title, form, add_action, default_color, name_placeholder #}
+<div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-5">
+    <h3 class="font-bold text-slate-900">{{ title }}</h3>
+    {% if helper_text %}
+    <p class="text-xs text-slate-500 -mt-2">{{ helper_text }}</p>
+    {% endif %}
+    <details class="group rounded-2xl border border-slate-200 bg-slate-50">
+        <summary class="list-none cursor-pointer p-4 flex items-center justify-between">
+            <span class="text-sm font-bold text-slate-700">+ Yeni kayıt ekle</span>
+            <i data-lucide="chevron-down" class="w-4 h-4 text-slate-400 transition-transform group-open:rotate-180"></i>
+        </summary>
+        <form method="post" class="space-y-4 p-4 pt-0">
+            {% csrf_token %}
+            <input type="hidden" name="{{ add_action }}" value="1">
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-wide">Yeni kayıt</label>
+                {{ form.name }}
+            </div>
+            {% if hide_color_picker %}
+            <input type="hidden" name="color" value="{{ default_color|default:'#3b82f6' }}">
+            {% else %}
+            <details class="rounded-xl border border-slate-200 bg-white">
+                <summary class="list-none cursor-pointer px-3 py-2 text-xs font-bold text-slate-600 uppercase tracking-wide">Renk seç</summary>
+                <div class="p-3 border-t border-slate-100">
+                    {% include 'partials/color_picker.html' with value=default_color field_name='color' %}
+                </div>
+            </details>
+            {% endif %}
+            <button type="submit" class="w-full bg-brand-600 text-white py-2.5 rounded-xl font-bold hover:bg-brand-700 transition-all text-sm">
+                Ekle
+            </button>
+        </form>
+    </details>
+    <div class="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+        {% for item in items %}
+        {% if use_product_item %}
+        {% include 'partials/product_option_item.html' with item=item update_action=update_action delete_action=delete_action all_service_types=all_service_types %}
+        {% elif use_service_type_relation_item %}
+        {% include 'partials/service_type_relation_item.html' with item=item update_action=update_action delete_action=delete_action all_products=all_products %}
+        {% else %}
+        {% include 'partials/option_item.html' with item=item update_action=update_action delete_action=delete_action %}
+        {% endif %}
+        {% empty %}
+        <p class="text-xs text-slate-400 text-center py-6">Henüz kayıt yok.</p>
+        {% endfor %}
+    </div>
+</div>

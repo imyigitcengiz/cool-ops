@@ -1,0 +1,37 @@
+[2026-05-18 17:20:44] === GY Dashboard (macOS) ===
+[2026-05-18 17:20:44] === GY Dashboard (macOS) ===
+[2026-05-18 17:20:44] Proje: /Users/imyigitcengiz/Downloads/gy-dashboard-py
+[2026-05-18 17:20:44] Proje: /Users/imyigitcengiz/Downloads/gy-dashboard-py
+[2026-05-18 17:20:45] Django yüklü değil; bağımlılıklar kurulmamış.
+[2026-05-18 17:20:45] Django yüklü değil; bağımlılıklar kurulmamış.
+
+╔══════════════════════════════════════════════════════════════╗
+║  Kurulum gerekli — aşağıdaki adımları Terminal'de uygulayın  ║
+╚══════════════════════════════════════════════════════════════╝
+
+1) Python 3.10–3.13 kurun (3.14 önerilmez):
+     brew install python@3.12
+   veya https://www.python.org/downloads/
+
+2) Proje klasörüne gidin:
+     cd "/Users/imyigitcengiz/Downloads/gy-dashboard-py"
+
+3) Sanal ortam oluşturun:
+     python3 -m venv venv
+
+4) Sanal ortamı etkinleştirin:
+     source venv/bin/activate
+
+5) Bağımlılıkları kurun:
+     pip install -r requirements.txt
+
+6) Veritabanını hazırlayın:
+     python manage.py migrate
+
+7) Bu dosyayı tekrar çalıştırın:
+     ./macos_start_app.command
+
+[2026-05-18 17:20:45] Log: /Users/imyigitcengiz/Downloads/gy-dashboard-py/logs/startup-20260518-172044.log
+[2026-05-18 17:20:45] Log: /Users/imyigitcengiz/Downloads/gy-dashboard-py/logs/startup-20260518-172044.log
+
+Kapatmak için Enter'a basın...

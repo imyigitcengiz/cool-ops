@@ -1,0 +1,69 @@
+<!-- WhatsApp Message Picker Modal -->
+<div id="whatsappModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in duration-200">
+        <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+            <h3 class="font-bold text-slate-900 flex items-center gap-2">
+                <i data-lucide="message-circle" class="w-5 h-5 text-green-600"></i> Mesaj Şablonu Seçin
+            </h3>
+            <button onclick="closeWhatsAppModal()" class="text-slate-400 hover:text-slate-600">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <div class="p-6 space-y-3 max-h-[400px] overflow-y-auto" id="waTemplateList">
+            <!-- Templates will be injected here via JS or rendered via include if possible -->
+            {% for t in whatsapp_templates %}
+            <button type="button" onclick="sendWhatsAppMessage('{{ t.message|escapejs }}')" class="w-full text-left p-4 bg-slate-50 hover:bg-green-50 hover:border-green-200 border border-slate-100 rounded-2xl transition-all group">
+                <p class="font-bold text-slate-700 group-hover:text-green-700 transition-colors">{{ t.title }}</p>
+                <p class="text-xs text-slate-400 line-clamp-2 mt-1">{{ t.message }}</p>
+            </button>
+            {% empty %}
+            <div class="text-center py-8">
+                <p class="text-sm text-slate-400">Henüz şablon eklenmemiş.</p>
+                <a href="{% url 'site_settings' %}" class="text-xs text-brand-600 font-bold hover:underline">Ayarlardan ekle</a>
+            </div>
+            {% endfor %}
+            
+            <div class="pt-4 border-t border-slate-100 space-y-2">
+                <button type="button" onclick="sendWhatsAppMessage('')" class="w-full text-left p-4 bg-white hover:bg-slate-50 border border-dashed border-slate-200 rounded-2xl transition-all">
+                    <p class="font-bold text-slate-500">Boş Mesaj / Sadece Sohbet Aç</p>
+                </button>
+                <button type="button" onclick="closeWhatsAppModal()" class="w-full py-3 text-slate-400 font-bold hover:text-slate-600 transition-colors">
+                    Vazgeç / Kapat
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentPhone = '';
+
+    function openWhatsAppModal(phone) {
+        currentPhone = phone;
+        document.getElementById('whatsappModal').classList.remove('hidden');
+    }
+
+    function closeWhatsAppModal() {
+        document.getElementById('whatsappModal').classList.add('hidden');
+    }
+
+    function sendWhatsAppMessage(message) {
+        if (!currentPhone) return;
+        
+        // Clean phone number
+        let cleanPhone = currentPhone.replace(/\D/g, '');
+        if (cleanPhone.startsWith('0')) {
+            cleanPhone = '9' + cleanPhone;
+        } else if (!cleanPhone.startsWith('90') && cleanPhone.length === 10) {
+            cleanPhone = '90' + cleanPhone;
+        }
+
+        let url = `https://wa.me/${cleanPhone}`;
+        if (message) {
+            url += `?text=${encodeURIComponent(message)}`;
+        }
+        
+        window.open(url, '_blank');
+        closeWhatsAppModal();
+    }
+</script>
