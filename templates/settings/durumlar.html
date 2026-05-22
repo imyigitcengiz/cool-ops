@@ -1,0 +1,10 @@
+{% extends 'settings/base.html' %}
+{% block title %}{{ gy.ym_durumlar }}{% endblock %}
+{% block content %}
+<div class="pb-12 max-w-3xl">
+    {% include 'settings/_page_header.html' %}
+    <p class="text-sm text-slate-600 -mt-4 mb-6">{{ gy.yardim_masasi }} kayıt listesinde kullanılır. Varsayılan görünümde yalnızca «aktif» kayıtlar listelenir.</p>
+    {% include 'services_dashboard/partials/option_add_card.html' with title='Durumlar' form=status_form items=statuses add_action='add_status' update_action='update_status' delete_action='delete_status' default_color='#3b82f6' %}
+</div>
+{% endblock %}
+{% block extra_js %}{% include 'settings/_scripts_options.html' %}{% endblock %}

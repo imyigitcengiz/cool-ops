@@ -182,7 +182,7 @@ def _build_db_index() -> dict[str, dict]:
             'subtitle': settings_obj.site_name,
             'customer_name': None,
             'service_id': None,
-            'link_url': '/services-dashboard/settings/',
+            'link_url': '/ayarlar/genel/',
             'can_delete': True,
             'created_at': None,
         }

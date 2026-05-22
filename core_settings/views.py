@@ -50,27 +50,90 @@ def _safe_delete_option(request, model, label):
         )
 
 
+SETTINGS_SECTION_META = {
+    'genel': {
+        'template': 'settings/genel.html',
+        'url_name': 'settings_genel',
+        'title': 'Genel bilgiler',
+        'icon': 'building-2',
+    },
+    'urunler': {
+        'template': 'settings/urunler.html',
+        'url_name': 'settings_products',
+        'title': 'Ürünler',
+        'icon': 'package',
+    },
+    'ariza-tipleri': {
+        'template': 'settings/ariza_tipleri.html',
+        'url_name': 'settings_service_types',
+        'title': 'Arıza tipleri',
+        'icon': 'wrench',
+    },
+    'durumlar': {
+        'template': 'settings/durumlar.html',
+        'url_name': 'settings_statuses',
+        'title': 'Durumlar',
+        'icon': 'list-checks',
+    },
+    'oncelikler': {
+        'template': 'settings/oncelikler.html',
+        'url_name': 'settings_priorities',
+        'title': 'Öncelikler',
+        'icon': 'flag',
+    },
+    'cozum-turleri': {
+        'template': 'settings/cozum_turleri.html',
+        'url_name': 'settings_partner_types',
+        'title': 'Çözüm ortağı türleri',
+        'icon': 'handshake',
+    },
+}
+
+
 class SiteSettingsView(TemplateView):
-    template_name = 'services_dashboard/settings/site_settings.html'
+    """Site genel ayarları — /ayarlar/<bölüm>/ (servis modülünden bağımsız)."""
+    section = 'genel'
+
+    def dispatch(self, request, *args, **kwargs):
+        self.section = kwargs.pop('section', self.section)
+        if self.section not in SETTINGS_SECTION_META:
+            self.section = 'genel'
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_template_names(self):
+        return [SETTINGS_SECTION_META[self.section]['template']]
+
+    def _build_options_context(self):
+        service_types = ServiceTypeOption.objects.prefetch_related('products').all().order_by('name')
+        products = ProductOption.objects.prefetch_related('service_types', 'color_options').all().order_by('name')
+        return {
+            'settings_section': self.section,
+            'settings_section_meta': SETTINGS_SECTION_META,
+            'settings_form': GeneralSiteSettingsForm(instance=SiteSettings.objects.first()),
+            'service_type_form': ServiceTypeOptionForm(),
+            'product_form': ProductOptionForm(),
+            'status_form': StatusOptionForm(),
+            'priority_form': PriorityOptionForm(),
+            'solution_partner_type_form': SolutionPartnerTypeForm(),
+            'service_types': service_types,
+            'products': products,
+            'all_service_types': service_types,
+            'all_products': products,
+            'statuses': StatusOption.objects.order_by('sort_order', 'name'),
+            'priorities': PriorityOption.objects.all(),
+            'solution_partner_types': SolutionPartnerType.objects.all(),
+        }
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        settings = SiteSettings.objects.first()
-        context['settings_form'] = GeneralSiteSettingsForm(instance=settings)
-        context['service_type_form'] = ServiceTypeOptionForm()
-        context['product_form'] = ProductOptionForm()
-        context['status_form'] = StatusOptionForm()
-        context['priority_form'] = PriorityOptionForm()
-        context['solution_partner_type_form'] = SolutionPartnerTypeForm()
-        
-        context['service_types'] = ServiceTypeOption.objects.prefetch_related('products').all().order_by('name')
-        context['products'] = ProductOption.objects.prefetch_related('service_types', 'color_options').all().order_by('name')
-        context['all_service_types'] = context['service_types']
-        context['all_products'] = context['products']
-        context['statuses'] = StatusOption.objects.order_by('sort_order', 'name')
-        context['priorities'] = PriorityOption.objects.all()
-        context['solution_partner_types'] = SolutionPartnerType.objects.all()
+        context.update(self._build_options_context())
+        meta = SETTINGS_SECTION_META[self.section]
+        context['page_title'] = meta['title']
+        context['page_icon'] = meta['icon']
         return context
+
+    def _redirect_after_post(self):
+        return redirect(SETTINGS_SECTION_META[self.section]['url_name'])
 
     def post(self, request, *args, **kwargs):
         if 'update_site' in request.POST:
@@ -190,7 +253,7 @@ class SiteSettingsView(TemplateView):
             except Exception:
                 messages.error(request, "Bu tür kullanımda olduğu için silinemedi.")
 
-        return redirect('site_settings')
+        return self._redirect_after_post()
 
 
 

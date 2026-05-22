@@ -18,13 +18,13 @@
         <p class="text-sm text-slate-500 mt-2">Müşteri kartları, ürünler ve sözleşme bilgileri. Satış kaydı oluşturulduğunda otomatik güncellenir.</p>
     </a>
     {% endif %}
-    {% if user_perms.contact_solution %}
-    <a href="{% url 'solution_network' %}" class="group bg-white rounded-3xl border border-slate-200 shadow-sm p-6 hover:border-brand-300 hover:shadow-md transition-all">
+    {% if user_perms.contact_firms %}
+    <a href="{% url 'contact_firmalar' %}" class="group bg-white rounded-3xl border border-slate-200 shadow-sm p-6 hover:border-emerald-300 hover:shadow-md transition-all">
         <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 group-hover:bg-emerald-100">
-            <i data-lucide="network" class="w-6 h-6"></i>
+            <i data-lucide="building-2" class="w-6 h-6"></i>
         </div>
-        <h2 class="text-lg font-bold text-slate-900">Çözüm Ağı</h2>
-        <p class="text-sm text-slate-500 mt-2">Taşeron, nakliye ve dış servisçi ortakları. Servis atamalarında kullanılır.</p>
+        <h2 class="text-lg font-bold text-slate-900">Firmalar</h2>
+        <p class="text-sm text-slate-500 mt-2">Manuel kayıt, kazınan firmalar ve çözüm ortakları — tek rehber.</p>
     </a>
     {% endif %}
     {% if user_perms.contact_personnel or user_perms.contact_payroll %}

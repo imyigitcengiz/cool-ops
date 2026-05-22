@@ -25,7 +25,7 @@
   function isFormPage() {
     const p = window.location.pathname;
     if (/\/services-dashboard\/services\/(new|\d+\/edit)\/?$/.test(p)) return true;
-    if (p.includes('/services-dashboard/settings')) return true;
+    if (p.includes('/services-dashboard/settings') || p.startsWith('/ayarlar/')) return true;
     if (document.getElementById('serviceRecordForm')) return true;
     const qs = document.getElementById('quickSheetModal');
     return !!(qs && !qs.classList.contains('hidden'));
@@ -74,7 +74,7 @@
   }
 
   async function refreshOptionsCatalog() {
-    const base = window.SD_BASE || '/services-dashboard';
+    const base = window.AYARLAR_BASE || '/ayarlar';
     try {
       const res = await fetch(`${base}/api/options/catalog/`);
       const data = await res.json();

@@ -7,6 +7,7 @@ from django.views.decorators.http import require_http_methods
 
 from tools.collections import DEFAULT_TEMPLATE, add_firm_to_collection, serialize_collection
 from tools.firm_memory import serialize_firm
+from tools.firm_directory import create_manual_firm, sync_all_partners_to_directory, sync_partner_to_directory
 from tools.models import FirmTag, MapsScrapedFirm, OutreachCollection, WhatsappOutboundMessage
 from tools.outreach_memory import memory_stats
 from tools.views import _json_body
@@ -92,7 +93,8 @@ def firms_bulk_api(request):
     body = _json_body(request) or {}
     action = (body.get('action') or '').strip()
     firm_ids = _parse_firm_ids(body)
-    if not firm_ids and action not in ('clear_all',):
+    no_selection_actions = ('clear_all', 'sync_partners', 'add_firm', 'add_partner')
+    if not firm_ids and action not in no_selection_actions:
         return JsonResponse({'ok': False, 'error': 'Firma seçin.'}, status=400)
 
     firms = MapsScrapedFirm.objects.filter(pk__in=firm_ids)
@@ -133,6 +135,124 @@ def firms_bulk_api(request):
             return JsonResponse({'ok': False, 'error': 'Bölge adı girin.'}, status=400)
         updated = firms.update(region=region)
         return JsonResponse({'ok': True, 'updated': updated, 'region': region, 'action': action})
+
+    if action == 'add_firm':
+        name = (body.get('name') or '').strip()
+        phone = (body.get('phone') or '').strip()
+        kind = (body.get('firm_kind') or MapsScrapedFirm.KIND_BUSINESS).strip()
+        if not name:
+            return JsonResponse({'ok': False, 'error': 'Firma adı girin.'}, status=400)
+        if kind == MapsScrapedFirm.KIND_PARTNER:
+            from core_settings.models import SolutionPartner, SolutionPartnerType
+
+            ptype = None
+            raw_type = body.get('partner_type_id')
+            if raw_type:
+                ptype = SolutionPartnerType.objects.filter(pk=int(raw_type)).first()
+            if not ptype:
+                ptype = SolutionPartnerType.objects.filter(is_active=True).order_by('id').first()
+            if not ptype:
+                return JsonResponse(
+                    {'ok': False, 'error': 'Önce ayarlardan çözüm ortağı türü tanımlayın.'},
+                    status=400,
+                )
+            partner = SolutionPartner.objects.create(
+                name=name[:255],
+                phone=phone[:40],
+                partner_type=ptype,
+                notes=(body.get('notes') or '')[:500],
+                is_active=bool(body.get('is_active', True)),
+            )
+            firm = sync_partner_to_directory(partner)
+            return JsonResponse({
+                'ok': True,
+                'action': action,
+                'partner_id': partner.id,
+                'firm': serialize_firm(firm) if firm else None,
+            })
+        firm = create_manual_firm(
+            name=name,
+            phone=phone,
+            firm_kind=kind,
+            region=(body.get('region') or '').strip(),
+            notes=(body.get('notes') or '').strip(),
+        )
+        return JsonResponse({'ok': True, 'action': action, 'firm': serialize_firm(firm)})
+
+    if action == 'sync_partners':
+        count = sync_all_partners_to_directory()
+        return JsonResponse({'ok': True, 'action': action, 'synced': count, **memory_stats()})
+
+    if action == 'add_partner':
+        from core_settings.models import SolutionPartner, SolutionPartnerType
+
+        name = (body.get('name') or '').strip()
+        phone = (body.get('phone') or '').strip()
+        if not name:
+            return JsonResponse({'ok': False, 'error': 'Ortak adı girin.'}, status=400)
+        ptype = None
+        raw_type = body.get('partner_type_id')
+        if raw_type:
+            ptype = SolutionPartnerType.objects.filter(pk=int(raw_type)).first()
+        if not ptype:
+            ptype = SolutionPartnerType.objects.filter(is_active=True).order_by('id').first()
+        if not ptype:
+            return JsonResponse({'ok': False, 'error': 'Önce ayarlardan çözüm ortağı türü tanımlayın.'}, status=400)
+        partner = SolutionPartner.objects.create(
+            name=name[:255],
+            phone=phone[:40],
+            partner_type=ptype,
+            notes=(body.get('notes') or '')[:500],
+            is_active=bool(body.get('is_active', True)),
+        )
+        firm = sync_partner_to_directory(partner)
+        return JsonResponse({
+            'ok': True,
+            'action': action,
+            'partner_id': partner.id,
+            'firm': serialize_firm(firm) if firm else None,
+        })
+
+    if action == 'send_message':
+        message = (body.get('message') or '').strip()
+        if not message:
+            return JsonResponse({'ok': False, 'error': 'Mesaj metni girin.'}, status=400)
+        connection_id = body.get('connection_id')
+        from tools.whatsapp_send_views import _log_and_send
+
+        sent = 0
+        failed = 0
+        errors = []
+        for firm in firms:
+            if not firm.phone_normalized:
+                failed += 1
+                continue
+            try:
+                _, outbound, err, _ = _log_and_send(
+                    phone_raw=firm.phone,
+                    phone_norm=firm.phone_normalized,
+                    message=message,
+                    connection_id=connection_id,
+                    recipient_name=firm.name,
+                    firm_id=firm.id,
+                    source=WhatsappOutboundMessage.SOURCE_MANUAL,
+                    send_type=WhatsappOutboundMessage.SEND_PRIVATE,
+                )
+                if err:
+                    failed += 1
+                    errors.append(f'{firm.name}: {err}')
+                else:
+                    sent += 1
+            except Exception as exc:
+                failed += 1
+                errors.append(f'{firm.name}: {exc}')
+        return JsonResponse({
+            'ok': True,
+            'action': action,
+            'sent': sent,
+            'failed': failed,
+            'errors': errors[:10],
+        })
 
     if action == 'create_collection':
         name = (body.get('collection_name') or body.get('name') or '').strip()
@@ -189,6 +309,7 @@ def sent_messages_api(request):
     status = (request.GET.get('status') or 'sent').strip()
     collection_id = request.GET.get('collection_id')
     firm_id = request.GET.get('firm_id')
+    send_type = (request.GET.get('send_type') or '').strip()
     page = max(int(request.GET.get('page') or 1), 1)
     page_size = min(max(int(request.GET.get('page_size') or 50), 1), 200)
 
@@ -200,6 +321,8 @@ def sent_messages_api(request):
             qs = qs.filter(collection_id=int(collection_id))
         except (TypeError, ValueError):
             pass
+    if send_type and send_type != 'all':
+        qs = qs.filter(send_type=send_type)
     if firm_id:
         try:
             fid = int(firm_id)
@@ -233,6 +356,8 @@ def sent_messages_api(request):
             'collection_id': m.collection_id,
             'collection_name': m.collection.name if m.collection else '',
             'firm_id': m.firm_id,
+            'send_type': m.send_type or '',
+            'send_type_label': m.get_send_type_display() if m.send_type else (m.get_source_display() if m.source else '—'),
             'error_message': m.error_message,
             'sent_at': m.sent_at.isoformat() if m.sent_at else None,
             'created_at': m.created_at.isoformat(),

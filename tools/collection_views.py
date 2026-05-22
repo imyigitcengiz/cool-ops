@@ -466,6 +466,7 @@ def collection_queue_api(request, pk):
                 else WhatsappOutboundMessage.SOURCE_MANUAL
 
             ),
+            send_type=WhatsappOutboundMessage.SEND_CAMPAIGN,
 
         )
 

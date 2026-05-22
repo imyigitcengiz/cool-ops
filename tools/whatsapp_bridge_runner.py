@@ -328,6 +328,17 @@ def try_spawn_bridge_process(*, force: bool = False, as_admin: bool | None = Non
             'probe': probe,
         }
 
+    if not (bridge_dir / 'node_modules').is_dir():
+        return {
+            'spawned': False,
+            'reason': 'no_node_modules',
+            'message': (
+                'Köprü bağımlılıkları yok. Terminalde: '
+                f'cd "{bridge_dir}" && npm install'
+            ),
+            'probe': probe,
+        }
+
     node_exe = _resolve_node_executable()
     if not node_exe:
         return {

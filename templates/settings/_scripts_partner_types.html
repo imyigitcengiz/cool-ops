@@ -1,0 +1,12 @@
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.type-edit-toggle').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const panel = btn.closest('.rounded-2xl').querySelector('.type-edit-panel');
+                panel.classList.toggle('hidden');
+                if (window.lucide) lucide.createIcons();
+            });
+        });
+        if (window.lucide) lucide.createIcons();
+    });
+</script>

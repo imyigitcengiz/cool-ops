@@ -75,6 +75,10 @@ def _apply_payload(firm: MapsScrapedFirm, payload: dict) -> None:
 
     for key, val in payload.items():
 
+        if key == 'firm_kind' and firm.solution_partner_id:
+
+            continue
+
         if key == 'last_scraped_at' or val:
 
             setattr(firm, key, val)
@@ -224,6 +228,8 @@ def register_scrape(data: dict) -> tuple[MapsScrapedFirm, bool]:
 
 
 
+    payload.setdefault('firm_kind', MapsScrapedFirm.KIND_SCRAPED)
+
     try:
 
         firm = MapsScrapedFirm.objects.create(**payload)
@@ -270,9 +276,24 @@ def serialize_firm(firm: MapsScrapedFirm, *, already_in_memory: bool | None = No
 
 
 
+    partner_type = ''
+    sp = getattr(firm, 'solution_partner', None)
+    if sp and getattr(sp, 'partner_type_id', None):
+        partner_type = sp.partner_type.name
+
     return {
 
         'firm_id': firm.id,
+
+        'firm_kind': firm.firm_kind,
+
+        'firm_kind_label': firm.get_firm_kind_display(),
+
+        'partner_type': partner_type,
+
+        'is_active': firm.is_active,
+
+        'solution_partner_id': firm.solution_partner_id,
 
         'place_id': firm.place_id,
 

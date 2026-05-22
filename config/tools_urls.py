@@ -26,7 +26,7 @@ urlpatterns = [
     path('whatsapp-baglan/', WhatsappBaglanView.as_view(), name='tools_whatsapp_baglan'),
     path('whatsapp-mesaj-gonderici/', RedirectView.as_view(url='/tools/whatsapp-baglan/', permanent=False)),
     path('toplu-whatsapp-mesaj/', RedirectView.as_view(url='/tools/whatsapp-baglan/', permanent=False)),
-    path('google-maps-firma-bulma/', RedirectView.as_view(url='/contact/firma-kazi/', permanent=False)),
+    path('google-maps-firma-bulma/', RedirectView.as_view(url='/contact/firma-bul/', permanent=False)),
     path('whatsapp/kopru/baslat/', whatsapp_bridge_auto_start_api, name='tools_whatsapp_bridge_auto_start'),
     path('whatsapp/kopru/gunluk/', whatsapp_bridge_ui_log_api, name='tools_whatsapp_bridge_ui_log'),
     path('whatsapp/baglantilar/', whatsapp_connections_api, name='tools_whatsapp_connections'),

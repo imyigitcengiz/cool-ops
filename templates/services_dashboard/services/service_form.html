@@ -3,9 +3,9 @@
 {% block title %}{% if object %}Servis Düzenle{% else %}Yeni Servis{% endif %} | GÖLGEDE YAŞAM{% endblock %}
 
 {% block content %}
-<div class="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+<div class="max-w-5xl mx-auto grid grid-cols-1 {% if object %}lg:grid-cols-3{% endif %} gap-8">
     <!-- Main Form -->
-    <div class="lg:col-span-2 space-y-6">
+    <div class="{% if object %}lg:col-span-2{% endif %} space-y-6">
         <div class="flex items-center justify-between">
             <h2 class="text-2xl font-bold text-slate-900">{% if object %}Servis Düzenle{% else %}Yeni Servis{% endif %}</h2>
             <div class="flex items-center gap-2">
@@ -201,22 +201,8 @@
         </form>
     </div>
 
-    <!-- Sidebar -->
+    {% if object %}
     <div class="space-y-6">
-        <section class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-            <h3 class="font-bold text-slate-900 flex items-center gap-2">
-                <i data-lucide="zap" class="w-5 h-5 text-amber-500"></i> Hızlı Yönetim
-            </h3>
-            <p class="text-xs text-slate-500 leading-relaxed">Durum, öncelik, ürün ve arıza tiplerini ekleme veya düzenleme yapabilirsiniz. Ürün–arıza eşlemesi için Sistem Ayarları → Ürünler bölümünü kullanın.</p>
-            <div class="grid grid-cols-2 gap-2">
-                <button type="button" data-quick-add="status" class="py-2 px-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-100">+ Durum</button>
-                <button type="button" data-quick-add="priority" class="py-2 px-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-100">+ Öncelik</button>
-                <button type="button" data-quick-add="product" class="py-2 px-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-100">+ Ürün</button>
-                <button type="button" data-quick-add="service_type" class="py-2 px-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-100">+ Arıza tipi</button>
-            </div>
-            <a href="{% url 'site_settings' %}" class="block text-center text-xs font-bold text-brand-600 hover:underline pt-2">Tüm seçenekleri düzenle →</a>
-        </section>
-        {% if object %}
         <section class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
             <h3 class="font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-4">
                 <i data-lucide="history" class="w-5 h-5 text-brand-600"></i> İşlem Geçmişi
@@ -242,8 +228,8 @@
                 {% endfor %}
             </div>
         </section>
-        {% endif %}
     </div>
+    {% endif %}
 </div>
 
 <!-- Customer Quick Add Modal (Unchanged but ensuring it exists) -->

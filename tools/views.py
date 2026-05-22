@@ -17,26 +17,42 @@ class ToolsHubView(TemplateView):
     template_name = 'tools/index.html'
 
 
-class FirmaKaziView(TemplateView):
-    template_name = 'crm/firms_hub.html'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['page_mode'] = 'scrape'
-        context['memory_count'] = MapsScrapedFirm.objects.count()
-        context['messaged_count'] = messaged_firm_count()
-        return context
-
-
 class FirmalarView(TemplateView):
+    """Birleşik firma rehberi: manuel kayıt, kazınan, çözüm ortağı, bayi, iş ortağı."""
     template_name = 'crm/firms_hub.html'
 
     def get_context_data(self, **kwargs):
+        from tools.models import MapsScrapedFirm
+        from core_settings.models import SolutionPartnerType
+
         context = super().get_context_data(**kwargs)
-        context['page_mode'] = 'directory'
+        view = (self.request.GET.get('view') or '').strip().lower()
+        context['active_panel'] = 'maps' if view == 'maps' else 'rehber'
         context['memory_count'] = MapsScrapedFirm.objects.count()
         context['messaged_count'] = messaged_firm_count()
+        context['partner_types'] = list(
+            SolutionPartnerType.objects.filter(is_active=True).order_by('name').values('id', 'name')
+        )
+        context['kind_counts'] = {
+            'all': MapsScrapedFirm.objects.count(),
+            'scraped': MapsScrapedFirm.objects.filter(firm_kind=MapsScrapedFirm.KIND_SCRAPED).count(),
+            'partner': MapsScrapedFirm.objects.filter(firm_kind=MapsScrapedFirm.KIND_PARTNER).count(),
+            'dealer': MapsScrapedFirm.objects.filter(firm_kind=MapsScrapedFirm.KIND_DEALER).count(),
+            'business': MapsScrapedFirm.objects.filter(firm_kind=MapsScrapedFirm.KIND_BUSINESS).count(),
+        }
         return context
+
+
+class FirmaBulView(FirmalarView):
+    """Google Maps araması — tek panel içinde maps sekmesi."""
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['active_panel'] = 'maps'
+        return context
+
+
+FirmaKaziView = FirmaBulView  # geriye dönük
 
 
 class TagManagerView(TemplateView):
@@ -61,9 +77,16 @@ class WhatsappBaglanView(TemplateView):
         from tools.whatsapp_bridge_runner import bridge_spawn_allowed
 
         context = super().get_context_data(**kwargs)
-        context['whatsapp_bridge_url'] = getattr(django_settings, 'WHATSAPP_BRIDGE_URL', 'http://127.0.0.1:3939')
+        from urllib.parse import urlparse
+
+        bridge_url = getattr(django_settings, 'WHATSAPP_BRIDGE_URL', 'http://127.0.0.1:3939')
+        context['whatsapp_bridge_url'] = bridge_url
         context['whatsapp_bridge_can_spawn'] = bridge_spawn_allowed()
         context['whatsapp_bridge_is_windows'] = sys.platform == 'win32'
+        host = (urlparse(bridge_url).hostname or '').lower()
+        context['whatsapp_bridge_url_is_local'] = host in ('127.0.0.1', 'localhost', '::1')
+        if not context['whatsapp_bridge_can_spawn']:
+            context['whatsapp_bridge_url_docker'] = 'http://whatsapp-bridge:3939'
         return context
 
 
@@ -138,7 +161,10 @@ def firms_memory_list(request):
     page = max(int(request.GET.get('page') or 1), 1)
     page_size = min(max(int(request.GET.get('page_size') or 50), 1), 200)
 
-    qs = MapsScrapedFirm.objects.prefetch_related('tags').all().order_by('-last_scraped_at')
+    kind = (request.GET.get('kind') or '').strip()
+    qs = MapsScrapedFirm.objects.prefetch_related('tags', 'solution_partner__partner_type').all().order_by('-last_scraped_at')
+    if kind and kind != 'all':
+        qs = qs.filter(firm_kind=kind)
     if q:
         qs = qs.filter(
             Q(name__icontains=q)

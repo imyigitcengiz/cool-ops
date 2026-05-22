@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}CRM{% endblock %} | {{ site_settings.site_name }}</title>
+    <title>{% block title %}{{ gy.rehber }}{% endblock %} | {{ site_settings.site_name }}</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -32,11 +32,11 @@
 <body class="flex h-screen overflow-hidden bg-slate-100">
     <aside class="w-64 bg-slate-900 text-slate-300 flex-shrink-0 flex flex-col">
         <div class="p-6">
-            <a href="{% url 'ortak_hub' %}" class="text-xl font-bold text-white flex items-center gap-2">
+            <a href="{% url 'contact_hub' %}" class="text-xl font-bold text-white flex items-center gap-2">
                 <span class="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center text-white">
-                    <i data-lucide="contact" class="w-5 h-5"></i>
+                    <i data-lucide="book-user" class="w-5 h-5"></i>
                 </span>
-                CRM
+                {{ gy.rehber }}
             </a>
             <p class="text-xs text-slate-500 mt-2">{{ site_settings.site_name }}</p>
         </div>
@@ -57,10 +57,10 @@
                 <span class="font-medium text-sm">Müşteriler</span>
             </a>
             {% endif %}
-            {% if user_perms.contact_solution %}
-            <a href="{% url 'solution_network' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl {% if request.resolver_match.url_name == 'solution_network' %}bg-brand-600 text-white{% else %}text-slate-400 hover:text-white hover:bg-slate-800{% endif %}">
-                <i data-lucide="network" class="w-5 h-5"></i>
-                <span class="font-medium text-sm">Çözüm Ağı</span>
+            {% if user_perms.contact_firms %}
+            <a href="{% url 'contact_firmalar' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl {% if request.resolver_match.url_name == 'contact_firmalar' or request.resolver_match.url_name == 'contact_firma_bul' %}bg-brand-600 text-white{% else %}text-slate-400 hover:text-white hover:bg-slate-800{% endif %}">
+                <i data-lucide="building-2" class="w-5 h-5"></i>
+                <span class="font-medium text-sm">Firmalar</span>
             </a>
             {% endif %}
             {% if user_perms.contact_teams %}
@@ -75,24 +75,13 @@
                 <span class="font-medium text-sm">Personel</span>
             </a>
             {% endif %}
-            {% if user_access.sales or user_access.services %}
             <div class="pt-4 mt-4 border-t border-slate-800">
-                <p class="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Modüller</p>
-                {% if user_access.sales %}
-                <a href="{% url 'sales_lead_dashboard' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800">
-                    <i data-lucide="badge-dollar-sign" class="w-5 h-5"></i>
-                    <span class="font-medium text-sm">Satış Kayıtları</span>
-                </a>
-                {% endif %}
-                {% if user_access.services %}
-                <a href="{% url 'dashboard' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800">
-                    <i data-lucide="wrench" class="w-5 h-5"></i>
-                    <span class="font-medium text-sm">Servis Kayıtları</span>
-                </a>
-                {% endif %}
+                <p class="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Diğer modüller</p>
+                {% include 'common/erp_sidebar_modules.html' %}
             </div>
-            {% endif %}
+            {% include 'common/settings_nav_link.html' %}
         </nav>
+        {% include 'common/profile_sidebar_card.html' %}
     </aside>
 
     <main class="flex-1 overflow-y-auto">
@@ -106,7 +95,7 @@
 
         <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200 px-8 py-4 flex items-center justify-between">
             <div>
-                {% block header_title %}<h1 class="text-lg font-bold text-slate-900">CRM</h1>{% endblock %}
+                {% block header_title %}<h1 class="text-lg font-bold text-slate-900">{{ gy.rehber }}</h1>{% endblock %}
             </div>
             <div class="flex items-center gap-3">
                 {% block header_actions %}{% endblock %}
@@ -121,6 +110,7 @@
     <script>
         window.ORTAK_BASE = '/ortak';
         window.CUSTOMER_API_BASE = '/ortak';
+        window.AYARLAR_BASE = '/ayarlar';
     </script>
     <script>{% if user.is_authenticated %}window.GY_USER_ID = {{ user.id }};{% endif %}</script>
     {% load static %}

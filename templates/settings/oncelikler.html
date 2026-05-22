@@ -1,0 +1,10 @@
+{% extends 'settings/base.html' %}
+{% block title %}Öncelikler{% endblock %}
+{% block content %}
+<div class="pb-12 max-w-3xl">
+    {% include 'settings/_page_header.html' %}
+    <p class="text-sm text-slate-600 -mt-4 mb-6">{{ gy.yardim_masasi }} kayıtlarında kullanılan öncelik seviyeleri.</p>
+    {% include 'services_dashboard/partials/option_add_card.html' with title='Öncelik seviyeleri' form=priority_form items=priorities add_action='add_priority' update_action='update_priority' delete_action='delete_priority' default_color='#6b7280' %}
+</div>
+{% endblock %}
+{% block extra_js %}{% include 'settings/_scripts_options.html' %}{% endblock %}

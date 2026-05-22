@@ -1,0 +1,22 @@
+{% load static %}
+<script src="{% static 'js/color-picker.js' %}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.initColorPickers) initColorPickers();
+
+        document.querySelectorAll('.option-edit-toggle').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const panel = btn.closest('.option-item').querySelector('.option-edit-panel');
+                const open = !panel.classList.contains('hidden');
+                document.querySelectorAll('.option-edit-panel').forEach(p => p.classList.add('hidden'));
+                if (!open) {
+                    panel.classList.remove('hidden');
+                    if (window.initColorPickers) initColorPickers(panel);
+                }
+                if (window.lucide) lucide.createIcons();
+            });
+        });
+
+        if (window.lucide) lucide.createIcons();
+    });
+</script>

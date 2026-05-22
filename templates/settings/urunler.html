@@ -1,0 +1,10 @@
+{% extends 'settings/base.html' %}
+{% block title %}Ürünler{% endblock %}
+{% block content %}
+<div class="pb-12 max-w-3xl">
+    {% include 'settings/_page_header.html' %}
+    <p class="text-sm text-slate-600 -mt-4 mb-6">{{ gy.yardim_masasi }} ve {{ gy.satis_birimi }} formlarında kullanılan ortak ürün kataloğu.</p>
+    {% include 'services_dashboard/partials/option_add_card.html' with title='Ürünler' form=product_form items=products add_action='add_product' update_action='update_product' delete_action='delete_product' default_color='#0284c7' use_product_item=True all_service_types=all_service_types %}
+</div>
+{% endblock %}
+{% block extra_js %}{% include 'settings/_scripts_options.html' %}{% endblock %}

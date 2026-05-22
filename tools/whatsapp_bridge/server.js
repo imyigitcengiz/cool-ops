@@ -6,6 +6,8 @@ const qrcode = require('qrcode');
 const { Client, LocalAuth } = require('whatsapp-web.js');
 
 const PORT = process.env.WHATSAPP_BRIDGE_PORT || 3939;
+/** Docker / Coolify: 0.0.0.0 — yerel geliştirme varsayılanı 127.0.0.1 */
+const BIND_HOST = process.env.WHATSAPP_BRIDGE_BIND || '127.0.0.1';
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
@@ -303,8 +305,8 @@ app.post('/api/disconnect', async (_req, res) => {
   res.json({ ok: true, status: session.state.status });
 });
 
-app.listen(PORT, '127.0.0.1', () => {
-  console.log(`WhatsApp bridge listening on http://127.0.0.1:${PORT}`);
+app.listen(PORT, BIND_HOST, () => {
+  console.log(`WhatsApp bridge listening on http://${BIND_HOST}:${PORT}`);
   restorePersistedSessions().catch((err) => {
     console.error('Oturum geri yükleme hatası:', err.message || err);
   });

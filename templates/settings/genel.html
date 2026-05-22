@@ -1,0 +1,58 @@
+{% extends 'settings/base.html' %}
+{% block title %}Genel bilgiler{% endblock %}
+{% block content %}
+<div class="pb-12">
+    {% include 'settings/_page_header.html' %}
+    <p class="text-sm text-slate-600 -mt-4 mb-6">Site adı, logo, firma telefonu ve adresi.</p>
+
+    <section class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+        <form method="post" enctype="multipart/form-data" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {% csrf_token %}
+            <input type="hidden" name="update_site" value="1">
+            <div class="space-y-4 md:col-span-2">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-sm font-semibold text-slate-700">Site / firma adı</label>
+                        {{ settings_form.site_name }}
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-semibold text-slate-700">Logo</label>
+                        {{ settings_form.logo }}
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-semibold text-slate-700">Firma telefonu</label>
+                        {{ settings_form.company_phone }}
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-semibold text-slate-700">Firma adresi</label>
+                    {{ settings_form.company_address }}
+                </div>
+            </div>
+            <div class="md:col-span-2 flex justify-end">
+                <button type="submit" class="px-8 py-3 bg-amber-600 text-white rounded-xl font-bold hover:bg-amber-700 transition-all">
+                    Kaydet
+                </button>
+            </div>
+        </form>
+    </section>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const companyPhoneInput = document.querySelector('input[name="company_phone"]');
+        if (companyPhoneInput && window.intlTelInput) {
+            const iti = window.intlTelInput(companyPhoneInput, {
+                initialCountry: 'tr',
+                separateDialCode: true,
+                utilsScript: 'https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.10/build/js/utils.js',
+            });
+            const form = companyPhoneInput.closest('form');
+            form.addEventListener('submit', function() {
+                if (iti.isValidNumber()) companyPhoneInput.value = iti.getNumber();
+            });
+        }
+    });
+</script>
+{% endblock %}

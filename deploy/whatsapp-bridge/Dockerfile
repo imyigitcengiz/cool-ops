@@ -9,7 +9,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    WHATSAPP_BRIDGE_PORT=3939
+    WHATSAPP_BRIDGE_PORT=3939 \
+    WHATSAPP_BRIDGE_BIND=0.0.0.0
 
 WORKDIR /app
 

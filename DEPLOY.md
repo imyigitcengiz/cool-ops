@@ -62,26 +62,46 @@ Detay: [deploy/coolify/README.md](deploy/coolify/README.md)
 
 ## Yerel geliştirme (Windows)
 
+1. [Node.js LTS](https://nodejs.org) kurun (sistem `node`, Cursor IDE içi node değil).
+2. Bir kez köprü bağımlılıkları:
+
+```bash
+cd tools/whatsapp_bridge
+npm install
+```
+
+3. Panel:
+
 ```bash
 pip install -r requirements.txt
 python manage.py migrate
-# İsteğe bağlı otomatik köprü:
-set DJANGO_WHATSAPP_BRIDGE_AUTO_START=1
 python manage.py runserver
 ```
 
-Köprüyü elle: `cd tools/whatsapp_bridge && npm install && npm start`
+`DATA_DIR` yokken Django **otomatik** Node köprüsünü başlatır (`DJANGO_WHATSAPP_BRIDGE_AUTO_START` varsayılan açık). Kapatmak için: `set DJANGO_WHATSAPP_BRIDGE_AUTO_START=0`.
 
-`WHATSAPP_BRIDGE_URL=http://127.0.0.1:3939` ve `DJANGO_WHATSAPP_BRIDGE_CAN_SPAWN=1` (varsayılan, `DATA_DIR` yokken).
+Köprüyü elle: `cd tools/whatsapp_bridge && npm start` → http://127.0.0.1:3939
+
+`WHATSAPP_BRIDGE_URL=http://127.0.0.1:3939` — isteğe bağlı `WHATSAPP_BRIDGE_NODE=C:\Program Files\nodejs\node.exe`
 
 ## Sorun giderme — “Köprü çalışmıyor”
 
-1. `docker compose ps` — `whatsapp-bridge` **healthy** mi?
-2. App loglarında `WHATSAPP_BRIDGE_URL` doğru mu? (`http://whatsapp-bridge:3939` compose içinde)
-3. Köprü logları: `docker compose logs whatsapp-bridge`
-4. Sadece panel konteyneri varsa: ikinci servisi ekleyin veya harici köprü URL’si verin.
+**Docker / Coolify (üretim)**
 
-“Başlatılıyor…” sonsuz döngüsü eski sürümde yerel port kontrolünden kaynaklanıyordu; güncel kod uzak URL’ye HTTP ile bakar.
+1. `docker compose ps` — `whatsapp-bridge` **healthy** mi?
+2. App ortamında `WHATSAPP_BRIDGE_URL=http://whatsapp-bridge:3939` ve `DJANGO_WHATSAPP_BRIDGE_CAN_SPAWN=0`
+3. Köprü logları: `docker compose logs whatsapp-bridge` (Chromium / QR hataları burada)
+4. Sadece `app` konteyneri kurulduysa WhatsApp **çalışmaz** — `whatsapp-bridge` servisini ekleyin (`deploy/coolify/compose.yaml`).
+5. Panel açılışında entrypoint köprüyü bekler; hazır değilse logda uyarı görünür.
+
+**Yerel Windows**
+
+1. `node -v` çalışıyor mu? (`tools/whatsapp_bridge` içinde `npm install` yapıldı mı?)
+2. `http://127.0.0.1:3939/health` tarayıcıda `{"ok":true}` dönmeli.
+3. Araçlar → WhatsApp bağlan → “Köprüyü başlat” veya sunucuyu yeniden başlatın (otomatik spawn).
+4. Port 3939 meşgulse Görev Yöneticisi’nden eski `node.exe` sürecini kapatın.
+
+Manuel test: `python manage.py wait_whatsapp_bridge --timeout 30 --spawn`
 
 ## Ekip sohbeti
 

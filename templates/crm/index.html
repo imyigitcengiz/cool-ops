@@ -1,10 +1,10 @@
 ﻿{% extends 'crm/base.html' %}
 
-{% block title %}Contact Özet{% endblock %}
+{% block title %}{{ gy.rehber }} — Özet{% endblock %}
 
 {% block header_title %}
-<h1 class="text-lg font-bold text-slate-900">Contact</h1>
-<p class="text-sm text-slate-500">Müşteriler, firmalar, çözüm ağı ve personel — satış ve servis modüllerinin veri merkezi.</p>
+<h1 class="text-lg font-bold text-slate-900">{{ gy.rehber }}</h1>
+<p class="text-sm text-slate-500">Müşteriler, firmalar ve personel — {{ gy.yardim_masasi }} ve {{ gy.satis_birimi }} ile ortak veri merkezi.</p>
 {% endblock %}
 
 {% block content %}
@@ -35,15 +35,7 @@
             <i data-lucide="building-2" class="w-6 h-6"></i>
         </div>
         <h2 class="text-lg font-bold text-slate-900">Firmalar</h2>
-        <p class="text-sm text-slate-500 mt-2">Kazınan firmaların rehberi; etiket, bölge ve toplu işlemler.</p>
-    </a>
-
-    <a href="{% url 'contact_firma_kazi' %}" class="group bg-white rounded-3xl border border-slate-200 shadow-sm p-6 hover:border-teal-300 hover:shadow-md transition-all">
-        <div class="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center mb-4 group-hover:bg-teal-100">
-            <i data-lucide="map-pin" class="w-6 h-6"></i>
-        </div>
-        <h2 class="text-lg font-bold text-slate-900">Firma Kazı</h2>
-        <p class="text-sm text-slate-500 mt-2">Google Maps üzerinden firma ve telefon kazıma.</p>
+        <p class="text-sm text-slate-500 mt-2">Manuel kayıt, kazınan firmalar, ortaklar — toplu mesaj ve etiketler. Maps araması panel içinde.</p>
     </a>
 
     <a href="{% url 'contact_tag_manager' %}" class="group bg-white rounded-3xl border border-slate-200 shadow-sm p-6 hover:border-indigo-300 hover:shadow-md transition-all">
@@ -62,16 +54,6 @@
         </div>
         <h2 class="text-lg font-bold text-slate-900">WhatsApp Senaryoları</h2>
         <p class="text-sm text-slate-500 mt-2">Otomatik mesaj kuralları ve hat bağlantıları.</p>
-    </a>
-    {% endif %}
-
-    {% if user_perms.contact_solution %}
-    <a href="{% url 'solution_network' %}" class="group bg-white rounded-3xl border border-slate-200 shadow-sm p-6 hover:border-brand-300 hover:shadow-md transition-all">
-        <div class="w-12 h-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mb-4 group-hover:bg-violet-100">
-            <i data-lucide="network" class="w-6 h-6"></i>
-        </div>
-        <h2 class="text-lg font-bold text-slate-900">Çözüm Ağı</h2>
-        <p class="text-sm text-slate-500 mt-2">Taşeron, nakliye ve dış servisçi ortakları.</p>
     </a>
     {% endif %}
 

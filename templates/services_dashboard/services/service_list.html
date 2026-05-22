@@ -1,12 +1,12 @@
 {% extends 'services_dashboard/base.html' %}
 {% load option_colors %}
 
-{% block title %}Servisler | GÖLGEDE YAŞAM{% endblock %}
+{% block title %}{{ gy.ym_kayitlar }} | GÖLGEDE YAŞAM{% endblock %}
 
 {% block content %}
 <div class="space-y-6">
     <div class="flex items-center justify-between">
-        <h2 class="text-2xl font-bold text-slate-900">Servisler</h2>
+        <h2 class="text-2xl font-bold text-slate-900">{{ gy.ym_kayitlar }}</h2>
         <div class="flex flex-wrap gap-3 items-center">
             {% include 'common/nav_media_library_btn.html' %}
             {% if user_perms.services_print %}

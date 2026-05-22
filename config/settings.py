@@ -78,16 +78,20 @@ else:
     CSRF_TRUSTED_ORIGINS = _csrf_origins_for_port(8000)
 
 WHATSAPP_BRIDGE_URL = os.environ.get('WHATSAPP_BRIDGE_URL', 'http://127.0.0.1:3939').strip()
-WHATSAPP_BRIDGE_AUTO_START = os.environ.get(
-    'DJANGO_WHATSAPP_BRIDGE_AUTO_START',
-    '0',
-).lower() in ('1', 'true', 'yes')
 # Yerel Node köprüsünü Django sürecinden başlatma (Docker/production: 0)
 _can_spawn_env = os.environ.get('DJANGO_WHATSAPP_BRIDGE_CAN_SPAWN', '').strip()
 if _can_spawn_env:
     WHATSAPP_BRIDGE_CAN_SPAWN = _can_spawn_env.lower() in ('1', 'true', 'yes')
 else:
     WHATSAPP_BRIDGE_CAN_SPAWN = not bool(os.environ.get('DATA_DIR', '').strip())
+_auto_start_env = os.environ.get('DJANGO_WHATSAPP_BRIDGE_AUTO_START', '').strip()
+if _auto_start_env:
+    WHATSAPP_BRIDGE_AUTO_START = _auto_start_env.lower() in ('1', 'true', 'yes')
+else:
+    # Yerelde (spawn açık) runserver/daphne ile Node köprüsünü otomatik aç
+    WHATSAPP_BRIDGE_AUTO_START = WHATSAPP_BRIDGE_CAN_SPAWN
+WHATSAPP_BRIDGE_AUTO_START_RETRIES = int(os.environ.get('DJANGO_WHATSAPP_BRIDGE_AUTO_START_RETRIES', '15'))
+WHATSAPP_BRIDGE_AUTO_START_DELAY = float(os.environ.get('DJANGO_WHATSAPP_BRIDGE_AUTO_START_DELAY', '2'))
 WHATSAPP_BRIDGE_RUN_AS_ADMIN = os.environ.get(
     'DJANGO_WHATSAPP_BRIDGE_RUN_AS_ADMIN', '0',
 ).lower() in ('1', 'true', 'yes')
@@ -148,6 +152,7 @@ TEMPLATES = [
                 'core_settings.context_processors.site_settings',
                 'users.context_processors.user_profile_card',
                 'users.context_access.user_access',
+                'common.context_processors.gy_branding',
             ],
         },
     },

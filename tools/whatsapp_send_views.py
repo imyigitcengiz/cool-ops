@@ -57,6 +57,28 @@ def pick_ready_connection(preferred_id=None, *, strict=False) -> tuple[int | Non
     return None, None, None
 
 
+def _resolve_send_type(*, customer_id=None, firm=None, collection_id=None, source: str = '', explicit: str = '') -> str:
+    if explicit:
+        return explicit
+    if customer_id:
+        return WhatsappOutboundMessage.SEND_CUSTOMER
+    if collection_id:
+        return WhatsappOutboundMessage.SEND_CAMPAIGN
+    if source == WhatsappOutboundMessage.SOURCE_AUTO:
+        return WhatsappOutboundMessage.SEND_AUTO
+    if firm:
+        kind_map = {
+            MapsScrapedFirm.KIND_PARTNER: WhatsappOutboundMessage.SEND_PARTNER,
+            MapsScrapedFirm.KIND_DEALER: WhatsappOutboundMessage.SEND_DEALER,
+            MapsScrapedFirm.KIND_BUSINESS: WhatsappOutboundMessage.SEND_BUSINESS,
+            MapsScrapedFirm.KIND_SCRAPED: WhatsappOutboundMessage.SEND_SCRAPED,
+        }
+        return kind_map.get(firm.firm_kind, WhatsappOutboundMessage.SEND_PRIVATE)
+    if source == WhatsappOutboundMessage.SOURCE_SCRAPED:
+        return WhatsappOutboundMessage.SEND_SCRAPED
+    return WhatsappOutboundMessage.SEND_PRIVATE
+
+
 def _log_and_send(
     *,
     phone_raw: str,
@@ -66,7 +88,9 @@ def _log_and_send(
     recipient_name: str = '',
     customer_id=None,
     firm_id=None,
+    collection_id=None,
     source: str = WhatsappOutboundMessage.SOURCE_MANUAL,
+    send_type: str = '',
 ):
     firm = None
     if firm_id:
@@ -83,6 +107,13 @@ def _log_and_send(
     elif phone_norm:
         firm = MapsScrapedFirm.objects.filter(phone_normalized=phone_norm).first()
 
+    resolved_send_type = _resolve_send_type(
+        customer_id=customer_id,
+        firm=firm,
+        collection_id=collection_id,
+        source=source,
+        explicit=send_type,
+    )
     outbound = WhatsappOutboundMessage.objects.create(
         firm=firm,
         recipient_name=recipient_name or (firm.name if firm else 'Alıcı'),
@@ -91,6 +122,7 @@ def _log_and_send(
         message=message,
         status=WhatsappOutboundMessage.STATUS_SENDING,
         source=source,
+        send_type=resolved_send_type,
     )
 
     conn_id, _, conn_err = pick_ready_connection(connection_id, strict=bool(connection_id))
@@ -172,7 +204,9 @@ def whatsapp_send_api(request):
     recipient_name = (body.get('recipient_name') or '').strip()
     customer_id = body.get('customer_id')
     firm_id = body.get('firm_id')
+    collection_id = body.get('collection_id')
     source = (body.get('source') or WhatsappOutboundMessage.SOURCE_MANUAL).strip()
+    send_type = (body.get('send_type') or '').strip()
 
     phone_norm = normalize_phone(phone_raw)
     if not is_whatsapp_eligible(phone_raw, phone_norm):
@@ -191,7 +225,9 @@ def whatsapp_send_api(request):
             recipient_name=recipient_name,
             customer_id=customer_id,
             firm_id=firm_id,
+            collection_id=collection_id,
             source=source,
+            send_type=send_type,
         )
     except WhatsappBridgeOffline as exc:
         return JsonResponse({'ok': False, 'offline': True, 'error': str(exc)}, status=503)

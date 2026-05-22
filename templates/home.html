@@ -63,55 +63,118 @@
             {% endif %}
             <div class="mb-10">
                 <h2 class="text-2xl font-bold text-slate-900">Hoş geldiniz, {{ user_profile_card.display_name }}</h2>
-                <p class="text-slate-600 mt-2">Yetkiniz olan modülü seçin.</p>
+                <p class="text-slate-600 mt-2">ERP modüllerine göre gruplandırılmış kısayollar.</p>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {% if user_access.contact %}
-                <a href="{% url 'contact_hub' %}" class="group block bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-violet-200 transition-all p-6">
-                    <div class="w-12 h-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mb-4 group-hover:bg-violet-600 group-hover:text-white transition-colors"><i data-lucide="contact" class="w-6 h-6"></i></div>
-                    <h3 class="text-lg font-bold text-slate-900">Contact</h3>
-                    <p class="text-sm text-slate-500 mt-2">Müşteriler, firmalar, çözüm ağı, personel.</p>
-                </a>
-                {% endif %}
-                {% if user_access.services %}
-                <a href="{% url 'dashboard' %}" class="group block bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-brand-200 transition-all p-6">
-                    <div class="w-12 h-12 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mb-4 group-hover:bg-brand-600 group-hover:text-white transition-colors"><i data-lucide="wrench" class="w-6 h-6"></i></div>
-                    <h3 class="text-lg font-bold text-slate-900">Servis Yönetim</h3>
-                    <p class="text-sm text-slate-500 mt-2">Servis kayıtları, operasyon paneli, WhatsApp.</p>
-                </a>
-                {% endif %}
-                {% if user_access.sales %}
-                <a href="{% url 'sales_lead_dashboard' %}" class="group block bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-amber-200 transition-all p-6">
-                    <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-4 group-hover:bg-amber-600 group-hover:text-white transition-colors"><i data-lucide="badge-dollar-sign" class="w-6 h-6"></i></div>
-                    <h3 class="text-lg font-bold text-slate-900">Satış Kayıtları</h3>
-                    <p class="text-sm text-slate-500 mt-2">Satış işlemleri ve raporlar.</p>
-                </a>
-                {% endif %}
-                {% if user_perms.tools_media %}
-                <a href="{% url 'tools_media_library' %}" class="group block bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-sky-200 transition-all p-6">
-                    <div class="w-12 h-12 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mb-4 group-hover:bg-sky-600 group-hover:text-white transition-colors"><i data-lucide="images" class="w-6 h-6"></i></div>
-                    <h3 class="text-lg font-bold text-slate-900">Medya Yöneticisi</h3>
-                    <p class="text-sm text-slate-500 mt-2">Servis fotoğrafları, sözleşmeler ve tüm dosyalar.</p>
-                </a>
-                {% endif %}
-                {% if user_access.tools %}
-                <a href="{% url 'tools_hub' %}" class="group block bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-slate-300 transition-all p-6">
-                    <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center mb-4 group-hover:bg-slate-700 group-hover:text-white transition-colors"><i data-lucide="hammer" class="w-6 h-6"></i></div>
-                    <h3 class="text-lg font-bold text-slate-900">Tools</h3>
-                    <p class="text-sm text-slate-500 mt-2">WhatsApp, AI ve yedekleme araçları.</p>
-                </a>
-                {% endif %}
-                {% if user_access.admin_panel %}
-                <a href="{% url 'admin_dashboard' %}" class="group block bg-white rounded-3xl border border-red-200 shadow-sm hover:shadow-xl hover:border-red-300 transition-all p-6 bg-red-50/30">
-                    <div class="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mb-4 group-hover:bg-red-600 group-hover:text-white transition-colors"><i data-lucide="shield" class="w-6 h-6"></i></div>
-                    <h3 class="text-lg font-bold text-slate-900">Süper Admin Paneli</h3>
-                    <p class="text-sm text-slate-500 mt-2">Kullanıcılar, roller ve izin yönetimi.</p>
-                </a>
-                {% endif %}
-            </div>
-            {% if not user_access.contact and not user_access.services and not user_access.sales and not user_access.tools and not user_access.admin_panel %}
-            <div class="mt-8 p-6 rounded-2xl bg-amber-50 border border-amber-100 text-amber-800 text-sm">
+            {% if user_access.contact %}
+            <section class="mb-10">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-violet-600 mb-4 flex items-center gap-2">
+                    <i data-lucide="book-user" class="w-4 h-4"></i> {{ gy.rehber }}
+                </h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <a href="{% url 'contact_hub' %}" class="group block bg-white rounded-3xl border border-violet-200 shadow-sm hover:shadow-lg hover:border-violet-300 transition-all p-6">
+                        <div class="w-12 h-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mb-4 group-hover:bg-violet-600 group-hover:text-white transition-colors"><i data-lucide="layout-grid" class="w-6 h-6"></i></div>
+                        <h4 class="text-lg font-bold text-slate-900">{{ gy.rehber_ozet }}</h4>
+                        <p class="text-sm text-slate-500 mt-2">Müşteriler, firmalar, ekip ve personel.</p>
+                    </a>
+                    {% if user_perms.contact_customers_view or user_perms.contact_customers %}
+                    <a href="{% url 'customers' %}" class="group block bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-lg p-6">
+                        <div class="w-12 h-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mb-4"><i data-lucide="users" class="w-6 h-6"></i></div>
+                        <h4 class="text-lg font-bold text-slate-900">{{ gy.rehber_musteriler }}</h4>
+                        <p class="text-sm text-slate-500 mt-2">Müşteri kartları ve sözleşmeler.</p>
+                    </a>
+                    {% endif %}
+                    {% if user_perms.contact_firms %}
+                    <a href="{% url 'contact_firmalar' %}" class="group block bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-lg p-6">
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4"><i data-lucide="building-2" class="w-6 h-6"></i></div>
+                        <h4 class="text-lg font-bold text-slate-900">{{ gy.rehber_firmalar }}</h4>
+                        <p class="text-sm text-slate-500 mt-2">Manuel kayıt, kazınan ve ortak firmalar; Maps araması tek panelde.</p>
+                    </a>
+                    {% endif %}
+                </div>
+            </section>
+            {% endif %}
+
+            {% if user_access.services %}
+            <section class="mb-10">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-brand-600 mb-4 flex items-center gap-2">
+                    <i data-lucide="headphones" class="w-4 h-4"></i> {{ gy.yardim_masasi }}
+                </h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <a href="{% url 'dashboard' %}" class="group block bg-white rounded-3xl border border-brand-200 shadow-sm hover:shadow-lg hover:border-brand-300 transition-all p-6">
+                        <div class="w-12 h-12 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mb-4 group-hover:bg-brand-600 group-hover:text-white transition-colors"><i data-lucide="layout-dashboard" class="w-6 h-6"></i></div>
+                        <h4 class="text-lg font-bold text-slate-900">{{ gy.ym_ozet }}</h4>
+                        <p class="text-sm text-slate-500 mt-2">Operasyon paneli ve istatistikler.</p>
+                    </a>
+                    <a href="{% url 'services' %}" class="group block bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-lg p-6">
+                        <div class="w-12 h-12 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mb-4"><i data-lucide="clipboard-list" class="w-6 h-6"></i></div>
+                        <h4 class="text-lg font-bold text-slate-900">{{ gy.ym_kayitlar }}</h4>
+                        <p class="text-sm text-slate-500 mt-2">Talep kayıtları, durum ve WhatsApp.</p>
+                    </a>
+                </div>
+            </section>
+            {% endif %}
+
+            {% if user_access.sales %}
+            <section class="mb-10">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-amber-600 mb-4 flex items-center gap-2">
+                    <i data-lucide="badge-dollar-sign" class="w-4 h-4"></i> {{ gy.satis_birimi }}
+                </h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <a href="{% url 'sales_lead_dashboard' %}" class="group block bg-white rounded-3xl border border-amber-200 shadow-sm hover:shadow-lg hover:border-amber-300 transition-all p-6">
+                        <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-4 group-hover:bg-amber-600 group-hover:text-white transition-colors"><i data-lucide="bar-chart-3" class="w-6 h-6"></i></div>
+                        <h4 class="text-lg font-bold text-slate-900">{{ gy.sb_ozet }}</h4>
+                        <p class="text-sm text-slate-500 mt-2">Satış özeti ve raporlar.</p>
+                    </a>
+                    <a href="{% url 'sales_lead_list' %}" class="group block bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-lg p-6">
+                        <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-4"><i data-lucide="list" class="w-6 h-6"></i></div>
+                        <h4 class="text-lg font-bold text-slate-900">{{ gy.sb_kayitlar }}</h4>
+                        <p class="text-sm text-slate-500 mt-2">Satış işlemleri listesi.</p>
+                    </a>
+                </div>
+            </section>
+            {% endif %}
+
+            {% if user_perms.tools_media or user_access.tools or user_access.settings or user_access.admin_panel %}
+            <section class="mb-10">
+                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-2">
+                    <i data-lucide="layers" class="w-4 h-4"></i> Sistem
+                </h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {% if user_perms.tools_media %}
+                    <a href="{% url 'tools_media_library' %}" class="group block bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-lg p-6">
+                        <div class="w-12 h-12 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mb-4"><i data-lucide="images" class="w-6 h-6"></i></div>
+                        <h4 class="text-lg font-bold text-slate-900">Medya Yöneticisi</h4>
+                        <p class="text-sm text-slate-500 mt-2">Dosya ve fotoğraf arşivi.</p>
+                    </a>
+                    {% endif %}
+                    {% if user_access.tools %}
+                    <a href="{% url 'tools_hub' %}" class="group block bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-lg p-6">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center mb-4"><i data-lucide="hammer" class="w-6 h-6"></i></div>
+                        <h4 class="text-lg font-bold text-slate-900">Tools</h4>
+                        <p class="text-sm text-slate-500 mt-2">WhatsApp, yedekleme, AI.</p>
+                    </a>
+                    {% endif %}
+                    {% if user_access.settings %}
+                    <a href="{% url 'settings_genel' %}" class="group block bg-white rounded-3xl border border-amber-200 shadow-sm hover:shadow-lg p-6">
+                        <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-4"><i data-lucide="sliders-horizontal" class="w-6 h-6"></i></div>
+                        <h4 class="text-lg font-bold text-slate-900">Site Ayarları</h4>
+                        <p class="text-sm text-slate-500 mt-2">Modül tanımları ve firma bilgileri.</p>
+                    </a>
+                    {% endif %}
+                    {% if user_access.admin_panel %}
+                    <a href="{% url 'admin_dashboard' %}" class="group block bg-white rounded-3xl border border-red-200 shadow-sm hover:shadow-lg p-6 bg-red-50/30">
+                        <div class="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mb-4"><i data-lucide="shield" class="w-6 h-6"></i></div>
+                        <h4 class="text-lg font-bold text-slate-900">Süper Admin</h4>
+                        <p class="text-sm text-slate-500 mt-2">Kullanıcılar ve roller.</p>
+                    </a>
+                    {% endif %}
+                </div>
+            </section>
+            {% endif %}
+
+            {% if not user_access.contact and not user_access.services and not user_access.sales and not user_access.tools and not user_access.admin_panel and not user_access.settings %}
+            <div class="p-6 rounded-2xl bg-amber-50 border border-amber-100 text-amber-800 text-sm">
                 Hesabınıza henüz modül izni atanmamış. Yöneticinizle iletişime geçin.
             </div>
             {% endif %}

@@ -2,6 +2,13 @@ from django.urls import path, include
 from django.views.generic import RedirectView
 
 from analytics.views import DashboardView
+from core_settings.views import (
+    settings_api,
+    options_catalog_api,
+    service_types_for_products_api,
+    quick_option_create_api,
+    quick_option_update_api,
+)
 from services.views import (
     ServiceListView, ServiceCreateView, ServiceUpdateView, ServiceDeleteView,
     ServicePrintView, ServiceBulkPrintView, bulk_delete_services, send_services_whatsapp, send_services_whatsapp_auto,
@@ -11,14 +18,6 @@ from services.views import (
     service_whatsapp_status_confirm_api,
     customer_service_summary_api,
     service_reopen_api,
-)
-from core_settings.views import (
-    SiteSettingsView,
-    settings_api,
-    options_catalog_api,
-    service_types_for_products_api,
-    quick_option_create_api,
-    quick_option_update_api,
 )
 
 urlpatterns = [
@@ -44,18 +43,17 @@ urlpatterns = [
     path('services/send-whatsapp/', send_services_whatsapp, name='service_send_whatsapp'),
     path('services/send-whatsapp-auto/', send_services_whatsapp_auto, name='service_send_whatsapp_auto'),
 
-    # Settings
-    path('settings/', SiteSettingsView.as_view(), name='site_settings'),
+    path('settings/', RedirectView.as_view(url='/ayarlar/genel/', permanent=False), name='site_settings'),
     path('profile-settings/', RedirectView.as_view(url='/profil/', permanent=False), name='profile_settings_legacy'),
-    path('solution-network/', RedirectView.as_view(url='/contact/cozum-agi/', permanent=False)),
+    path('solution-network/', RedirectView.as_view(url='/contact/firmalar/?kind=partner', permanent=False)),
     path('personnel-network/', RedirectView.as_view(url='/contact/personel/', permanent=False)),
 
-    # API
-    path('api/settings/', settings_api, name='settings_api'),
-    path('api/options/catalog/', options_catalog_api, name='options_catalog_api'),
-    path('api/options/service-types/', service_types_for_products_api, name='service_types_for_products_api'),
-    path('api/options/quick-create/', quick_option_create_api, name='quick_option_create_api'),
-    path('api/options/quick-update/', quick_option_update_api, name='quick_option_update_api'),
+    # Geriye dönük API (POST redirect bozar; aynı view)
+    path('api/settings/', settings_api),
+    path('api/options/catalog/', options_catalog_api),
+    path('api/options/service-types/', service_types_for_products_api),
+    path('api/options/quick-create/', quick_option_create_api),
+    path('api/options/quick-update/', quick_option_update_api),
 
     # AI (Tools'a taşındı — eski URL'ler yönlendirilir)
     path('api/ai-chat/chat/', RedirectView.as_view(url='/tools/api/ai-chat/chat/', permanent=False)),

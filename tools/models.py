@@ -35,6 +35,16 @@ class FirmTag(models.Model):
 
 
 class MapsScrapedFirm(models.Model):
+    KIND_SCRAPED = 'scraped'
+    KIND_PARTNER = 'partner'
+    KIND_DEALER = 'dealer'
+    KIND_BUSINESS = 'business'
+    KIND_CHOICES = (
+        (KIND_SCRAPED, 'Kazınan'),
+        (KIND_PARTNER, 'Çözüm ortağı'),
+        (KIND_DEALER, 'Bayi'),
+        (KIND_BUSINESS, 'İş ortağı'),
+    )
 
     place_id = models.CharField(max_length=128, blank=True, default='')
 
@@ -68,15 +78,31 @@ class MapsScrapedFirm(models.Model):
 
     notes = models.CharField(max_length=255, blank=True, default='')
     region = models.CharField(max_length=80, blank=True, default='', db_index=True, verbose_name='Bölge')
+    firm_kind = models.CharField(
+        max_length=20,
+        choices=KIND_CHOICES,
+        default=KIND_SCRAPED,
+        db_index=True,
+        verbose_name='Firma türü',
+    )
+    is_active = models.BooleanField(default=True, verbose_name='Aktif')
+    solution_partner = models.OneToOneField(
+        'core_settings.SolutionPartner',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='directory_entry',
+        verbose_name='Çözüm ortağı kaydı',
+    )
     tags = models.ManyToManyField(FirmTag, blank=True, related_name='firms')
 
 
 
     class Meta:
 
-        verbose_name = 'Maps firması'
+        verbose_name = 'Firma rehberi'
 
-        verbose_name_plural = 'Maps firmaları'
+        verbose_name_plural = 'Firma rehberi'
 
         ordering = ['-last_scraped_at']
 
@@ -270,6 +296,25 @@ class WhatsappOutboundMessage(models.Model):
 
     )
 
+    SEND_CUSTOMER = 'customer'
+    SEND_SCRAPED = 'scraped_firm'
+    SEND_PARTNER = 'partner'
+    SEND_DEALER = 'dealer'
+    SEND_BUSINESS = 'business'
+    SEND_CAMPAIGN = 'campaign'
+    SEND_PRIVATE = 'private'
+    SEND_AUTO = 'auto'
+    SEND_TYPE_CHOICES = (
+        (SEND_CUSTOMER, 'Müşteri'),
+        (SEND_SCRAPED, 'Kazınan firma'),
+        (SEND_PARTNER, 'Çözüm ortağı'),
+        (SEND_DEALER, 'Bayi'),
+        (SEND_BUSINESS, 'İş ortağı'),
+        (SEND_CAMPAIGN, 'Kampanya'),
+        (SEND_PRIVATE, 'Özel (toplu)'),
+        (SEND_AUTO, 'Otomatik senaryo'),
+    )
+
 
 
     collection = models.ForeignKey(
@@ -311,6 +356,14 @@ class WhatsappOutboundMessage(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
 
     source = models.CharField(max_length=20, choices=SOURCE_CHOICES, default=SOURCE_SCRAPED)
+    send_type = models.CharField(
+        max_length=24,
+        choices=SEND_TYPE_CHOICES,
+        blank=True,
+        default='',
+        db_index=True,
+        verbose_name='Gönderim türü',
+    )
 
     error_message = models.CharField(max_length=500, blank=True, default='')
 

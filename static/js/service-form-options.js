@@ -149,7 +149,7 @@
       ).map((cb) => parseInt(cb.value, 10));
     }
 
-    const base = window.SD_BASE || '/services-dashboard';
+    const base = window.AYARLAR_BASE || '/ayarlar';
     const url = id ? `${base}/api/options/quick-update/` : `${base}/api/options/quick-create/`;
     if (id) {
       body.id = parseInt(id, 10);

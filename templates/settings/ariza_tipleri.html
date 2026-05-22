@@ -1,0 +1,10 @@
+{% extends 'settings/base.html' %}
+{% block title %}Arıza tipleri{% endblock %}
+{% block content %}
+<div class="pb-12 max-w-3xl">
+    {% include 'settings/_page_header.html' %}
+    <p class="text-sm text-slate-600 -mt-4 mb-6">Ürünle eşleştirilir. Renkler bağlı ürünlerden alınır; bu sayfada ürün ilişkisini yönetirsiniz.</p>
+    {% include 'services_dashboard/partials/option_add_card.html' with title='Arıza / servis tipleri' form=service_type_form items=service_types add_action='add_service_type' update_action='update_service_type' delete_action='delete_service_type' hide_color_picker=True default_color='#8b5cf6' use_service_type_relation_item=True all_products=all_products %}
+</div>
+{% endblock %}
+{% block extra_js %}{% include 'settings/_scripts_options.html' %}{% endblock %}
