@@ -59,7 +59,7 @@
         <h2 class="text-lg font-bold text-slate-900 mb-2">Yedek Geri Yükle</h2>
         <p class="text-xs text-slate-400 mb-4">
             .json veya .json.gz yükleyin. İçe aktarmada önce <strong>migrate</strong> çalışır, sonra veriler yüklenir.
-            Eski (düz liste) ve yeni (migration’lı) yedek formatları desteklenir. Önce güncel yedek alın.
+            Eski (düz liste) ve yeni (migration’lı) yedek formatları desteklenir. İçe aktarmada izin çakışması otomatik giderilir; ardından izin kataloğu senkron edilir.
         </p>
         <form method="post" enctype="multipart/form-data" class="flex flex-col sm:flex-row gap-3 sm:items-center">
             {% csrf_token %}

@@ -106,6 +106,16 @@ def _run_migrations():
     management.call_command('migrate', '--noinput', verbosity=0)
 
 
+def _prepare_database_for_fixture_load():
+    """
+    migrate sonrası migration/seed ile oluşan izinleri kaldırır.
+    loaddata yedekteki Permission kayıtlarını UNIQUE codename hatası olmadan yükler.
+    """
+    from users.models import Permission
+
+    Permission.objects.all().delete()
+
+
 def _sync_permissions_after_restore():
     try:
         management.call_command('sync_permissions', verbosity=0)
@@ -147,6 +157,7 @@ def import_backup_file(uploaded) -> tuple[bool, str]:
 
         # migrate transaction dışında (SQLite ve PostgreSQL uyumluluğu)
         _run_migrations()
+        _prepare_database_for_fixture_load()
         with transaction.atomic():
             management.call_command('loaddata', tmp_fixture, verbosity=0)
 
