@@ -746,6 +746,7 @@
         qsCatalog = qsCatalogEl ? JSON.parse(qsCatalogEl.textContent) : null;
     } catch (e) { qsCatalog = null; }
     const qsSelectedSt = new Set();
+    let qsSyncing = false;
 
     function qsRenderServiceTypes() {
         if (!qsCatalog || !window.GyProductServiceTypeSync) return;
@@ -763,6 +764,7 @@
     }
 
     document.getElementById('qsProductsWrap')?.addEventListener('change', (e) => {
+        if (qsSyncing) return;
         if (e.target.classList.contains('qs-product')) qsRenderServiceTypes();
     });
 
@@ -801,10 +803,15 @@
         document.getElementById('qsCustomerRegion').value = data.customer.region || '';
         document.getElementById('qsContractDate').value = data.customer.contract_date || '';
         document.getElementById('qsLocationLink').value = data.customer.location_link || '';
-        setCheckedByValues('.qs-product', data.service.product_ids || []);
-        qsSelectedSt.clear();
-        (data.service.service_type_ids || []).forEach((id) => qsSelectedSt.add(Number(id)));
-        qsRenderServiceTypes();
+        qsSyncing = true;
+        try {
+            setCheckedByValues('.qs-product', data.service.product_ids || []);
+            qsSelectedSt.clear();
+            (data.service.service_type_ids || []).forEach((id) => qsSelectedSt.add(Number(id)));
+            qsRenderServiceTypes();
+        } finally {
+            qsSyncing = false;
+        }
     }
 
     async function saveQuickSheetData() {

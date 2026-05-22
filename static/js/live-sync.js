@@ -18,19 +18,17 @@
 
   function markLocalSave() {
     window.__gyLastLocalSave = Date.now();
-    if (window.GY_LIVE_SYNC) window.GY_LIVE_SYNC.markLocalSave();
   }
 
   window.GY_MARK_LOCAL_SAVE = markLocalSave;
 
   function isFormPage() {
     const p = window.location.pathname;
-    return (
-      /\/services-dashboard\/services\/(new|\d+\/edit)\/?$/.test(p) ||
-      p.includes('/services-dashboard/settings') ||
-      !!document.getElementById('quickSheetModal') ||
-      !!document.getElementById('serviceRecordForm')
-    );
+    if (/\/services-dashboard\/services\/(new|\d+\/edit)\/?$/.test(p)) return true;
+    if (p.includes('/services-dashboard/settings')) return true;
+    if (document.getElementById('serviceRecordForm')) return true;
+    const qs = document.getElementById('quickSheetModal');
+    return !!(qs && !qs.classList.contains('hidden'));
   }
 
   function isBlockingOverlayOpen() {
