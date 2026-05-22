@@ -2,7 +2,13 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.views.generic import TemplateView
 
-from core_settings.backup import backup_status_summary, export_backup_response, import_backup_file
+from core_settings.backup import (
+    backup_status_summary,
+    export_backup_response,
+    export_sqlite_response,
+    import_backup_file,
+    import_sqlite_file,
+)
 from core_settings.forms import AISettingsForm
 from core_settings.models import SiteSettings
 from customers.models import Customer
@@ -65,6 +71,21 @@ class ToolsSystemBackupView(TemplateView):
 
         if 'import_backup' in request.POST:
             ok, msg = import_backup_file(request.FILES.get('backup_file'))
+            if ok:
+                messages.success(request, msg)
+            else:
+                messages.error(request, msg)
+            return redirect('tools_system_backup')
+
+        if 'export_sqlite' in request.POST:
+            try:
+                return export_sqlite_response()
+            except Exception as exc:
+                messages.error(request, f'SQLite indirme hatası: {exc}')
+                return redirect('tools_system_backup')
+
+        if 'import_sqlite' in request.POST:
+            ok, msg = import_sqlite_file(request.FILES.get('sqlite_file'))
             if ok:
                 messages.success(request, msg)
             else:

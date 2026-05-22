@@ -2,16 +2,20 @@ import gzip
 import json
 import os
 import shutil
+import sqlite3
 from datetime import datetime
 from io import StringIO
+from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 import django
 from django.conf import settings
 from django.core import management
-from django.db import transaction
-from django.http import HttpResponse
+from django.db import connections, transaction
+from django.http import FileResponse, HttpResponse
 from django.utils import timezone
+
+SQLITE_MAGIC = b'SQLite format 3\x00'
 
 BACKUP_FORMAT_V2 = 'gy-dashboard-backup-v2'
 
@@ -188,10 +192,130 @@ def import_backup_file(uploaded) -> tuple[bool, str]:
             os.unlink(tmp_fixture)
 
 
+def database_path() -> Path:
+    return Path(settings.DATABASES['default']['NAME']).resolve()
+
+
+def _close_db_connections():
+    connections.close_all()
+
+
+def _validate_sqlite_file(path: str | Path) -> None:
+    path = Path(path)
+    if path.stat().st_size < 100:
+        raise ValueError('Dosya çok küçük veya boş.')
+    with open(path, 'rb') as handle:
+        if handle.read(16) != SQLITE_MAGIC:
+            raise ValueError('Geçerli bir SQLite veritabanı dosyası değil (db.sqlite3 bekleniyor).')
+    try:
+        conn = sqlite3.connect(f'file:{path}?mode=ro', uri=True)
+        conn.execute('PRAGMA schema_version')
+        conn.close()
+    except sqlite3.DatabaseError as exc:
+        raise ValueError(f'SQLite dosyası okunamadı: {exc}') from exc
+
+
+def _remove_sqlite_sidecars(db_path: Path) -> None:
+    for suffix in ('-wal', '-journal', '-shm'):
+        sidecar = Path(f'{db_path}{suffix}')
+        if sidecar.exists():
+            sidecar.unlink()
+
+
+def _backup_existing_db(db_path: Path) -> str | None:
+    if not db_path.is_file():
+        return None
+    ts = datetime.now().strftime('%Y%m%d-%H%M%S')
+    backup_path = db_path.with_name(f'{db_path.name}.bak-{ts}')
+    shutil.copy2(db_path, backup_path)
+    return str(backup_path)
+
+
+def export_sqlite_response() -> HttpResponse:
+    db_path = database_path()
+    if not db_path.is_file():
+        raise FileNotFoundError('Veritabanı dosyası bulunamadı.')
+
+    _close_db_connections()
+    ts = datetime.now().strftime('%Y%m%d-%H%M%S')
+    filename = f'gy-dashboard-{ts}.sqlite3'
+    response = FileResponse(
+        open(db_path, 'rb'),
+        as_attachment=True,
+        filename=filename,
+        content_type='application/x-sqlite3',
+    )
+    response['Content-Length'] = db_path.stat().st_size
+    return response
+
+
+def import_sqlite_file(uploaded) -> tuple[bool, str]:
+    if not uploaded:
+        return False, 'Lütfen bir db.sqlite3 dosyası seçin.'
+
+    name = (uploaded.name or '').lower()
+    if not (name.endswith('.sqlite3') or name.endswith('.db')):
+        return False, 'Sadece .sqlite3 veya .db dosyası yüklenebilir.'
+
+    db_path = database_path()
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    tmp_path = None
+    try:
+        tmp = NamedTemporaryFile(delete=False, suffix='.sqlite3')
+        tmp_path = tmp.name
+        for chunk in uploaded.chunks():
+            tmp.write(chunk)
+        tmp.flush()
+        tmp.close()
+
+        _validate_sqlite_file(tmp_path)
+
+        _close_db_connections()
+        prev_backup = _backup_existing_db(db_path)
+        _remove_sqlite_sidecars(db_path)
+
+        shutil.copy2(tmp_path, db_path)
+        try:
+            os.chmod(db_path, 0o644)
+        except OSError:
+            pass
+        _remove_sqlite_sidecars(db_path)
+        _close_db_connections()
+
+        _run_migrations()
+        _sync_permissions_after_restore()
+
+        size_mb = db_path.stat().st_size / (1024 * 1024)
+        msg = (
+            f'SQLite veritabanı yüklendi ({size_mb:.1f} MB). '
+            f'Hedef: {db_path}. Migration kontrolü tamamlandı.'
+        )
+        if prev_backup:
+            msg += f' Önceki DB yedeklendi: {prev_backup}'
+        msg += ' Medya dosyaları ayrıca /data/media klasörüne kopyalanmalıdır.'
+        return True, msg
+    except Exception as exc:
+        return False, f'SQLite içe aktarma hatası: {exc}'
+    finally:
+        if tmp_path and os.path.exists(tmp_path):
+            os.unlink(tmp_path)
+        _close_db_connections()
+
+
 def backup_status_summary() -> dict:
     migrations = _applied_migrations()
+    db_path = database_path()
+    db_size = db_path.stat().st_size if db_path.is_file() else 0
     return {
         'migration_count': len(migrations),
         'migrations': migrations[-8:],  # son 8 satır önizleme
         'format_version': BACKUP_FORMAT_V2,
+        'database_path': str(db_path),
+        'database_size': db_size,
+        'database_size_display': (
+            f'{db_size / (1024 * 1024):.1f} MB' if db_size >= 1024 * 1024
+            else f'{db_size / 1024:.1f} KB' if db_size else '—'
+        ),
+        'database_exists': db_path.is_file(),
     }
