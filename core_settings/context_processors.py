@@ -1,11 +1,13 @@
-from .models import WhatsAppTemplate, SiteSettings
+from .models import SiteSettings
+
 
 def whatsapp_context(request):
-    return {
-        'whatsapp_templates': WhatsAppTemplate.objects.all()
-    }
+    return {}
+
 
 def site_settings(request):
-    return {
-        'site_settings': SiteSettings.objects.first()
-    }
+    try:
+        settings = SiteSettings.objects.first()
+    except Exception:
+        settings = None
+    return {'site_settings': settings}

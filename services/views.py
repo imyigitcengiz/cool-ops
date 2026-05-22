@@ -1,17 +1,41 @@
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView, DetailView
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.shortcuts import redirect, render, get_object_or_404
-from django.db.models import Q, Min
+from django.db.models import Q, Min, Case, When, IntegerField
 from django.http import HttpResponse, JsonResponse
 from django.utils import timezone
 from django.contrib import messages
-from urllib.parse import quote
 from django.views.decorators.http import require_POST, require_http_methods
 import csv
+from common.decorators import permission_required
+from common.permissions import (
+    SERVICES_BULK_PERM,
+    SERVICES_DELETE_PERM,
+    SERVICES_MANAGE_PERM,
+    SERVICES_PRINT_PERM,
+    SERVICES_WHATSAPP_PERM,
+)
+from users.mixins import PermissionRequiredMixin
 from .models import ServiceRecord, ServiceImage, ServiceHistory
 from .forms import ServiceRecordForm
 from .form_context import build_service_form_context
-from core_settings.models import ServiceTeam, ServicePersonnel, StatusOption, PriorityOption
+from .whatsapp_status_prompt import (
+    build_whatsapp_service_created_prompt,
+    build_whatsapp_status_change_preview,
+    build_whatsapp_status_change_prompt,
+    dispatch_confirmed_scenario,
+    dispatch_confirmed_status_whatsapp,
+    pop_whatsapp_status_prompt_queue,
+    queue_whatsapp_status_prompts,
+)
+from core_settings.models import ServiceTeam, ServicePersonnel, StatusOption, PriorityOption, SiteSettings
+from core_settings.status_defaults import apply_service_list_visibility, ensure_default_statuses
+from .customer_services import (
+    build_service_customer_groups,
+    customer_services_payload,
+    get_active_status,
+    is_open_service,
+)
 
 
 def _normalize_phone_for_wa(phone_raw):
@@ -43,8 +67,8 @@ def _build_service_summary_message(target_label, services):
 
 
 def _apply_service_filters(qs, request):
+    ensure_default_statuses()
     q = request.GET.get('q')
-    status = request.GET.get('status')
     priority = request.GET.get('priority')
     product = request.GET.get('product')
     warranty = request.GET.get('warranty')
@@ -58,8 +82,7 @@ def _apply_service_filters(qs, request):
             Q(products__name__icontains=q) |
             Q(service_types__name__icontains=q)
         )
-    if status:
-        qs = qs.filter(status_id=status)
+    qs = apply_service_list_visibility(qs, request)
     if priority:
         qs = qs.filter(priority_id=priority)
     if product:
@@ -81,6 +104,8 @@ def _build_service_snapshot(service):
             'assigned_to_id': service.assigned_to_id,
             'service_personnel_id': service.service_personnel_id,
             'warranty_status': service.warranty_status,
+            'list_price': service.list_price,
+            'discounted_price': service.discounted_price,
             'notes': service.notes or '',
             'product_ids': list(service.products.values_list('id', flat=True)),
             'service_type_ids': list(service.service_types.values_list('id', flat=True)),
@@ -127,6 +152,8 @@ def _capture_service_state(service):
         'solution_partner': service.solution_partner.name if service.solution_partner_id else '-',
         'service_personnel': service.service_personnel.name if service.service_personnel_id else '-',
         'assigned_to': _user_display(service.assigned_to),
+        'list_price': str(service.list_price) if service.list_price is not None else '-',
+        'discounted_price': str(service.discounted_price) if service.discounted_price is not None else '-',
         'notes': _text_preview(service.notes),
         'products': tuple(sorted(service.products.values_list('name', flat=True))),
         'service_types': tuple(sorted(service.service_types.values_list('name', flat=True))),
@@ -139,6 +166,8 @@ def _diff_service_state(before_state, after_state):
         'status': 'Durum',
         'priority': 'Öncelik',
         'warranty_status': 'Garanti Durumu',
+        'list_price': 'Normal Fiyat',
+        'discounted_price': 'İndirimli Fiyat',
         'solution_partner': 'Çözüm Ortağı',
         'service_personnel': 'Servis Personeli',
         'assigned_to': 'Atanan Kullanıcı',
@@ -161,13 +190,62 @@ def _diff_service_state(before_state, after_state):
         changes.append(f"{label}: {before_text} -> {after_text}")
     return changes
 
-class ServiceListView(ListView):
+
+def _apply_service_status_change(
+    service,
+    *,
+    new_status_id,
+    prev_status_id,
+    prev_status_name=None,
+    user=None,
+    send_whatsapp=False,
+    template_ids=None,
+):
+    new_status = StatusOption.objects.filter(pk=new_status_id).first()
+    if not new_status:
+        raise ValueError('Geçersiz durum.')
+
+    if int(service.status_id or 0) == int(new_status_id):
+        return {'status_changed': False, 'whatsapp_results': []}
+
+    before_state = _capture_service_state(service)
+    service.status = new_status
+    service.save(update_fields=['status', 'updated_at'])
+    service.refresh_from_db()
+    after_state = _capture_service_state(service)
+    changes = _diff_service_state(before_state, after_state)
+    _create_service_history(
+        service,
+        ' | '.join(changes) if changes else f'Durum: {new_status.name}',
+        user,
+    )
+
+    whatsapp_results = []
+    if send_whatsapp:
+        whatsapp_results = dispatch_confirmed_status_whatsapp(
+            service,
+            prev_status_id=int(prev_status_id),
+            prev_status_name=prev_status_name or None,
+            template_ids=template_ids,
+        )
+
+    return {
+        'status_changed': True,
+        'status_label': new_status.name,
+        'status_color': new_status.color_hex,
+        'whatsapp_results': whatsapp_results,
+    }
+
+
+class ServiceListView(PermissionRequiredMixin, ListView):
+    permission_required = 'access.services'
     model = ServiceRecord
-    template_name = 'services/service_list.html'
+    template_name = 'services_dashboard/services/service_list.html'
     context_object_name = 'services'
     ordering = ['-created_at']
 
     def get_queryset(self):
+        ensure_default_statuses()
         queryset = super().get_queryset().select_related('status', 'priority', 'customer', 'solution_partner', 'service_personnel', 'service_personnel__team').prefetch_related('products', 'service_types')
         q = self.request.GET.get('q')
         status = self.request.GET.get('status')
@@ -186,8 +264,7 @@ class ServiceListView(ListView):
                 Q(products__name__icontains=q) |
                 Q(service_types__name__icontains=q)
             )
-        if status:
-            queryset = queryset.filter(status_id=status)
+        queryset = apply_service_list_visibility(queryset, self.request)
         if priority:
             queryset = queryset.filter(priority_id=priority)
         if product:
@@ -203,30 +280,127 @@ class ServiceListView(ListView):
             )
         elif warranty == 'active':
             queryset = queryset.filter(warranty_status='active').exclude(status__name__icontains='ücretli')
-            
-        return queryset.distinct()
+
+        queryset = queryset.distinct()
+        view_mode = (self.request.GET.get('view') or 'customer').strip().lower()
+        if view_mode not in ('customer', 'record'):
+            view_mode = 'customer'
+        if view_mode == 'customer':
+            groups = build_service_customer_groups(queryset)
+            primary_ids = [g['primary'].pk for g in groups]
+            if not primary_ids:
+                return queryset.none()
+            order_cases = [
+                When(pk=pk, then=pos) for pos, pk in enumerate(primary_ids)
+            ]
+            queryset = queryset.filter(pk__in=primary_ids).annotate(
+                _customer_view_order=Case(
+                    *order_cases,
+                    default=9999,
+                    output_field=IntegerField(),
+                )
+            ).order_by('_customer_view_order')
+            self._service_groups_meta = {
+                g['primary'].pk: g for g in groups
+            }
+        else:
+            self._service_groups_meta = {}
+        return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         from core_settings.models import ProductOption, StatusOption, PriorityOption, ServiceTypeOption
         context['products'] = ProductOption.objects.all()
-        context['statuses'] = StatusOption.objects.all()
+        context['statuses'] = StatusOption.objects.order_by('sort_order', 'name')
         context['priorities'] = PriorityOption.objects.all()
         context['service_types'] = ServiceTypeOption.objects.order_by('name')
         context['teams'] = ServiceTeam.objects.filter(is_active=True).order_by('name')
         context['personnel_list'] = ServicePersonnel.objects.filter(is_active=True).select_related('team').order_by('name')
+        context['show_hidden'] = self.request.GET.get('show_hidden') == '1'
+        context['show_pending'] = self.request.GET.get('show_pending') == '1'
+        context['visibility_active'] = not self.request.GET.get('status')
+        context['whatsapp_prompt_queue'] = pop_whatsapp_status_prompt_queue(self.request)
+        view_mode = (self.request.GET.get('view') or 'customer').strip().lower()
+        if view_mode not in ('customer', 'record'):
+            view_mode = 'customer'
+        context['list_view_mode'] = view_mode
+        meta = getattr(self, '_service_groups_meta', {})
+        for service in context['services']:
+            group = meta.get(service.pk)
+            if group:
+                service.group_other_count = group['other_count']
+                service.group_open_count = group['open_count']
+                service.group_has_multiple_open = group['has_multiple_open']
+            else:
+                service.group_other_count = 0
+                service.group_open_count = 0
+                service.group_has_multiple_open = False
         return context
 
-class ServiceCreateView(CreateView):
+
+@require_http_methods(['GET'])
+@permission_required('access.services')
+def customer_service_summary_api(request, customer_id):
+    if not str(customer_id).isdigit():
+        return JsonResponse({'ok': False, 'error': 'Geçersiz müşteri.'}, status=400)
+    from customers.models import Customer
+
+    if not Customer.objects.filter(pk=int(customer_id)).exists():
+        return JsonResponse({'ok': False, 'error': 'Müşteri bulunamadı.'}, status=404)
+    return JsonResponse(customer_services_payload(int(customer_id)))
+
+
+@require_POST
+@permission_required(SERVICES_MANAGE_PERM)
+def service_reopen_api(request, pk):
+    service = get_object_or_404(
+        ServiceRecord.objects.select_related('status'),
+        pk=pk,
+    )
+    if is_open_service(service):
+        return JsonResponse({
+            'ok': False,
+            'error': 'Bu kayıt zaten açık durumda.',
+            'edit_url': reverse('service_update', args=[service.pk]),
+        }, status=400)
+
+    active_status = get_active_status()
+    if not active_status:
+        return JsonResponse({'ok': False, 'error': 'Aktif durum tanımı bulunamadı.'}, status=500)
+
+    prev_name = service.status.name
+    service.status = active_status
+    service.save(update_fields=['status', 'updated_at'])
+    _create_service_history(
+        service,
+        f'Kayıt yeniden açıldı ({prev_name} → {active_status.name}).',
+        request.user,
+    )
+    return JsonResponse({
+        'ok': True,
+        'message': f'Servis #{service.pk} yeniden aktif yapıldı.',
+        'edit_url': reverse('service_update', args=[service.pk]),
+    })
+
+
+class ServiceCreateView(PermissionRequiredMixin, CreateView):
+    permission_required = SERVICES_MANAGE_PERM
     model = ServiceRecord
     form_class = ServiceRecordForm
-    template_name = 'services/service_form.html'
+    template_name = 'services_dashboard/services/service_form.html'
     success_url = reverse_lazy('services')
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context.update(build_service_form_context())
         return context
+
+    def get_initial(self):
+        initial = super().get_initial()
+        customer_id = self.request.GET.get('customer')
+        if customer_id and str(customer_id).isdigit():
+            initial['customer'] = int(customer_id)
+        return initial
 
     def form_valid(self, form):
         response = super().form_valid(form)
@@ -241,12 +415,19 @@ class ServiceCreateView(CreateView):
         images = self.request.FILES.getlist('images')
         for img in images:
             ServiceImage.objects.create(service=self.object, image=img)
+
+        service = ServiceRecord.objects.select_related(
+            'customer', 'status', 'priority',
+        ).prefetch_related('service_types').get(pk=self.object.pk)
+        prompt = build_whatsapp_service_created_prompt(service)
+        queue_whatsapp_status_prompts(self.request, prompt)
         return response
 
-class ServiceUpdateView(UpdateView):
+class ServiceUpdateView(PermissionRequiredMixin, UpdateView):
+    permission_required = SERVICES_MANAGE_PERM
     model = ServiceRecord
     form_class = ServiceRecordForm
-    template_name = 'services/service_form.html'
+    template_name = 'services_dashboard/services/service_form.html'
     success_url = reverse_lazy('services')
 
     def get_context_data(self, **kwargs):
@@ -255,6 +436,7 @@ class ServiceUpdateView(UpdateView):
         return context
 
     def form_valid(self, form):
+        prev_status_id = self.object.status_id if self.object.pk else None
         before_state = _capture_service_state(self.object)
         response = super().form_valid(form)
         self.object.refresh_from_db()
@@ -263,6 +445,13 @@ class ServiceUpdateView(UpdateView):
 
         if changes:
             _create_service_history(self.object, " | ".join(changes), self.request.user)
+
+        if prev_status_id and prev_status_id != self.object.status_id:
+            service = ServiceRecord.objects.select_related(
+                'customer', 'status', 'priority',
+            ).prefetch_related('service_types').get(pk=self.object.pk)
+            prompt = build_whatsapp_status_change_prompt(service, prev_status_id)
+            queue_whatsapp_status_prompts(self.request, prompt)
         
         # Sync service products back to customer profile
         customer = self.object.customer
@@ -274,135 +463,172 @@ class ServiceUpdateView(UpdateView):
             ServiceImage.objects.create(service=self.object, image=img)
         return response
 
-class ServiceDeleteView(DeleteView):
+class ServiceDeleteView(PermissionRequiredMixin, DeleteView):
+    permission_required = SERVICES_DELETE_PERM
     model = ServiceRecord
     success_url = reverse_lazy('services')
 
-class ServicePrintView(DetailView):
+class ServicePrintView(PermissionRequiredMixin, DetailView):
+    permission_required = SERVICES_PRINT_PERM
     model = ServiceRecord
-    template_name = 'services/service_print.html'
+    template_name = 'services_dashboard/services/service_print.html'
     context_object_name = 's'
 
 class ServiceBulkPrintView(ServiceListView):
-    template_name = 'services/service_bulk_print.html'
+    permission_required = SERVICES_PRINT_PERM
+    template_name = 'services_dashboard/services/service_bulk_print.html'
     context_object_name = 'services'
-    pagination_class = None # Show all on print page
+    paginate_by = None
 
-    SORT_OPTIONS = [
-        ('created_desc', 'Tarih (Yeni -> Eski)'),
-        ('created_asc', 'Tarih (Eski -> Yeni)'),
-        ('customer', 'Müşteri Adına Göre'),
-        ('product', 'Ürüne Göre'),
-        ('team', 'Ekibe Göre'),
-        ('personnel', 'Personele Göre'),
-        ('status', 'Duruma Göre'),
-        ('priority', 'Önceliğe Göre'),
-    ]
+    def _default_sort_key(self):
+        settings = SiteSettings.objects.first()
+        return (settings.bulk_print_default_sort if settings else None) or 'created_desc'
+
+    def _resolve_sort_key(self):
+        sort_key = self.request.GET.get('sort', self._default_sort_key())
+        valid_keys = {choice[0] for choice in SiteSettings.BULK_PRINT_SORT_CHOICES}
+        return sort_key if sort_key in valid_keys else self._default_sort_key()
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        sort_key = self.request.GET.get('sort', 'created_desc')
+        sort_key = self._resolve_sort_key()
 
-        if sort_key == 'created_asc':
-            return queryset.order_by('created_at')
-        if sort_key == 'customer':
-            return queryset.order_by('customer__name', '-created_at')
+        sort_map = {
+            'created_asc': ('created_at',),
+            'created_desc': ('-created_at',),
+            'customer': ('customer__name', '-created_at'),
+            'product': None,
+            'team': ('service_personnel__team__name', 'service_personnel__name', '-created_at'),
+            'personnel': ('service_personnel__name', '-created_at'),
+            'status': ('status__name', '-created_at'),
+            'priority': ('priority__name', '-created_at'),
+        }
         if sort_key == 'product':
             return queryset.annotate(first_product_name=Min('products__name')).order_by('first_product_name', '-created_at')
-        if sort_key == 'team':
-            return queryset.order_by('service_personnel__team__name', 'service_personnel__name', '-created_at')
-        if sort_key == 'personnel':
-            return queryset.order_by('service_personnel__name', '-created_at')
-        if sort_key == 'status':
-            return queryset.order_by('status__name', '-created_at')
-        if sort_key == 'priority':
-            return queryset.order_by('priority__name', '-created_at')
-        return queryset.order_by('-created_at')
+        return queryset.order_by(*sort_map.get(sort_key, ('-created_at',)))
+
+    def _build_filter_summary(self):
+        request = self.request
+        parts = []
+        label_map = {
+            'q': 'Arama',
+            'status': 'Durum',
+            'priority': 'Öncelik',
+            'product': 'Ürün',
+            'warranty': 'Garanti',
+            'team': 'Ekip',
+            'personnel': 'Personel',
+        }
+        for key, label in label_map.items():
+            value = request.GET.get(key)
+            if not value:
+                continue
+            if key == 'status':
+                obj = StatusOption.objects.filter(pk=value).first()
+                parts.append(f'{label}: {obj.name if obj else value}')
+            elif key == 'priority':
+                obj = PriorityOption.objects.filter(pk=value).first()
+                parts.append(f'{label}: {obj.name if obj else value}')
+            elif key == 'product':
+                from core_settings.models import ProductOption
+                obj = ProductOption.objects.filter(pk=value).first()
+                parts.append(f'{label}: {obj.name if obj else value}')
+            elif key == 'team':
+                obj = ServiceTeam.objects.filter(pk=value).first()
+                parts.append(f'{label}: {obj.name if obj else value}')
+            elif key == 'personnel':
+                obj = ServicePersonnel.objects.filter(pk=value).first()
+                parts.append(f'{label}: {obj.name if obj else value}')
+            elif key == 'warranty':
+                warranty_labels = {'active': 'Garantisi devam eden', 'expired': 'Garantisi biten'}
+                parts.append(f'{label}: {warranty_labels.get(value, value)}')
+            else:
+                parts.append(f'{label}: {value}')
+        return parts
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['sort_options'] = self.SORT_OPTIONS
-        context['current_sort'] = self.request.GET.get('sort', 'created_desc')
+        context['sort_options'] = SiteSettings.BULK_PRINT_SORT_CHOICES
+        context['current_sort'] = self._resolve_sort_key()
+        context['filter_summary'] = self._build_filter_summary()
+        context['record_count'] = self.get_queryset().count()
         return context
 
     def get(self, request, *args, **kwargs):
-        if request.GET.get('download') == 'csv':
+        dl = (request.GET.get('download') or '').lower()
+        if dl == 'csv':
             return self._download_csv()
+        if dl in ('xlsx', 'xls'):
+            return self._download_xlsx()
         return super().get(request, *args, **kwargs)
 
+    def _rows_for_export(self):
+        for s in self.get_queryset():
+            products = ', '.join(p.name for p in s.products.all()) or '-'
+            service_types = ', '.join(st.name for st in s.service_types.all()) or '-'
+            personnel = s.service_personnel.name if s.service_personnel_id else '-'
+            team = s.service_personnel.team.name if s.service_personnel_id and s.service_personnel.team_id else '-'
+            yield [
+                s.id,
+                s.customer.name,
+                s.customer.phone or '-',
+                s.customer.region or '-',
+                products,
+                service_types,
+                s.status.name,
+                s.priority.name,
+                personnel,
+                team,
+                s.notes or '-',
+                timezone.localtime(s.created_at).strftime('%d.%m.%Y %H:%M'),
+            ]
+
     def _download_csv(self):
-        queryset = self.get_queryset()
         ts = timezone.localtime().strftime('%Y%m%d-%H%M')
         response = HttpResponse(content_type='text/csv; charset=utf-8')
         response['Content-Disposition'] = f'attachment; filename="servis-raporu-{ts}.csv"'
         response.write('\ufeff')
 
         writer = csv.writer(response, delimiter=';')
-
-        header = [
-            'ID',
-            'Musteri',
-            'Telefon',
-            'Bolge',
-            'Urunler',
-            'Urun Renkleri',
-            'Ariza Tipleri',
-            'Ariza Tipi Renkleri',
-            'Durum',
-            'Durum Renk',
-            'Oncelik',
-            'Oncelik Renk',
-            'Garanti Durumu',
-            'Atanan Personel',
-            'Notlar',
-            'Olusturma Tarihi',
+        headers = [
+            'ID', 'Müşteri', 'Telefon', 'Bölge', 'Ürünler', 'Arıza Tipleri',
+            'Durum', 'Öncelik', 'Servis Personeli', 'Ekip', 'Notlar', 'Oluşturma Tarihi',
         ]
-        writer.writerow(header)
-
-        def safe_phone(phone_value):
-            value = (phone_value or '-').replace('"', '""')
-            if value == '-':
-                return value
-            return f'="{value}"'
-
-        def service_type_color_for_row(service_obj, service_type_obj):
-            first_product = None
-            for product in service_obj.products.all():
-                if first_product is None:
-                    first_product = product
-                if any(st.id == service_type_obj.id for st in product.service_types.all()):
-                    return product.color_hex
-            if first_product is not None:
-                return first_product.color_hex
-            linked = service_type_obj.products.order_by('name').first()
-            return linked.color_hex if linked else service_type_obj.color_hex
-
-        for s in queryset:
-            products = list(s.products.all())
-            service_types = list(s.service_types.all())
-            assigned = '-'
-            if s.assigned_to:
-                assigned = s.assigned_to.get_full_name() or s.assigned_to.username
-            writer.writerow([
-                s.id,
-                s.customer.name,
-                safe_phone(s.customer.phone),
-                s.customer.region or '-',
-                ', '.join(p.name for p in products) or '-',
-                ', '.join(f'{p.name}:{p.color_hex}' for p in products) or '-',
-                ', '.join(st.name for st in service_types) or '-',
-                ', '.join(f'{st.name}:{service_type_color_for_row(s, st)}' for st in service_types) or '-',
-                s.status.name,
-                s.status.color_hex,
-                s.priority.name,
-                s.priority.color_hex,
-                s.get_warranty_status_display(),
-                assigned,
-                s.notes or '-',
-                timezone.localtime(s.created_at).strftime('%d.%m.%Y %H:%M'),
-            ])
+        writer.writerow(headers)
+        for row in self._rows_for_export():
+            writer.writerow(row)
         return response
 
+    def _download_xlsx(self):
+        from io import BytesIO
+
+        from openpyxl import Workbook
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'Servisler'
+
+        headers = [
+            'ID', 'Müşteri', 'Telefon', 'Bölge', 'Ürünler', 'Arıza Tipleri',
+            'Durum', 'Öncelik', 'Servis Personeli', 'Ekip', 'Notlar', 'Oluşturma Tarihi',
+        ]
+        ws.append(headers)
+        for row in self._rows_for_export():
+            ws.append(row)
+
+        ts = timezone.localtime().strftime('%Y%m%d-%H%M')
+        bio = BytesIO()
+        wb.save(bio)
+        bio.seek(0)
+
+        response = HttpResponse(
+            bio.read(),
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        response['Content-Disposition'] = f'attachment; filename="servis-raporu-{ts}.xlsx"'
+        return response
+
+@permission_required(SERVICES_DELETE_PERM)
 def bulk_delete_services(request):
     if request.method == 'POST':
         ids = request.POST.getlist('ids')
@@ -411,6 +637,7 @@ def bulk_delete_services(request):
 
 
 @require_POST
+@permission_required(SERVICES_BULK_PERM)
 def bulk_manage_services(request):
     ids = [int(x) for x in request.POST.getlist('ids') if str(x).isdigit()]
     action = (request.POST.get('bulk_action') or '').strip()
@@ -436,8 +663,11 @@ def bulk_manage_services(request):
             return redirect('services')
         status = get_object_or_404(StatusOption, pk=int(status_id))
         updated = 0
+        prompts = []
         for service in queryset:
             before_state = _capture_service_state(service)
+            prev_status_id = service.status_id
+            prev_status_name = service.status.name if service.status_id else None
             service.status = status
             service.save(update_fields=['status', 'updated_at'])
             service.refresh_from_db()
@@ -449,6 +679,14 @@ def bulk_manage_services(request):
                 request.user,
             )
             updated += 1
+            if prev_status_id != service.status_id:
+                loaded = ServiceRecord.objects.select_related(
+                    'customer', 'status', 'priority',
+                ).prefetch_related('service_types').get(pk=service.pk)
+                prompt = build_whatsapp_status_change_prompt(loaded, prev_status_id, prev_status_name)
+                if prompt:
+                    prompts.append(prompt)
+        queue_whatsapp_status_prompts(request, prompts)
         messages.success(request, f"{updated} servis kaydının durumu güncellendi.")
         return redirect('services')
 
@@ -507,6 +745,7 @@ def bulk_manage_services(request):
 
 
 @require_POST
+@permission_required(SERVICES_MANAGE_PERM)
 def quick_update_service_field(request):
     service_id = request.POST.get('service_id')
     field = request.POST.get('field')
@@ -522,7 +761,38 @@ def quick_update_service_field(request):
     service = get_object_or_404(ServiceRecord, pk=int(service_id))
     option_model = StatusOption if field == 'status' else PriorityOption
     option = get_object_or_404(option_model, pk=int(value))
+
+    if field == 'status':
+        if int(service.status_id or 0) == int(option.id):
+            return JsonResponse({
+                'ok': True,
+                'field': field,
+                'value': option.id,
+                'label': option.name,
+                'color': option.color_hex,
+            })
+
+        loaded = ServiceRecord.objects.select_related(
+            'customer', 'status', 'priority',
+        ).prefetch_related('service_types').get(pk=service.pk)
+        preview = build_whatsapp_status_change_preview(
+            loaded,
+            prev_status_id=service.status_id,
+            prev_status_name=service.status.name if service.status_id else None,
+            new_status_id=option.id,
+            new_status_name=option.name,
+        )
+        if preview:
+            preview['deferred'] = True
+            return JsonResponse({
+                'ok': True,
+                'deferred': True,
+                'whatsapp_prompt': preview,
+            })
+
     before_state = _capture_service_state(service)
+    prev_status_id = service.status_id if field == 'status' else None
+    prev_status_name = service.status.name if field == 'status' and service.status_id else None
 
     if field == 'status':
         service.status = option
@@ -549,6 +819,7 @@ def quick_update_service_field(request):
 
 
 @require_http_methods(["GET", "POST"])
+@permission_required(SERVICES_MANAGE_PERM)
 def service_quick_edit_api(request, pk):
     service = get_object_or_404(
         ServiceRecord.objects.select_related('customer', 'status', 'priority').prefetch_related('products', 'service_types'),
@@ -577,6 +848,8 @@ def service_quick_edit_api(request, pk):
         })
 
     before_state = _capture_service_state(service)
+    prev_status_id = service.status_id
+    prev_status_name = service.status.name if service.status_id else None
 
     status_id = request.POST.get('status_id')
     priority_id = request.POST.get('priority_id')
@@ -596,6 +869,22 @@ def service_quick_edit_api(request, pk):
 
     status = get_object_or_404(StatusOption, pk=int(status_id))
     priority = get_object_or_404(PriorityOption, pk=int(priority_id))
+
+    if prev_status_id != status.id:
+        preview = build_whatsapp_status_change_preview(
+            service,
+            prev_status_id=prev_status_id,
+            prev_status_name=prev_status_name,
+            new_status_id=status.id,
+            new_status_name=status.name,
+        )
+        if preview:
+            preview['deferred'] = True
+            return JsonResponse({
+                'ok': True,
+                'deferred': True,
+                'whatsapp_prompt': preview,
+            })
 
     service.status = status
     service.priority = priority
@@ -621,7 +910,15 @@ def service_quick_edit_api(request, pk):
         request.user,
     )
 
-    return JsonResponse({'ok': True})
+    payload = {'ok': True}
+    if prev_status_id != service.status_id:
+        service = ServiceRecord.objects.select_related(
+            'customer', 'status', 'priority',
+        ).prefetch_related('service_types').get(pk=service.pk)
+        prompt = build_whatsapp_status_change_prompt(service, prev_status_id, prev_status_name)
+        if prompt:
+            payload['whatsapp_prompt'] = prompt
+    return JsonResponse(payload)
 
 
 def _restore_service_from_snapshot(service, snapshot):
@@ -639,6 +936,10 @@ def _restore_service_from_snapshot(service, snapshot):
     service.assigned_to_id = service_data.get('assigned_to_id')
     service.service_personnel_id = service_data.get('service_personnel_id')
     service.warranty_status = service_data.get('warranty_status') or service.warranty_status
+    if 'list_price' in service_data:
+        service.list_price = service_data.get('list_price') or None
+    if 'discounted_price' in service_data:
+        service.discounted_price = service_data.get('discounted_price') or None
     service.notes = service_data.get('notes') or ''
     service.save()
 
@@ -653,6 +954,7 @@ def _restore_service_from_snapshot(service, snapshot):
     customer.save(update_fields=['phone', 'region', 'location_link', 'contract_date', 'updated_at'])
 
 @require_POST
+@permission_required(SERVICES_MANAGE_PERM)
 def restore_service_history_entry(request, pk, history_id):
     service = get_object_or_404(ServiceRecord, pk=pk)
     history_entry = get_object_or_404(ServiceHistory, pk=history_id, service=service)
@@ -680,6 +982,7 @@ def restore_service_history_entry(request, pk, history_id):
     return redirect('service_update', pk=service.id)
 
 
+@permission_required(SERVICES_WHATSAPP_PERM)
 def send_services_whatsapp(request):
     team_id = request.GET.get('team')
     personnel_id = request.GET.get('personnel')
@@ -722,9 +1025,44 @@ def send_services_whatsapp(request):
     message = _build_service_summary_message(target_label, services)
     clean_phone = _normalize_phone_for_wa(target_phone)
 
-    return redirect(f"https://wa.me/{clean_phone}?text={quote(message)}")
+    team_label = target_label
+    if personnel_id and personnel_id.isdigit():
+        person = ServicePersonnel.objects.filter(pk=int(personnel_id)).select_related('team').first()
+        team_label = person.team.name if person and person.team else 'Ekipsiz'
+
+    card = {
+        'recipient_type': 'personnel' if personnel_id else 'team',
+        'recipient_label': target_label,
+        'team_label': team_label,
+        'count': len(services),
+        'phone': clean_phone,
+        'message': message,
+        'services': [
+            {
+                'id': s.id,
+                'customer_name': s.customer.name,
+                'region': s.customer.region or '-',
+            }
+            for s in services
+        ],
+    }
+
+    return render(
+        request,
+        'services_dashboard/services/whatsapp_dispatch.html',
+        {
+            'team_groups': [{
+                'team_label': team_label,
+                'total_count': len(services),
+                'items': [card],
+            }],
+            'total_service_count': len(services),
+            'total_receiver_count': 1,
+        },
+    )
 
 
+@permission_required(SERVICES_WHATSAPP_PERM)
 def send_services_whatsapp_auto(request):
     base_qs = ServiceRecord.objects.select_related(
         'customer', 'status', 'priority', 'service_personnel', 'service_personnel__team'
@@ -853,10 +1191,218 @@ def send_services_whatsapp_auto(request):
 
     return render(
         request,
-        'services/whatsapp_dispatch.html',
+        'services_dashboard/services/whatsapp_dispatch.html',
         {
             'team_groups': team_groups,
             'total_service_count': sum(group['total_count'] for group in team_groups),
             'total_receiver_count': sum(len(group['items']) for group in team_groups),
         },
     )
+
+
+@require_POST
+@permission_required(SERVICES_WHATSAPP_PERM)
+def service_status_change_preview_api(request):
+    import json
+    try:
+        body = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'ok': False, 'error': 'Geçersiz JSON.'}, status=400)
+
+    service_id = body.get('service_id')
+    new_status_id = body.get('new_status_id')
+    if not service_id or not str(service_id).isdigit():
+        return JsonResponse({'ok': False, 'error': 'Geçersiz servis kaydı.'}, status=400)
+    if not new_status_id or not str(new_status_id).isdigit():
+        return JsonResponse({'ok': False, 'error': 'Geçersiz durum.'}, status=400)
+
+    service = get_object_or_404(
+        ServiceRecord.objects.select_related('customer', 'status', 'priority').prefetch_related('service_types'),
+        pk=int(service_id),
+    )
+    new_status = get_object_or_404(StatusOption, pk=int(new_status_id))
+
+    if int(service.status_id or 0) == int(new_status_id):
+        return JsonResponse({'ok': True, 'deferred': False, 'whatsapp_prompt': None})
+
+    preview = build_whatsapp_status_change_preview(
+        service,
+        prev_status_id=service.status_id,
+        prev_status_name=service.status.name if service.status_id else None,
+        new_status_id=new_status.id,
+        new_status_name=new_status.name,
+    )
+    if preview:
+        preview['deferred'] = True
+    return JsonResponse({
+        'ok': True,
+        'deferred': bool(preview),
+        'whatsapp_prompt': preview,
+    })
+
+
+@require_POST
+@permission_required(SERVICES_WHATSAPP_PERM)
+def service_status_change_apply_api(request):
+    import json
+    try:
+        body = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'ok': False, 'error': 'Geçersiz JSON.'}, status=400)
+
+    service_id = body.get('service_id')
+    new_status_id = body.get('new_status_id')
+    if not service_id or not str(service_id).isdigit():
+        return JsonResponse({'ok': False, 'error': 'Geçersiz servis kaydı.'}, status=400)
+    if not new_status_id or not str(new_status_id).isdigit():
+        return JsonResponse({'ok': False, 'error': 'Yeni durum bilgisi eksik.'}, status=400)
+
+    prev_status_id = body.get('prev_status_id')
+    if not prev_status_id or not str(prev_status_id).isdigit():
+        return JsonResponse({'ok': False, 'error': 'Önceki durum bilgisi eksik.'}, status=400)
+
+    service = get_object_or_404(
+        ServiceRecord.objects.select_related('customer', 'status', 'priority').prefetch_related('service_types'),
+        pk=int(service_id),
+    )
+    send_whatsapp = bool(body.get('send_whatsapp'))
+    template_ids = body.get('template_ids')
+    if template_ids is not None and not isinstance(template_ids, list):
+        template_ids = [template_ids]
+
+    try:
+        result = _apply_service_status_change(
+            service,
+            new_status_id=int(new_status_id),
+            prev_status_id=int(prev_status_id),
+            prev_status_name=(body.get('prev_status_name') or '').strip() or None,
+            user=request.user,
+            send_whatsapp=send_whatsapp,
+            template_ids=template_ids,
+        )
+    except ValueError as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
+
+    sent = sum(1 for r in result.get('whatsapp_results') or [] if r.get('ok'))
+    return JsonResponse({
+        'ok': True,
+        'sent': sent,
+        'status_label': result.get('status_label'),
+        'status_color': result.get('status_color'),
+        'results': result.get('whatsapp_results') or [],
+    })
+
+
+@require_POST
+@permission_required(SERVICES_WHATSAPP_PERM)
+def service_whatsapp_status_confirm_api(request):
+    import json
+
+    from core_settings.models import WhatsAppTemplate
+    from customers.models import Customer
+    from sales_leads.models import SalesLead
+
+    try:
+        body = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'ok': False, 'error': 'Geçersiz JSON.'}, status=400)
+
+    prompt_type = (body.get('prompt_type') or 'status_change').strip()
+    template_ids = body.get('template_ids')
+    if template_ids is not None and not isinstance(template_ids, list):
+        template_ids = [template_ids]
+
+    if prompt_type == 'service_created':
+        service_id = body.get('service_id')
+        if not service_id or not str(service_id).isdigit():
+            return JsonResponse({'ok': False, 'error': 'Geçersiz servis kaydı.'}, status=400)
+        service = get_object_or_404(
+            ServiceRecord.objects.select_related('customer', 'status', 'priority').prefetch_related('service_types'),
+            pk=int(service_id),
+        )
+        from tools.whatsapp_scenarios import build_service_context
+        from .whatsapp_status_prompt import _status_values as scenario_status_values
+
+        to_values = scenario_status_values(
+            service.status_id,
+            service.status.name if service.status_id else None,
+        )
+        results = dispatch_confirmed_scenario(
+            WhatsAppTemplate.SCENARIO_SERVICE_CREATED,
+            phone_raw=service.customer.phone or '' if service.customer_id else '',
+            context=build_service_context(service),
+            customer_id=service.customer_id,
+            template_ids=template_ids,
+            event_to_values=to_values,
+        )
+    elif prompt_type == 'customer_created':
+        customer_id = body.get('customer_id')
+        if not customer_id or not str(customer_id).isdigit():
+            return JsonResponse({'ok': False, 'error': 'Geçersiz müşteri.'}, status=400)
+        customer = get_object_or_404(Customer, pk=int(customer_id))
+        from tools.whatsapp_scenarios import build_customer_context
+
+        results = dispatch_confirmed_scenario(
+            WhatsAppTemplate.SCENARIO_CUSTOMER_CREATED,
+            phone_raw=customer.phone or '',
+            context=build_customer_context(customer),
+            customer_id=customer.id,
+            template_ids=template_ids,
+        )
+    elif prompt_type in ('sales_created', 'sales_status'):
+        lead_id = body.get('sales_lead_id')
+        if not lead_id or not str(lead_id).isdigit():
+            return JsonResponse({'ok': False, 'error': 'Geçersiz satış kaydı.'}, status=400)
+        lead = get_object_or_404(SalesLead.objects.select_related('customer'), pk=int(lead_id))
+        from tools.whatsapp_scenarios import build_sales_lead_context
+
+        if prompt_type == 'sales_created':
+            results = dispatch_confirmed_scenario(
+                WhatsAppTemplate.SCENARIO_SALES_LEAD_CREATED,
+                phone_raw=lead.customer.phone or '' if lead.customer_id else '',
+                context=build_sales_lead_context(lead),
+                customer_id=lead.customer_id,
+                template_ids=template_ids,
+                event_to_values=[lead.status],
+            )
+        else:
+            prev_status = (body.get('prev_status') or '').strip()
+            if not prev_status:
+                return JsonResponse({'ok': False, 'error': 'Önceki durum bilgisi eksik.'}, status=400)
+            results = dispatch_confirmed_scenario(
+                WhatsAppTemplate.SCENARIO_SALES_LEAD_STATUS,
+                phone_raw=lead.customer.phone or '' if lead.customer_id else '',
+                context=build_sales_lead_context(lead, old_status_code=prev_status),
+                customer_id=lead.customer_id,
+                template_ids=template_ids,
+                event_from_values=[prev_status],
+                event_to_values=[lead.status],
+            )
+    else:
+        service_id = body.get('service_id')
+        if not service_id or not str(service_id).isdigit():
+            return JsonResponse({'ok': False, 'error': 'Geçersiz servis kaydı.'}, status=400)
+
+        service = get_object_or_404(
+            ServiceRecord.objects.select_related('customer', 'status', 'priority').prefetch_related('service_types'),
+            pk=int(service_id),
+        )
+        prev_status_id = body.get('prev_status_id')
+        if not prev_status_id or not str(prev_status_id).isdigit():
+            return JsonResponse({'ok': False, 'error': 'Önceki durum bilgisi eksik.'}, status=400)
+
+        results = dispatch_confirmed_status_whatsapp(
+            service,
+            prev_status_id=int(prev_status_id),
+            prev_status_name=(body.get('prev_status_name') or '').strip() or None,
+            template_ids=template_ids,
+        )
+
+    sent = sum(1 for r in results if r.get('ok'))
+    failed = [r for r in results if not r.get('ok')]
+    return JsonResponse({
+        'ok': True,
+        'sent': sent,
+        'results': results,
+        'error': failed[0]['error'] if len(failed) == 1 and sent == 0 else None,
+    })

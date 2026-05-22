@@ -2,26 +2,23 @@ from django.views.generic import TemplateView
 from django.shortcuts import redirect, get_object_or_404
 from django.contrib import messages
 from .models import (
-    SiteSettings, ServiceTypeOption, ProductOption, StatusOption, PriorityOption,
-    WhatsAppTemplate, SolutionPartner, SolutionPartnerType, ServiceTeam, ServicePersonnel
+    SiteSettings, ServiceTypeOption, ProductOption, ProductColorOption, StatusOption, PriorityOption,
+    WhatsAppTemplate, SolutionPartner, SolutionPartnerType, ServiceTeam, ServicePersonnel,
+    PersonnelPayment,
 )
 from .forms import (
-    SiteSettingsForm, ServiceTypeOptionForm, ProductOptionForm, StatusOptionForm,
+    GeneralSiteSettingsForm, ServiceTypeOptionForm, ProductOptionForm, StatusOptionForm,
     PriorityOptionForm, WhatsAppTemplateForm, SolutionPartnerForm, SolutionPartnerTypeForm,
-    ServiceTeamForm, ServicePersonnelForm, ProfileSettingsForm
+    ServiceTeamForm, ServicePersonnelForm, PersonnelPaymentForm,
 )
-from django.core import management
+from common.permissions import can_manage_payroll, can_manage_teams, can_manage_personnel
 from django.http import HttpResponse, JsonResponse
-from tempfile import NamedTemporaryFile
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 from django.db.models import Q
+from django.db.models.deletion import ProtectedError
 import os
 import json
-import gzip
-import shutil
-from io import StringIO
-from datetime import datetime
 
 
 def _update_color_option(request, model, label):
@@ -36,34 +33,49 @@ def _update_color_option(request, model, label):
     messages.success(request, f"{label} güncellendi.")
 
 
+def _safe_delete_option(request, model, label):
+    obj = model.objects.filter(pk=request.POST.get('id')).first()
+    if not obj:
+        messages.error(request, f"{label} bulunamadı.")
+        return
+    try:
+        obj.delete()
+        messages.info(request, f"{label} silindi.")
+    except ProtectedError as exc:
+        count = len(exc.protected_objects)
+        messages.error(
+            request,
+            f"Bu {label.lower()} {count} servis kaydında kullanıldığı için silinemez. "
+            f"Önce ilgili servislerin {label.lower()}ünü değiştirin.",
+        )
+
+
 class SiteSettingsView(TemplateView):
-    template_name = 'settings/site_settings.html'
+    template_name = 'services_dashboard/settings/site_settings.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         settings = SiteSettings.objects.first()
-        context['settings_form'] = SiteSettingsForm(instance=settings)
+        context['settings_form'] = GeneralSiteSettingsForm(instance=settings)
         context['service_type_form'] = ServiceTypeOptionForm()
         context['product_form'] = ProductOptionForm()
         context['status_form'] = StatusOptionForm()
         context['priority_form'] = PriorityOptionForm()
-        context['whatsapp_form'] = WhatsAppTemplateForm()
         context['solution_partner_type_form'] = SolutionPartnerTypeForm()
         
         context['service_types'] = ServiceTypeOption.objects.prefetch_related('products').all().order_by('name')
-        context['products'] = ProductOption.objects.prefetch_related('service_types').all().order_by('name')
+        context['products'] = ProductOption.objects.prefetch_related('service_types', 'color_options').all().order_by('name')
         context['all_service_types'] = context['service_types']
         context['all_products'] = context['products']
-        context['statuses'] = StatusOption.objects.all()
+        context['statuses'] = StatusOption.objects.order_by('sort_order', 'name')
         context['priorities'] = PriorityOption.objects.all()
-        context['whatsapp_templates'] = WhatsAppTemplate.objects.all()
         context['solution_partner_types'] = SolutionPartnerType.objects.all()
         return context
 
     def post(self, request, *args, **kwargs):
         if 'update_site' in request.POST:
             settings = SiteSettings.objects.first()
-            form = SiteSettingsForm(request.POST, request.FILES, instance=settings)
+            form = GeneralSiteSettingsForm(request.POST, request.FILES, instance=settings)
             try:
                 if form.is_valid():
                     form.save()
@@ -106,13 +118,6 @@ class SiteSettingsView(TemplateView):
             else:
                 messages.error(request, "Geçersiz öncelik verisi. İsim ve renk gerekli.")
                 
-        elif 'add_whatsapp' in request.POST:
-            form = WhatsAppTemplateForm(request.POST)
-            if form.is_valid():
-                form.save()
-                messages.success(request, "WhatsApp şablonu eklendi.")
-            else:
-                messages.error(request, "Geçersiz şablon verisi.")
         elif 'add_solution_partner_type' in request.POST:
             form = SolutionPartnerTypeForm(request.POST)
             if form.is_valid():
@@ -135,10 +140,77 @@ class SiteSettingsView(TemplateView):
                 obj.save()
                 obj.service_types.set(request.POST.getlist('service_type_ids'))
                 messages.success(request, "Ürün güncellendi.")
+        elif 'add_product_color' in request.POST:
+            product = get_object_or_404(ProductOption, pk=request.POST.get('product_id'))
+            color_name = request.POST.get('color_name', '').strip()
+            if not color_name:
+                messages.error(request, "Renk adı boş olamaz.")
+            elif ProductColorOption.objects.filter(product=product, name__iexact=color_name).exists():
+                messages.error(request, "Bu ürün için aynı renk adı zaten var.")
+            else:
+                ProductColorOption.objects.create(
+                    product=product,
+                    name=color_name,
+                    color=request.POST.get('color', '#0284c7'),
+                )
+                messages.success(request, f"{product.name} için renk eklendi.")
+        elif 'delete_product_color' in request.POST:
+            color = ProductColorOption.objects.filter(pk=request.POST.get('color_id')).first()
+            if color:
+                label = f"{color.product.name} — {color.name}"
+                try:
+                    color.delete()
+                    messages.info(request, f"Renk silindi: {label}")
+                except Exception:
+                    messages.error(request, "Bu renk satış kayıtlarında kullanıldığı için silinemez.")
         elif 'update_status' in request.POST:
             _update_color_option(request, StatusOption, 'Durum')
         elif 'update_priority' in request.POST:
             _update_color_option(request, PriorityOption, 'Öncelik')
+        elif 'update_solution_partner_type' in request.POST:
+            obj = get_object_or_404(SolutionPartnerType, pk=request.POST.get('id'))
+            form = SolutionPartnerTypeForm(request.POST, instance=obj)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "Çözüm ortağı türü güncellendi.")
+            else:
+                messages.error(request, "Tür güncellenemedi.")
+        elif 'delete_service_type' in request.POST:
+            _safe_delete_option(request, ServiceTypeOption, 'Servis tipi')
+        elif 'delete_product' in request.POST:
+            _safe_delete_option(request, ProductOption, 'Ürün')
+        elif 'delete_status' in request.POST:
+            _safe_delete_option(request, StatusOption, 'Durum')
+        elif 'delete_priority' in request.POST:
+            _safe_delete_option(request, PriorityOption, 'Öncelik')
+        elif 'delete_solution_partner_type' in request.POST:
+            try:
+                SolutionPartnerType.objects.filter(id=request.POST.get('id')).delete()
+                messages.info(request, "Çözüm ortağı türü silindi.")
+            except Exception:
+                messages.error(request, "Bu tür kullanımda olduğu için silinemedi.")
+
+        return redirect('site_settings')
+
+
+
+class WhatsAppTemplatesView(TemplateView):
+    template_name = 'crm/whatsapp_templates.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['whatsapp_form'] = WhatsAppTemplateForm()
+        context['whatsapp_templates'] = WhatsAppTemplate.objects.all()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        if 'add_whatsapp' in request.POST:
+            form = WhatsAppTemplateForm(request.POST)
+            if form.is_valid():
+                form.save()
+                messages.success(request, "WhatsApp şablonu eklendi.")
+            else:
+                messages.error(request, "Geçersiz şablon verisi.")
         elif 'update_whatsapp' in request.POST:
             obj = get_object_or_404(WhatsAppTemplate, pk=request.POST.get('id'))
             title = request.POST.get('title', '').strip()
@@ -150,122 +222,14 @@ class SiteSettingsView(TemplateView):
                 obj.message = message
                 obj.save()
                 messages.success(request, "WhatsApp şablonu güncellendi.")
-        elif 'update_solution_partner_type' in request.POST:
-            obj = get_object_or_404(SolutionPartnerType, pk=request.POST.get('id'))
-            form = SolutionPartnerTypeForm(request.POST, instance=obj)
-            if form.is_valid():
-                form.save()
-                messages.success(request, "Çözüm ortağı türü güncellendi.")
-            else:
-                messages.error(request, "Tür güncellenemedi.")
-        elif 'delete_service_type' in request.POST:
-            ServiceTypeOption.objects.filter(id=request.POST.get('id')).delete()
-            messages.info(request, "Servis tipi silindi.")
-        elif 'delete_product' in request.POST:
-            ProductOption.objects.filter(id=request.POST.get('id')).delete()
-            messages.info(request, "Ürün silindi.")
-        elif 'delete_status' in request.POST:
-            StatusOption.objects.filter(id=request.POST.get('id')).delete()
-            messages.info(request, "Durum silindi.")
-        elif 'delete_priority' in request.POST:
-            PriorityOption.objects.filter(id=request.POST.get('id')).delete()
-            messages.info(request, "Öncelik silindi.")
         elif 'delete_whatsapp' in request.POST:
             WhatsAppTemplate.objects.filter(id=request.POST.get('id')).delete()
             messages.info(request, "Şablon silindi.")
-        elif 'delete_solution_partner_type' in request.POST:
-            try:
-                SolutionPartnerType.objects.filter(id=request.POST.get('id')).delete()
-                messages.info(request, "Çözüm ortağı türü silindi.")
-            except Exception:
-                messages.error(request, "Bu tür kullanımda olduğu için silinemedi.")
-        elif 'export_backup' in request.POST:
-            try:
-                sio = StringIO()
-                management.call_command(
-                    'dumpdata',
-                    stdout=sio,
-                    indent=2,
-                    natural_foreign=True,
-                    natural_primary=True,
-                )
-                sio.seek(0)
-                raw_json = sio.read().encode('utf-8')
-
-                ts = datetime.now().strftime('%Y%m%d-%H%M%S')
-                file_name = f"gy-dashboard-backup-{ts}.json.gz"
-
-                gz_buffer = gzip.compress(raw_json)
-                response = HttpResponse(gz_buffer, content_type='application/gzip')
-                response['Content-Disposition'] = f'attachment; filename="{file_name}"'
-                return response
-            except Exception as e:
-                messages.error(request, f"Yedekleme sırasında hata oluştu: {str(e)}")
-
-        elif 'import_backup' in request.POST:
-            uploaded = request.FILES.get('backup_file')
-            if not uploaded:
-                messages.error(request, "Lütfen bir dosya seçin.")
-            else:
-                tmp_input = None
-                tmp_json = None
-                try:
-                    filename = (uploaded.name or '').lower()
-                    if not (filename.endswith('.json') or filename.endswith('.json.gz')):
-                        messages.error(request, "Sadece .json veya .json.gz dosyaları içe aktarılabilir.")
-                        return redirect('site_settings')
-
-                    tmp_suffix = '.json.gz' if filename.endswith('.json.gz') else '.json'
-                    tmp_input = NamedTemporaryFile(delete=False, suffix=tmp_suffix)
-                    for chunk in uploaded.chunks():
-                        tmp_input.write(chunk)
-                    tmp_input.flush()
-                    tmp_input.close()
-
-                    if tmp_suffix == '.json.gz':
-                        tmp_json = NamedTemporaryFile(delete=False, suffix='.json')
-                        with gzip.open(tmp_input.name, 'rb') as gz_file, open(tmp_json.name, 'wb') as out_file:
-                            shutil.copyfileobj(gz_file, out_file)
-                        fixture_path = tmp_json.name
-                    else:
-                        fixture_path = tmp_input.name
-
-                    with transaction.atomic():
-                        management.call_command('loaddata', fixture_path)
-                    messages.success(request, "Yedek dosyası başarıyla içe aktarıldı.")
-                except Exception as e:
-                    messages.error(request, f"İçe aktarma sırasında hata oluştu: {str(e)}")
-                finally:
-                    if tmp_input and os.path.exists(tmp_input.name):
-                        os.unlink(tmp_input.name)
-                    if tmp_json and os.path.exists(tmp_json.name):
-                        os.unlink(tmp_json.name)
-            
-        return redirect('site_settings')
-
-
-class ProfileSettingsView(TemplateView):
-    template_name = 'settings/profile_settings.html'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        settings = SiteSettings.objects.first()
-        context['profile_form'] = ProfileSettingsForm(instance=settings)
-        return context
-
-    def post(self, request, *args, **kwargs):
-        settings = SiteSettings.objects.first()
-        form = ProfileSettingsForm(request.POST, instance=settings)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Profil ayarları güncellendi.")
-        else:
-            messages.error(request, "Profil ayarları güncellenemedi.")
-        return redirect('profile_settings')
+        return redirect('contact_whatsapp_templates')
 
 
 class SolutionNetworkView(TemplateView):
-    template_name = 'settings/solution_network.html'
+    template_name = 'crm/solution_network.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -314,13 +278,52 @@ class SolutionNetworkView(TemplateView):
         return redirect('solution_network')
 
 
+class TeamNetworkView(TemplateView):
+    template_name = 'crm/team_network.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['can_manage_teams'] = can_manage_teams(self.request.user)
+        context['team_form'] = ServiceTeamForm()
+        context['teams'] = ServiceTeam.objects.prefetch_related('product_groups').all().order_by('name')
+        return context
+
+    def post(self, request, *args, **kwargs):
+        if not can_manage_teams(request.user):
+            messages.error(request, 'Ekip yönetimi için yetkiniz yok.')
+            return redirect('team_network')
+        if 'add_team' in request.POST:
+            form = ServiceTeamForm(request.POST)
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'Ekip eklendi.')
+            else:
+                messages.error(request, 'Ekip kaydı eklenemedi.')
+        elif 'update_team' in request.POST:
+            obj = get_object_or_404(ServiceTeam, pk=request.POST.get('id'))
+            form = ServiceTeamForm(request.POST, instance=obj)
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'Ekip güncellendi.')
+            else:
+                messages.error(request, 'Ekip güncellenemedi.')
+        elif 'delete_team' in request.POST:
+            try:
+                ServiceTeam.objects.filter(id=request.POST.get('id')).delete()
+                messages.info(request, 'Ekip silindi.')
+            except Exception:
+                messages.error(request, 'Ekip silinemedi.')
+        return redirect('team_network')
+
+
 class PersonnelNetworkView(TemplateView):
-    template_name = 'settings/personnel_network.html'
+    template_name = 'crm/personnel_network.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         q = self.request.GET.get('q', '').strip()
         team = self.request.GET.get('team', '').strip()
+        payment_personnel = self.request.GET.get('payment_personnel', '').strip()
 
         personnel = ServicePersonnel.objects.select_related('team').prefetch_related('product_groups').all().order_by('name')
         if q:
@@ -328,52 +331,67 @@ class PersonnelNetworkView(TemplateView):
         if team and team.isdigit():
             personnel = personnel.filter(team_id=int(team))
 
-        context['team_form'] = ServiceTeamForm()
+        payments = PersonnelPayment.objects.select_related('personnel', 'recorded_by').all()
+        if payment_personnel and payment_personnel.isdigit():
+            payments = payments.filter(personnel_id=int(payment_personnel))
+
+        context['can_manage_payroll'] = can_manage_payroll(self.request.user)
+        context['can_manage_personnel'] = can_manage_personnel(self.request.user)
         context['personnel_form'] = ServicePersonnelForm()
-        context['teams'] = ServiceTeam.objects.prefetch_related('product_groups').all().order_by('name')
+        context['payment_form'] = PersonnelPaymentForm()
+        context['teams'] = ServiceTeam.objects.all().order_by('name')
         context['personnel_list'] = personnel
+        context['recent_payments'] = payments.order_by('-payment_date', '-created_at')[:100]
+        context['all_personnel'] = ServicePersonnel.objects.filter(is_active=True).order_by('name')
         return context
 
     def post(self, request, *args, **kwargs):
-        if 'add_team' in request.POST:
-            form = ServiceTeamForm(request.POST)
+        if 'add_payment' in request.POST:
+            if not can_manage_payroll(request.user):
+                messages.error(request, 'Maaş/avans kaydı için yetkiniz yok.')
+                return redirect('personnel_network')
+            form = PersonnelPaymentForm(request.POST)
             if form.is_valid():
-                form.save()
-                messages.success(request, "Ekip eklendi.")
+                payment = form.save(commit=False)
+                if request.user.is_authenticated:
+                    payment.recorded_by = request.user
+                payment.save()
+                messages.success(request, 'Ödeme kaydı eklendi.')
             else:
-                messages.error(request, "Ekip kaydı eklenemedi.")
-        elif 'update_team' in request.POST:
-            obj = get_object_or_404(ServiceTeam, pk=request.POST.get('id'))
-            form = ServiceTeamForm(request.POST, instance=obj)
-            if form.is_valid():
-                form.save()
-                messages.success(request, "Ekip güncellendi.")
-            else:
-                messages.error(request, "Ekip güncellenemedi.")
-        elif 'delete_team' in request.POST:
-            try:
-                ServiceTeam.objects.filter(id=request.POST.get('id')).delete()
-                messages.info(request, "Ekip silindi.")
-            except Exception:
-                messages.error(request, "Ekip silinemedi.")
+                messages.error(request, 'Ödeme kaydı eklenemedi.')
+        elif 'delete_payment' in request.POST:
+            if not can_manage_payroll(request.user):
+                messages.error(request, 'Maaş/avans kaydı için yetkiniz yok.')
+                return redirect('personnel_network')
+            PersonnelPayment.objects.filter(id=request.POST.get('id')).delete()
+            messages.info(request, 'Ödeme kaydı silindi.')
         elif 'add_personnel' in request.POST:
+            if not can_manage_personnel(request.user):
+                messages.error(request, 'Personel yönetimi için yetkiniz yok.')
+                return redirect('personnel_network')
             form = ServicePersonnelForm(request.POST)
             if form.is_valid():
                 form.save()
-                messages.success(request, "Personel eklendi.")
+                messages.success(request, 'Personel eklendi.')
             else:
-                messages.error(request, "Personel kaydı eklenemedi.")
+                messages.error(request, 'Personel kaydı eklenemedi.')
         elif 'update_personnel' in request.POST:
+            if not can_manage_personnel(request.user):
+                messages.error(request, 'Personel yönetimi için yetkiniz yok.')
+                return redirect('personnel_network')
             obj = get_object_or_404(ServicePersonnel, pk=request.POST.get('id'))
             form = ServicePersonnelForm(request.POST, instance=obj)
             if form.is_valid():
                 form.save()
-                messages.success(request, "Personel güncellendi.")
+                messages.success(request, 'Personel güncellendi.')
             else:
-                messages.error(request, "Personel güncellenemedi.")
+                messages.error(request, 'Personel güncellenemedi.')
         elif 'delete_personnel' in request.POST:
+            if not can_manage_personnel(request.user):
+                messages.error(request, 'Personel yönetimi için yetkiniz yok.')
+                return redirect('personnel_network')
             ServicePersonnel.objects.filter(id=request.POST.get('id')).delete()
-            messages.info(request, "Personel silindi.")
+            messages.info(request, 'Personel silindi.')
         return redirect('personnel_network')
 
 

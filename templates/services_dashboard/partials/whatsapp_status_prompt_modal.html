@@ -1,0 +1,33 @@
+<div id="serviceWhatsappStatusModal" class="hidden fixed inset-0 z-[260] flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm" data-wa-status-dismiss></div>
+    <div class="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden border border-slate-200">
+        <div class="px-5 py-4 border-b border-slate-100 bg-slate-50 shrink-0">
+            <h3 id="waStatusModalTitle" class="font-bold text-slate-900 text-base">Durum değişikliği</h3>
+            <p id="waStatusModalSubtitle" class="text-xs text-slate-500 mt-1"></p>
+            <p id="waStatusModalHint" class="text-xs text-amber-700 font-semibold mt-2 hidden">Durum henüz kaydedilmedi.</p>
+        </div>
+        <div class="p-5 overflow-y-auto space-y-3 flex-1">
+            <p id="waStatusModalBody" class="text-sm text-slate-600">Durum değişimi için tanımlı senaryo kuralları eşleşti. Nasıl devam etmek istersiniz?</p>
+            <div id="waStatusTemplateList" class="space-y-2"></div>
+        </div>
+        <div id="waStatusModalActionsDeferred" class="hidden px-5 py-4 border-t border-slate-100 bg-slate-50 flex flex-wrap gap-2 justify-end shrink-0">
+            <button type="button" data-wa-status-cancel class="px-4 py-2 rounded-xl text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100">
+                Vazgeç
+            </button>
+            <button type="button" data-wa-status-save class="px-4 py-2 rounded-xl text-sm font-bold text-slate-700 bg-slate-200 hover:bg-slate-300">
+                Kaydet (mesaj yok)
+            </button>
+            <button type="button" data-wa-status-save-send class="px-4 py-2 rounded-xl text-sm font-bold text-white bg-green-600 hover:bg-green-700">
+                Kaydet ve gönder
+            </button>
+        </div>
+        <div id="waStatusModalActionsLegacy" class="px-5 py-4 border-t border-slate-100 bg-slate-50 flex flex-wrap gap-2 justify-end shrink-0">
+            <button type="button" data-wa-status-skip class="px-4 py-2 rounded-xl text-sm font-bold text-slate-600 bg-white border border-slate-200 hover:bg-slate-100">
+                Hayır, gönderme
+            </button>
+            <button type="button" data-wa-status-send class="px-4 py-2 rounded-xl text-sm font-bold text-white bg-green-600 hover:bg-green-700">
+                Evet, gönder
+            </button>
+        </div>
+    </div>
+</div>

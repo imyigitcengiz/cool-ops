@@ -1,0 +1,19 @@
+{% extends 'users/yonetim/base.html' %}
+{% block title %}Rol sil{% endblock %}
+{% block content %}
+<div class="max-w-lg bg-white rounded-3xl border border-red-100 p-6 shadow-sm">
+    <h1 class="text-xl font-bold text-slate-900">Rol silinsin mi?</h1>
+    <p class="text-sm text-slate-600 mt-2">
+        <span class="font-semibold text-slate-900">"{{ object.name }}"</span> rolü kalıcı olarak silinecek.
+        Bu işlem geri alınamaz.
+    </p>
+    {% if object.description %}
+    <p class="text-xs text-slate-500 mt-2">{{ object.description }}</p>
+    {% endif %}
+    <form method="post" class="flex gap-3 mt-6">
+        {% csrf_token %}
+        <a href="{% url 'admin_roles' %}" class="px-5 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold">Vazgeç</a>
+        <button type="submit" class="px-5 py-2.5 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700">Evet, sil</button>
+    </form>
+</div>
+{% endblock %}

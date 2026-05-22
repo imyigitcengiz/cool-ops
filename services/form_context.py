@@ -6,6 +6,7 @@ from core_settings.models import (
     ServiceTypeOption,
     StatusOption,
 )
+from services.models import ServiceRecord
 
 
 def build_service_form_context(service=None):
@@ -31,7 +32,7 @@ def build_service_form_context(service=None):
             for s in service_types
         ],
         'statuses': [
-            {'id': s.id, 'name': s.name, 'color': s.color_hex}
+            {'id': s.id, 'name': s.name, 'color': s.color_hex, 'is_paid': ServiceRecord.status_name_is_paid(s.name)}
             for s in StatusOption.objects.order_by('name')
         ],
         'priorities': [

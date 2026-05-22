@@ -7,58 +7,47 @@ from django.utils import timezone
 from datetime import timedelta
 import json
 from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
+import logging
+
 import openai
+from django.views.decorators.http import require_POST
+
+from common.decorators import permission_required
+from .service_report import build_service_dashboard_report
+
+logger = logging.getLogger(__name__)
+
+class HomeView(TemplateView):
+    template_name = 'home.html'
+
 
 class DashboardView(TemplateView):
-    template_name = 'dashboard.html'
+    template_name = 'services_dashboard/dashboard.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        all_services = ServiceRecord.objects.all()
-        total_services = all_services.count()
-        total_customers = Customer.objects.count()
-
-        today = timezone.localdate()
-        days = [today - timedelta(days=i) for i in range(6, -1, -1)]
-        day_labels = [d.strftime('%a') for d in days]
-        trend_counts = []
-        for d in days:
-            next_day = d + timedelta(days=1)
-            trend_counts.append(
-                all_services.filter(created_at__date__gte=d, created_at__date__lt=next_day).count()
-            )
-
-        top_statuses = (
-            all_services.values('status__name')
-            .annotate(total=Count('id'))
-            .order_by('-total')[:5]
-        )
-
-        context['service_counts'] = {
-            'open': all_services.filter(status__name__icontains='servis').count(),
-            'pending': all_services.filter(status__name__icontains='beklemede').count(),
-            'completed': all_services.filter(status__name__icontains='tamam').count(),
-        }
-        context['total_services'] = total_services
-        context['total_customers'] = total_customers
-        context['completion_rate'] = round(
-            (context['service_counts']['completed'] / total_services * 100), 1
-        ) if total_services else 0
-        context['warranty_active_count'] = all_services.filter(warranty_status='active').count()
-        context['recent_services'] = all_services.order_by('-created_at')[:5]
-        product_stats = ServiceRecord.objects.values('products__name').annotate(total=Count('products')).exclude(products__name=None)
-        context['product_distribution'] = {p['products__name']: p['total'] for p in product_stats}
-        context['service_trend_labels'] = day_labels
-        context['service_trend_data'] = trend_counts
-        context['top_statuses'] = [s['status__name'] or 'Durum Yok' for s in top_statuses]
-        context['top_status_counts'] = [s['total'] for s in top_statuses]
-        context['statuses'] = StatusOption.objects.order_by('name')
+        report = build_service_dashboard_report()
+        context.update(report)
+        context['total_customers'] = Customer.objects.count()
+        context['statuses'] = StatusOption.objects.order_by('sort_order', 'name')
         context['priorities'] = PriorityOption.objects.order_by('name')
+        context['monthly_chart'] = json.dumps({
+            'labels': report['monthly_labels'],
+            'active': report['monthly_active'],
+            'pending': report['monthly_pending'],
+            'closed': report['monthly_closed'],
+            'cancelled': report['monthly_cancelled'],
+            'total': report['monthly_total'],
+        }, ensure_ascii=False)
+        context['product_chart'] = json.dumps({
+            'labels': report['product_labels'],
+            'counts': report['product_counts'],
+            'colors': report['product_colors'],
+        }, ensure_ascii=False)
         return context
 
 class AIPanelView(TemplateView):
-    template_name = 'analytics/ai_panel.html'
+    template_name = 'services_dashboard/analytics/ai_panel.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -71,11 +60,9 @@ class AIPanelView(TemplateView):
         }
         return context
 
-@csrf_exempt
+@require_POST
+@permission_required('tools.ai')
 def ai_chat_view(request):
-    if request.method != 'POST':
-        return JsonResponse({'error': 'Only POST allowed'}, status=405)
-    
     try:
         data = json.loads(request.body)
         user_message = data.get('message', '')
@@ -117,7 +104,7 @@ def ai_chat_view(request):
                 )
                 response_text = chat_response.text
             except Exception as e:
-                print(f"Gemini Error: {e}")
+                logger.warning('Gemini error: %s', e)
                 
         # If Gemini failed or no key, try OpenAI
         if not response_text and settings.openai_api_key:
@@ -132,7 +119,7 @@ def ai_chat_view(request):
                 )
                 response_text = completion.choices[0].message.content
             except Exception as e:
-                print(f"OpenAI Error: {e}")
+                logger.warning('OpenAI error: %s', e)
                 
         if not response_text:
             return JsonResponse({'error': 'AI providers failed or keys missing'}, status=500)

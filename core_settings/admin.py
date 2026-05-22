@@ -3,6 +3,7 @@ from .models import (
     SiteSettings,
     ServiceTypeOption,
     ProductOption,
+    ProductColorOption,
     StatusOption,
     PriorityOption,
     WhatsAppTemplate,
@@ -19,6 +20,7 @@ class SiteSettingsAdmin(admin.ModelAdmin):
 
 admin.site.register(ServiceTypeOption)
 admin.site.register(ProductOption)
+admin.site.register(ProductColorOption)
 admin.site.register(StatusOption)
 admin.site.register(PriorityOption)
 admin.site.register(WhatsAppTemplate)

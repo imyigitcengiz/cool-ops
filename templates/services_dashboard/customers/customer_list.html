@@ -1,0 +1,239 @@
+{% extends 'services_dashboard/base.html' %}
+
+{% block title %}Müşteriler | GÖLGEDE YAŞAM{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-bold text-slate-900">Müşteriler</h2>
+        <div class="flex gap-3">
+            {% if user_perms.contact_customers %}
+            <a href="{% url 'customer_create' %}" class="px-4 py-2 bg-brand-600 text-white rounded-xl text-sm font-semibold hover:bg-brand-700 transition-colors shadow-lg shadow-brand-200 flex items-center gap-2">
+                <i data-lucide="plus" class="w-4 h-4"></i> Yeni Müşteri Ekle
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <form id="bulkActionForm" method="post" action="{% url 'customer_bulk_manage' %}">
+            {% csrf_token %}
+            {% if user_perms.contact_customers or user_perms.contact_customers_delete %}
+            <div class="p-4 border-b border-slate-100 bg-slate-50 flex flex-wrap items-center gap-2">
+                <span id="customerBulkCount" class="text-xs font-bold text-slate-500">0 kayıt seçili</span>
+                <select id="customerBulkAction" name="bulk_action" class="p-2 bg-white border border-slate-200 rounded-xl text-sm">
+                    <option value="">Toplu işlem seçin</option>
+                    {% if user_perms.contact_customers %}
+                    <option value="set_region">Bölge güncelle</option>
+                    <option value="set_contract_date">Sözleşme tarihi güncelle</option>
+                    <option value="add_product">Ürün ekle</option>
+                    <option value="remove_product">Ürün kaldır</option>
+                    {% endif %}
+                    {% if user_perms.contact_customers_delete %}
+                    <option value="delete">Seçilenleri sil</option>
+                    {% endif %}
+                </select>
+                <input id="customerBulkRegion" name="bulk_region" class="hidden p-2 bg-white border border-slate-200 rounded-xl text-sm" placeholder="Yeni bölge">
+                <input id="customerBulkContractDate" type="date" name="bulk_contract_date" class="hidden p-2 bg-white border border-slate-200 rounded-xl text-sm">
+                <select id="customerBulkProduct" name="bulk_product_id" class="hidden p-2 bg-white border border-slate-200 rounded-xl text-sm">
+                    <option value="">Ürün seçin</option>
+                    {% for p in products %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+                </select>
+                <button type="submit" class="px-3 py-2 bg-slate-900 text-white rounded-xl text-sm font-semibold hover:bg-slate-800">
+                    Uygula
+                </button>
+            </div>
+            {% endif %}
+            <table class="w-full text-left">
+                <thead class="bg-slate-50 border-b border-slate-100">
+                    <tr>
+                        {% if user_perms.contact_customers or user_perms.contact_customers_delete %}
+                        <th class="px-6 py-4 w-10">
+                            <input type="checkbox" id="selectAll" class="w-4 h-4 accent-brand-600 rounded">
+                        </th>
+                        {% endif %}
+                        <th class="px-6 py-4 text-sm font-semibold text-slate-900">Müşteri Adı</th>
+                        <th class="px-6 py-4 text-sm font-semibold text-slate-900">Telefon / WhatsApp</th>
+                        <th class="px-6 py-4 text-sm font-semibold text-slate-900">Bölge</th>
+                        <th class="px-6 py-4 text-sm font-semibold text-slate-900">Ürünler</th>
+                        <th class="px-6 py-4 text-sm font-semibold text-slate-900">Sözleşme Tarihi</th>
+                        <th class="px-6 py-4 text-sm font-semibold text-slate-900">Konum</th>
+                        <th class="px-6 py-4 text-sm font-semibold text-slate-900 text-right">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for c in customers %}
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        {% if user_perms.contact_customers or user_perms.contact_customers_delete %}
+                        <td class="px-6 py-4">
+                            <input type="checkbox" name="ids" value="{{ c.id }}" class="row-checkbox w-4 h-4 accent-brand-600 rounded">
+                        </td>
+                        {% endif %}
+                        <td class="px-6 py-4 font-medium text-slate-900">
+                            {% if user_perms.contact_customers %}
+                            <a href="{% url 'customer_update' c.id %}" class="text-brand-600 hover:underline">{{ c.name }}</a>
+                            {% else %}
+                            {{ c.name }}
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex items-center gap-3">
+                                <span class="text-slate-600 text-sm font-medium">{{ c.phone|default:"-" }}</span>
+                                {% if c.phone and user_perms.tools_whatsapp %}
+                                <button type="button"
+                                        onclick="openWhatsAppModal('{{ c.phone|escapejs }}', {
+                                            name: '{{ c.name|escapejs }}',
+                                            ariza: '-',
+                                            status: '-',
+                                            note: '-',
+                                            region: '{{ c.region|default:"-"|escapejs }}',
+                                            phone: '{{ c.phone|default:"-"|escapejs }}',
+                                            date: '{{ c.contract_date|date:"d.m.Y"|default:"-"|escapejs }}',
+                                            customerId: {{ c.id }}
+                                        })"
+                                        class="p-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-all"
+                                        title="WhatsApp Mesaj Gönder">
+                                    <i data-lucide="message-circle" class="w-4 h-4"></i>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 text-slate-600 text-sm">{{ c.region|default:"-" }}</td>
+                        <td class="px-6 py-4">
+                            <div class="flex flex-wrap gap-1 max-w-[150px]">
+                                {% for p in c.products.all %}
+                                <span class="px-2 py-0.5 bg-slate-100 text-slate-600 rounded-lg text-[10px] font-bold">{{ p.name }}</span>
+                                {% empty %}
+                                <span class="text-slate-400">-</span>
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            <div class="flex flex-col">
+                                <span class="text-brand-600 font-bold text-sm">{{ c.contract_date|date:"d.m.Y"|default:"-" }}</span>
+                                {% if c.contract_age %}
+                                <span class="text-[10px] text-slate-400 font-medium">({{ c.contract_age }} önce)</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if c.location_link %}
+                            <a href="{{ c.location_link }}" target="_blank" class="flex items-center gap-2 text-brand-600 hover:text-brand-700 font-bold text-xs bg-brand-50 px-3 py-1.5 rounded-lg transition-all w-fit">
+                                <i data-lucide="map-pin" class="w-3.5 h-3.5"></i> KONUM
+                            </a>
+                            {% else %}
+                            <span class="text-slate-300 text-xs">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <div class="flex justify-end gap-2">
+                                {% if user_perms.contact_customers %}
+                                <a href="{% url 'customer_update' c.id %}" class="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors" title="Düzenle">
+                                    <i data-lucide="edit-3" class="w-4 h-4"></i>
+                                </a>
+                                {% endif %}
+                                {% if user_perms.contact_customers_delete %}
+                                <form method="post" action="{% url 'customer_delete' c.id %}" class="inline">
+                                    {% csrf_token %}
+                                    <button type="submit" onclick="return confirm('Emin misiniz?')" class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="px-6 py-12 text-center text-slate-400">Henüz müşteri kaydı bulunmuyor.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </form>
+    </div>
+</div>
+
+<div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-4">
+    <form method="get" class="relative">
+        <input type="text"
+               name="q"
+               value="{{ request.GET.q }}"
+               placeholder="Müşteri adı, telefon veya bölge ara..."
+               class="w-full p-2 bg-slate-50 border-none rounded-xl text-sm">
+        <button type="submit" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400">
+            <i data-lucide="search" class="w-4 h-4"></i>
+        </button>
+    </form>
+</div>
+
+<script>
+    function getCsrfToken() {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; csrftoken=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return '';
+    }
+
+    const selectAllEl = document.getElementById('selectAll');
+    selectAllEl?.addEventListener('change', function(e) {
+        document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = e.target.checked);
+        updateCustomerBulkState();
+    });
+
+    const customerBulkForm = document.getElementById('bulkActionForm');
+    const customerBulkAction = document.getElementById('customerBulkAction');
+    const customerBulkRegion = document.getElementById('customerBulkRegion');
+    const customerBulkContractDate = document.getElementById('customerBulkContractDate');
+    const customerBulkProduct = document.getElementById('customerBulkProduct');
+    const customerBulkCount = document.getElementById('customerBulkCount');
+
+    function updateCustomerBulkState() {
+        const checkedCount = document.querySelectorAll('.row-checkbox:checked').length;
+        if (customerBulkCount) customerBulkCount.textContent = `${checkedCount} kayıt seçili`;
+    }
+
+    function updateCustomerBulkInputs() {
+        const action = customerBulkAction?.value;
+        customerBulkRegion?.classList.toggle('hidden', action !== 'set_region');
+        customerBulkContractDate?.classList.toggle('hidden', action !== 'set_contract_date');
+        customerBulkProduct?.classList.toggle('hidden', !['add_product', 'remove_product'].includes(action));
+    }
+
+    document.querySelectorAll('.row-checkbox').forEach((cb) => {
+        cb.addEventListener('change', updateCustomerBulkState);
+    });
+    customerBulkAction?.addEventListener('change', updateCustomerBulkInputs);
+    customerBulkForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const checkedCount = document.querySelectorAll('.row-checkbox:checked').length;
+        const action = customerBulkAction?.value || '';
+        if (checkedCount === 0) {
+            alert('Toplu işlem için en az bir müşteri seçin.');
+            return;
+        }
+        if (!action) {
+            alert('Toplu işlem türü seçin.');
+            return;
+        }
+        if (action === 'delete' && !confirm(`${checkedCount} müşteriyi silmek istediğinize emin misiniz?`)) {
+            return;
+        }
+        try {
+            const res = await fetch(customerBulkForm.action, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': getCsrfToken() },
+                body: new FormData(customerBulkForm),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.ok) {
+                alert(data.error || 'Toplu işlem başarısız.');
+                return;
+            }
+            location.reload();
+        } catch (err) {
+            alert('Toplu işlem sırasında hata oluştu.');
+        }
+    });
+    updateCustomerBulkInputs();
+    updateCustomerBulkState();
+</script>
+{% endblock %}

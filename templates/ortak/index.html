@@ -1,0 +1,51 @@
+{% extends 'ortak/base.html' %}
+
+{% block title %}CRM Özet{% endblock %}
+
+{% block header_title %}
+<h1 class="text-lg font-bold text-slate-900">CRM</h1>
+<p class="text-sm text-slate-500">Müşteriler, çözüm ağı ve personel — satış, servis ve muhasebe modüllerinin ortak kayıt alanı.</p>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    {% if user_perms.contact_customers_view or user_perms.contact_customers %}
+    <a href="{% url 'customers' %}" class="group bg-white rounded-3xl border border-slate-200 shadow-sm p-6 hover:border-brand-300 hover:shadow-md transition-all">
+        <div class="w-12 h-12 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mb-4 group-hover:bg-brand-100">
+            <i data-lucide="users" class="w-6 h-6"></i>
+        </div>
+        <h2 class="text-lg font-bold text-slate-900">Müşteriler</h2>
+        <p class="text-sm text-slate-500 mt-2">Müşteri kartları, ürünler ve sözleşme bilgileri. Satış kaydı oluşturulduğunda otomatik güncellenir.</p>
+    </a>
+    {% endif %}
+    {% if user_perms.contact_solution %}
+    <a href="{% url 'solution_network' %}" class="group bg-white rounded-3xl border border-slate-200 shadow-sm p-6 hover:border-brand-300 hover:shadow-md transition-all">
+        <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 group-hover:bg-emerald-100">
+            <i data-lucide="network" class="w-6 h-6"></i>
+        </div>
+        <h2 class="text-lg font-bold text-slate-900">Çözüm Ağı</h2>
+        <p class="text-sm text-slate-500 mt-2">Taşeron, nakliye ve dış servisçi ortakları. Servis atamalarında kullanılır.</p>
+    </a>
+    {% endif %}
+    {% if user_perms.contact_personnel or user_perms.contact_payroll %}
+    {% if user_perms.contact_teams %}
+    <a href="{% url 'team_network' %}" class="group bg-white rounded-3xl border border-slate-200 shadow-sm p-6 hover:border-indigo-300 hover:shadow-md transition-all">
+        <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4 group-hover:bg-indigo-100">
+            <i data-lucide="users-round" class="w-6 h-6"></i>
+        </div>
+        <h2 class="text-lg font-bold text-slate-900">Ekipler</h2>
+        <p class="text-sm text-slate-500 mt-2">Servis modülü için ekip tanımları; personel atamalarında kullanılır.</p>
+    </a>
+    {% endif %}
+    {% if user_perms.contact_personnel or user_perms.contact_payroll %}
+    <a href="{% url 'personnel_network' %}" class="group bg-white rounded-3xl border border-slate-200 shadow-sm p-6 hover:border-amber-300 hover:shadow-md transition-all">
+        <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-4 group-hover:bg-amber-100">
+            <i data-lucide="id-card" class="w-6 h-6"></i>
+        </div>
+        <h2 class="text-lg font-bold text-slate-900">Personel</h2>
+        <p class="text-sm text-slate-500 mt-2">Personel kayıtları; maaş ve avans ödemeleri (satış & muhasebe).</p>
+    </a>
+    {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

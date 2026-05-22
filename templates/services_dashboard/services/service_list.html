@@ -1,0 +1,951 @@
+{% extends 'services_dashboard/base.html' %}
+{% load option_colors %}
+
+{% block title %}Servisler | GÖLGEDE YAŞAM{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <div class="flex items-center justify-between">
+        <h2 class="text-2xl font-bold text-slate-900">Servisler</h2>
+        <div class="flex gap-3">
+            {% if user_perms.services_print %}
+            <a href="{% url 'service_bulk_print' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" target="_blank" class="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl text-sm font-semibold hover:bg-blue-100 transition-colors flex items-center gap-2">
+                <i data-lucide="printer" class="w-4 h-4"></i> Tümünü Yazdır
+            </a>
+            {% endif %}
+            {% if user_perms.services_manage %}
+            <a href="{% url 'service_create' %}" class="px-4 py-2 bg-brand-600 text-white rounded-xl text-sm font-semibold hover:bg-brand-700 transition-colors shadow-lg shadow-brand-200 flex items-center gap-2">
+                <i data-lucide="plus" class="w-4 h-4"></i> Yeni Servis Ekle
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+        {% if visibility_active %}
+        <div class="flex flex-wrap items-center gap-3 text-sm">
+            <span class="text-slate-500">Liste görünümü:</span>
+            <span class="px-2.5 py-1 rounded-lg bg-green-50 text-green-700 font-semibold text-xs">Yalnızca aktif servisler</span>
+            <label class="inline-flex items-center gap-2 text-slate-600 cursor-pointer">
+                <input type="checkbox" id="togglePending" class="accent-brand-600" {% if show_pending %}checked{% endif %}>
+                Beklemedekileri göster
+            </label>
+            <label class="inline-flex items-center gap-2 text-slate-600 cursor-pointer">
+                <input type="checkbox" id="toggleHidden" class="accent-brand-600" {% if show_hidden %}checked{% endif %}>
+                Tamamlanan / iptal kayıtları göster
+            </label>
+        </div>
+        {% endif %}
+        <div class="flex flex-wrap items-center gap-2 text-sm border-t border-slate-100 pt-3">
+            <span class="text-slate-500">Görünüm:</span>
+            <button type="button" data-set-view="customer"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold {% if list_view_mode == 'customer' %}bg-brand-600 text-white{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200{% endif %}">
+                Müşteri (özet)
+            </button>
+            <button type="button" data-set-view="record"
+                    class="px-3 py-1.5 rounded-lg text-xs font-bold {% if list_view_mode == 'record' %}bg-brand-600 text-white{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200{% endif %}">
+                Tüm kayıtlar
+            </button>
+            {% if list_view_mode == 'customer' %}
+            <span class="text-[11px] text-slate-400">Müşteri başına en güncel açık kayıt öne çıkar.</span>
+            {% endif %}
+        </div>
+        <form method="get" id="serviceFilterForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <input type="hidden" name="view" id="listViewModeInput" value="{{ list_view_mode }}">
+            <input type="hidden" name="show_pending" id="showPendingInput" value="{% if show_pending %}1{% else %}0{% endif %}">
+            <input type="hidden" name="show_hidden" id="showHiddenInput" value="{% if show_hidden %}1{% else %}0{% endif %}">
+            <select name="status" onchange="this.form.submit()" class="p-2 bg-slate-50 border-none rounded-xl text-sm">
+                <option value="">Durum (varsayılan: aktif)</option>
+                {% for s in statuses %}
+                <option value="{{ s.id }}" {% if request.GET.status == s.id|stringformat:"i" %}selected{% endif %}>{{ s.name }}</option>
+                {% endfor %}
+            </select>
+            <select name="priority" onchange="this.form.submit()" class="p-2 bg-slate-50 border-none rounded-xl text-sm">
+                <option value="">Tüm Öncelikler</option>
+                {% for p in priorities %}
+                <option value="{{ p.id }}" {% if request.GET.priority == p.id|stringformat:"i" %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+            <select name="product" onchange="this.form.submit()" class="p-2 bg-slate-50 border-none rounded-xl text-sm">
+                <option value="">Tüm Ürünler</option>
+                {% for p in products %}
+                <option value="{{ p.id }}" {% if request.GET.product == p.id|stringformat:"i" %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+            <select name="warranty" onchange="this.form.submit()" class="p-2 bg-slate-50 border-none rounded-xl text-sm">
+                <option value="">Garanti Durumu</option>
+                <option value="active" {% if request.GET.warranty == 'active' %}selected{% endif %}>Garantisi Devam Edenler</option>
+                <option value="expired" {% if request.GET.warranty == 'expired' %}selected{% endif %}>Garantisi Bitenler</option>
+            </select>
+            <select name="team" onchange="this.form.submit()" class="p-2 bg-slate-50 border-none rounded-xl text-sm">
+                <option value="">Tüm Ekipler</option>
+                {% for t in teams %}
+                <option value="{{ t.id }}" {% if request.GET.team == t.id|stringformat:"i" %}selected{% endif %}>{{ t.name }}</option>
+                {% endfor %}
+            </select>
+            <select name="personnel" onchange="this.form.submit()" class="p-2 bg-slate-50 border-none rounded-xl text-sm">
+                <option value="">Tüm Personeller</option>
+                {% for p in personnel_list %}
+                <option value="{{ p.id }}" {% if request.GET.personnel == p.id|stringformat:"i" %}selected{% endif %}>{{ p.name }}{% if p.team %} ({{ p.team.name }}){% endif %}</option>
+                {% endfor %}
+            </select>
+            <div class="relative col-span-1 md:col-span-6">
+                <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Müşteri veya notlarda ara..." class="w-full p-2 bg-slate-50 border-none rounded-xl text-sm">
+                <button type="submit" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400">
+                    <i data-lucide="search" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </form>
+        {% if user_perms.services_whatsapp %}
+        <div class="pt-2 border-t border-slate-100">
+            <a href="{% url 'service_send_whatsapp_auto' %}?{{ request.GET.urlencode }}"
+               class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800">
+                <i data-lucide="send" class="w-4 h-4"></i>
+                WA Otomatik Dağıt (Tek Tuş)
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <form id="bulkActionForm" method="post" action="{% url 'service_bulk_manage' %}">
+            {% csrf_token %}
+            {% if user_perms.services_bulk or user_perms.services_delete %}
+            <div class="p-4 border-b border-slate-100 bg-slate-50 flex flex-wrap items-center gap-2">
+                <span id="serviceBulkCount" class="text-xs font-bold text-slate-500">0 kayıt seçili</span>
+                <select id="serviceBulkAction" name="bulk_action" class="p-2 bg-white border border-slate-200 rounded-xl text-sm">
+                    <option value="">Toplu işlem seçin</option>
+                    {% if user_perms.services_bulk %}
+                    <option value="set_status">Durum değiştir</option>
+                    <option value="set_priority">Öncelik değiştir</option>
+                    <option value="set_personnel">Servis personeli ata</option>
+                    {% endif %}
+                    {% if user_perms.services_delete %}
+                    <option value="delete">Seçilenleri sil</option>
+                    {% endif %}
+                </select>
+                <select id="serviceBulkStatus" name="bulk_status_id" class="hidden p-2 bg-white border border-slate-200 rounded-xl text-sm">
+                    <option value="">Durum seçin</option>
+                    {% for s in statuses %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+                </select>
+                <select id="serviceBulkPriority" name="bulk_priority_id" class="hidden p-2 bg-white border border-slate-200 rounded-xl text-sm">
+                    <option value="">Öncelik seçin</option>
+                    {% for p in priorities %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+                </select>
+                <select id="serviceBulkPersonnel" name="bulk_personnel_id" class="hidden p-2 bg-white border border-slate-200 rounded-xl text-sm">
+                    <option value="clear">Personel temizle</option>
+                    {% for p in personnel_list %}<option value="{{ p.id }}">{{ p.name }}{% if p.team %} ({{ p.team.name }}){% endif %}</option>{% endfor %}
+                </select>
+                <button type="submit" id="serviceBulkApplyBtn" class="px-3 py-2 bg-slate-900 text-white rounded-xl text-sm font-semibold hover:bg-slate-800">
+                    Uygula
+                </button>
+            </div>
+            {% endif %}
+            <table class="w-full text-left">
+                <thead class="bg-slate-50 border-b border-slate-100">
+                    <tr>
+                        {% if user_perms.services_bulk or user_perms.services_delete %}
+                        <th class="px-6 py-4 w-10">
+                            <input type="checkbox" id="selectAll" class="w-4 h-4 accent-brand-600 rounded">
+                        </th>
+                        {% endif %}
+                        <th class="px-6 py-4 text-sm font-semibold text-slate-900">Müşteri</th>
+                        <th class="px-6 py-4 text-sm font-semibold text-slate-900">Ürünler</th>
+                        <th class="px-6 py-4 text-sm font-semibold text-slate-900">Arıza Tipi</th>
+                        <th class="px-6 py-4 text-sm font-semibold text-slate-900">Notlar</th>
+                        <th class="px-6 py-4 text-sm font-semibold text-slate-900">Durum</th>
+                        <th class="px-6 py-4 text-sm font-semibold text-slate-900">Öncelik</th>
+                        <th class="px-6 py-4 text-sm font-semibold text-slate-900 text-right">İşlemler</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for s in services %}
+                    <tr class="hover:bg-slate-50 transition-colors">
+                        {% if user_perms.services_bulk or user_perms.services_delete %}
+                        <td class="px-6 py-4">
+                            <input type="checkbox" name="ids" value="{{ s.id }}" class="row-checkbox w-4 h-4 accent-brand-600 rounded">
+                        </td>
+                        {% endif %}
+                        <td class="px-6 py-4">
+                            <div class="flex flex-col">
+                                <div class="flex flex-wrap items-center gap-2">
+                                <button type="button"
+                                        class="customer-card-trigger text-left font-medium text-slate-900 hover:text-brand-600 hover:underline"
+                                        data-customer-id="{{ s.customer.id }}">
+                                    {{ s.customer.name }}
+                                </button>
+                                <span class="text-[10px] font-mono font-bold text-slate-400">#{{ s.id }}</span>
+                                {% if list_view_mode == 'customer' and s.group_other_count %}
+                                <button type="button"
+                                        class="customer-card-trigger text-[10px] font-bold text-brand-600 hover:underline"
+                                        data-customer-id="{{ s.customer.id }}"
+                                        title="Tüm servis geçmişi">
+                                    +{{ s.group_other_count }} kayıt
+                                </button>
+                                {% endif %}
+                                {% if list_view_mode == 'customer' and s.group_has_multiple_open %}
+                                <span class="text-[10px] px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 font-bold">{{ s.group_open_count }} açık</span>
+                                {% endif %}
+                                </div>
+                                {% if s.customer.location_link %}
+                                <div class="mt-0.5 flex items-center gap-2">
+                                    <a href="{{ s.customer.location_link }}" target="_blank"
+                                       class="text-[11px] font-semibold text-blue-600 hover:underline truncate max-w-[220px]"
+                                       title="{{ s.customer.location_link }}">
+                                        Konum: {{ s.customer.location_link }}
+                                    </a>
+                                    <button type="button"
+                                            class="open-location-qr px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-slate-100 text-slate-600 hover:bg-slate-200"
+                                            data-location-url="{{ s.customer.location_link }}"
+                                            title="Konum QR">
+                                        QR
+                                    </button>
+                                </div>
+                                {% endif %}
+                                <div class="flex items-center gap-2 mt-1">
+                                    <span class="text-[11px] text-slate-400 font-medium">{{ s.customer.phone|default:"-" }}</span>
+                                    {% if s.customer.phone and user_perms.services_whatsapp %}
+                                    <button type="button"
+                                            onclick="openWhatsAppModal('{{ s.customer.phone|escapejs }}', {
+                                                name: '{{ s.customer.name|escapejs }}',
+                                                ariza: '{% for t in s.service_types.all %}{{ t.name|escapejs }}{% if not forloop.last %}, {% endif %}{% empty %}-{% endfor %}',
+                                                status: '{{ s.status.name|escapejs }}',
+                                                note: '{{ s.notes|default:"-"|escapejs }}',
+                                                region: '{{ s.customer.region|default:"-"|escapejs }}',
+                                                phone: '{{ s.customer.phone|default:"-"|escapejs }}',
+                                                date: '{{ s.created_at|date:"d.m.Y"|escapejs }}',
+                                                customerId: {{ s.customer.id }}
+                                            })"
+                                            class="text-green-500 hover:text-green-600 transition-colors"
+                                            title="WhatsApp">
+                                        <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                                {% if s.solution_partner %}
+                                <span class="mt-1 text-[11px] font-semibold text-indigo-600">
+                                    Çözüm: {{ s.solution_partner.name }} ({{ s.solution_partner.partner_type.name|default:"-" }})
+                                </span>
+                                {% if s.solution_partner.notes %}
+                                <span class="text-[11px] text-slate-500">Not: {{ s.solution_partner.notes }}</span>
+                                {% endif %}
+                                {% endif %}
+                                {% if s.service_personnel %}
+                                <span class="mt-1 text-[11px] font-semibold text-emerald-700">
+                                    Personel: {{ s.service_personnel.name }}{% if s.service_personnel.team %} ({{ s.service_personnel.team.name }}){% endif %}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 {% if user_perms.services_manage %}quick-sheet-cell cursor-pointer{% endif %}" {% if user_perms.services_manage %}data-service-id="{{ s.id }}" title="Hızlı düzenle"{% endif %}>
+                            <div class="flex flex-wrap gap-1">
+                                {% for p in s.products.all %}
+                                <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold border"
+                                      style="background-color: {{ p.color_hex|option_badge_bg }}; color: {{ p.color_hex|option_badge_text }}; border-color: {{ p.color_hex|option_badge_border }};">{{ p.name }}</span>
+                                {% empty %}
+                                <span class="text-slate-400">-</span>
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 {% if user_perms.services_manage %}quick-sheet-cell cursor-pointer{% endif %}" {% if user_perms.services_manage %}data-service-id="{{ s.id }}" title="Hızlı düzenle"{% endif %}>
+                            <div class="flex flex-wrap gap-1">
+                                {% for t in s.service_types.all %}
+                                <span class="px-2 py-0.5 rounded-lg text-[10px] font-bold border"
+                                      style="background-color: {{ t|service_type_color_for_products:s.products.all|option_badge_bg }}; color: {{ t|service_type_color_for_products:s.products.all|option_badge_text }}; border-color: {{ t|service_type_color_for_products:s.products.all|option_badge_border }};">{{ t.name }}</span>
+                                {% empty %}
+                                <span class="text-slate-400">-</span>
+                                {% endfor %}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 {% if user_perms.services_manage %}quick-sheet-cell cursor-pointer{% endif %}" {% if user_perms.services_manage %}data-service-id="{{ s.id }}" title="Hızlı düzenle"{% endif %}>
+                            <p class="text-xs text-slate-500 line-clamp-2 max-w-[200px]" title="{{ s.notes|default:'' }}">
+                                {{ s.notes|default:"-" }}
+                            </p>
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if user_perms.services_manage %}
+                            <div class="relative inline-block quick-update-wrap" data-service-id="{{ s.id }}" data-field="status">
+                                <button type="button"
+                                        class="quick-update-trigger px-2 py-1 rounded-md text-xs font-bold border"
+                                        style="background-color: {{ s.status.color_hex|option_badge_bg }}; color: {{ s.status.color_hex|option_badge_text }}; border-color: {{ s.status.color_hex|option_badge_border }};">
+                                    {{ s.status.name }}
+                                </button>
+                                <div class="quick-update-menu hidden absolute z-30 mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-lg p-1">
+                                    {% for opt in statuses %}
+                                    <button type="button"
+                                            class="quick-update-option w-full text-left px-2 py-1.5 rounded-lg text-xs font-semibold hover:bg-slate-50"
+                                            data-value="{{ opt.id }}"
+                                            data-label="{{ opt.name }}"
+                                            data-color="{{ opt.color_hex }}"
+                                            data-kind="status">
+                                        {{ opt.name }}
+                                    </button>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% else %}
+                            <span class="px-2 py-1 rounded-md text-xs font-bold border"
+                                  style="background-color: {{ s.status.color_hex|option_badge_bg }}; color: {{ s.status.color_hex|option_badge_text }}; border-color: {{ s.status.color_hex|option_badge_border }};">
+                                {{ s.status.name }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4">
+                            {% if user_perms.services_manage %}
+                            <div class="relative inline-block quick-update-wrap" data-service-id="{{ s.id }}" data-field="priority">
+                                <button type="button"
+                                        class="quick-update-trigger flex items-center gap-1.5 text-xs font-bold px-2 py-1 rounded-md border"
+                                        style="background-color: {{ s.priority.color_hex|option_badge_bg }}; color: {{ s.priority.color_hex|option_badge_text }}; border-color: {{ s.priority.color_hex|option_badge_border }};">
+                                    <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background-color: {{ s.priority.color_hex }};"></span>
+                                    {{ s.priority.name }}
+                                </button>
+                                <div class="quick-update-menu hidden absolute z-30 mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-lg p-1">
+                                    {% for opt in priorities %}
+                                    <button type="button"
+                                            class="quick-update-option w-full text-left px-2 py-1.5 rounded-lg text-xs font-semibold hover:bg-slate-50"
+                                            data-value="{{ opt.id }}"
+                                            data-label="{{ opt.name }}"
+                                            data-color="{{ opt.color_hex }}"
+                                            data-kind="priority">
+                                        {{ opt.name }}
+                                    </button>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% else %}
+                            <span class="flex items-center gap-1.5 text-xs font-bold px-2 py-1 rounded-md border"
+                                  style="background-color: {{ s.priority.color_hex|option_badge_bg }}; color: {{ s.priority.color_hex|option_badge_text }}; border-color: {{ s.priority.color_hex|option_badge_border }};">
+                                <span class="w-1.5 h-1.5 rounded-full shrink-0" style="background-color: {{ s.priority.color_hex }};"></span>
+                                {{ s.priority.name }}
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-4 text-right">
+                            <div class="flex justify-end gap-2">
+                                {% if user_perms.services_print %}
+                                <a href="{% url 'service_print' s.id %}" target="_blank" class="p-2 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors" title="Yazdır">
+                                    <i data-lucide="printer" class="w-4 h-4"></i>
+                                </a>
+                                {% endif %}
+                                {% if user_perms.services_manage %}
+                                <a href="{% url 'service_update' s.id %}" class="p-2 text-slate-400 hover:text-brand-600 hover:bg-brand-50 rounded-lg transition-colors">
+                                    <i data-lucide="edit-3" class="w-4 h-4"></i>
+                                </a>
+                                <button type="button"
+                                        class="quick-sheet-edit-btn p-2 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                        data-service-id="{{ s.id }}"
+                                        title="Hızlı düzenle">
+                                    <i data-lucide="square-pen" class="w-4 h-4"></i>
+                                </button>
+                                {% endif %}
+                                {% if user_perms.services_delete %}
+                                <form method="post" action="{% url 'service_delete' s.id %}" class="inline">
+                                    {% csrf_token %}
+                                    <button type="submit" onclick="return confirm('Emin misiniz?')" class="p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                    </button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="px-6 py-12 text-center text-slate-400">Aradığınız kriterlere uygun servis kaydı bulunmuyor.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </form>
+    </div>
+</div>
+
+{% if user_perms.services_manage %}
+<div id="quickSheetModal" class="hidden fixed inset-0 bg-slate-900/55 backdrop-blur-sm z-[140] flex items-center justify-center p-4">
+    <div class="w-full max-w-4xl bg-white rounded-3xl border border-slate-100 shadow-2xl overflow-hidden">
+        <div class="p-5 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+            <h3 class="font-bold text-slate-900">Hızlı Sheet Düzenleme</h3>
+            <button type="button" id="closeQuickSheetModal" class="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-white">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+        <div class="p-5 space-y-4 max-h-[78vh] overflow-y-auto">
+            <input type="hidden" id="qsServiceId">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div><label class="text-xs font-bold text-slate-500 uppercase">Durum</label><select id="qsStatus" class="w-full mt-1 p-2 bg-slate-50 border-none rounded-xl text-sm">{% for s in statuses %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}</select></div>
+                <div><label class="text-xs font-bold text-slate-500 uppercase">Öncelik</label><select id="qsPriority" class="w-full mt-1 p-2 bg-slate-50 border-none rounded-xl text-sm">{% for p in priorities %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}</select></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div><label class="text-xs font-bold text-slate-500 uppercase">Müşteri Telefon</label><input id="qsCustomerPhone" class="w-full mt-1 p-2 bg-slate-50 border-none rounded-xl text-sm"></div>
+                <div><label class="text-xs font-bold text-slate-500 uppercase">Bölge (Text)</label><input id="qsCustomerRegion" type="text" class="w-full mt-1 p-2 bg-slate-50 border-none rounded-xl text-sm"></div>
+                <div><label class="text-xs font-bold text-slate-500 uppercase">Sözleşme Tarihi</label><input id="qsContractDate" type="date" class="w-full mt-1 p-2 bg-slate-50 border-none rounded-xl text-sm"></div>
+                <div><label class="text-xs font-bold text-slate-500 uppercase">Konum (URL)</label><input id="qsLocationLink" type="url" placeholder="https://..." class="w-full mt-1 p-2 bg-slate-50 border-none rounded-xl text-sm"></div>
+            </div>
+
+            <div>
+                <label class="text-xs font-bold text-slate-500 uppercase">Ürünler (çoklu)</label>
+                <div id="qsProductsWrap" class="mt-1 p-2 bg-slate-50 rounded-xl border border-slate-100 grid grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto">
+                    {% for p in products %}
+                    <label class="text-xs text-slate-700 flex items-center gap-2"><input type="checkbox" class="qs-product" value="{{ p.id }}"> {{ p.name }}</label>
+                    {% endfor %}
+                </div>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-500 uppercase">Arıza Tipleri (çoklu)</label>
+                <div id="qsServiceTypesWrap" class="mt-1 p-2 bg-slate-50 rounded-xl border border-slate-100 grid grid-cols-2 md:grid-cols-3 gap-2 max-h-40 overflow-y-auto">
+                    {% for t in all_service_types|default:service_types %}
+                    <label class="text-xs text-slate-700 flex items-center gap-2"><input type="checkbox" class="qs-service-type" value="{{ t.id }}"> {{ t.name }}</label>
+                    {% endfor %}
+                </div>
+            </div>
+            <div>
+                <label class="text-xs font-bold text-slate-500 uppercase">Servis Notu</label>
+                <textarea id="qsNotes" rows="4" class="w-full mt-1 p-2 bg-slate-50 border-none rounded-xl text-sm"></textarea>
+            </div>
+        </div>
+        <div class="p-4 border-t border-slate-100 bg-slate-50 flex justify-end gap-2">
+            <span class="mr-auto text-[11px] text-slate-500 font-medium self-center">Kısayollar: Enter Kaydet • Esc Kapat • Ctrl/Cmd+S Kaydet • Ctrl/Cmd+Enter Kaydet • Shift+N Yeni</span>
+            <button type="button" id="cancelQuickSheetBtn" class="px-4 py-2 rounded-xl bg-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-300">İptal</button>
+            <button type="button" id="saveQuickSheetBtn" class="px-4 py-2 rounded-xl bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700">Hızlı Kaydet</button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<div id="customerInfoModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[120] flex items-center justify-center p-4">
+    <div class="w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50">
+            <h3 class="font-bold text-slate-900">Müşteri Kartı</h3>
+            <button type="button" id="closeCustomerInfoModal" class="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-white">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+        <div class="p-5 space-y-4 overflow-y-auto">
+            <div>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wide">Ad / Firma</p>
+                <p id="ciName" class="text-base font-bold text-slate-900">-</p>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wide">Telefon</p>
+                    <p id="ciPhone" class="text-sm font-medium text-slate-700">-</p>
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wide">Bölge</p>
+                    <p id="ciRegion" class="text-sm font-medium text-slate-700">-</p>
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wide">Sözleşme</p>
+                    <p id="ciContract" class="text-sm font-medium text-slate-700">-</p>
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wide">Konum</p>
+                    <a id="ciLocation" href="#" target="_blank" class="text-sm font-semibold text-blue-600 hover:underline hidden">Haritada Aç</a>
+                    <p id="ciLocationEmpty" class="text-sm font-medium text-slate-400">-</p>
+                </div>
+            </div>
+            <div id="ciQrWrap" class="hidden">
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Konum QR</p>
+                <img id="ciQrImage" src="" alt="Konum QR" class="w-28 h-28 rounded-lg border border-slate-200 bg-white">
+                <p class="text-[11px] text-slate-400 mt-1">Kamera ile okutunca konum açılır.</p>
+            </div>
+            <div>
+                <p class="text-xs font-bold text-slate-400 uppercase tracking-wide mb-2">Kayıtlı Ürünler</p>
+                <div id="ciProducts" class="flex flex-wrap gap-1.5">
+                    <span class="text-sm text-slate-400">-</span>
+                </div>
+            </div>
+            <div>
+                <div class="flex items-center justify-between gap-2 mb-2">
+                    <p class="text-xs font-bold text-slate-400 uppercase tracking-wide">Servis geçmişi</p>
+                    <span id="ciServiceCounts" class="text-[10px] font-semibold text-slate-400"></span>
+                </div>
+                <div id="ciServices" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+                    <p class="text-sm text-slate-400">Yükleniyor…</p>
+                </div>
+                {% if user_perms.services_manage %}
+                <a id="ciNewServiceLink" href="{% url 'service_create' %}" class="mt-2 inline-flex items-center gap-1 text-xs font-bold text-brand-600 hover:underline">
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i> Yeni servis dosyası
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="locationQrModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[125] flex items-center justify-center p-4">
+    <div class="w-full max-w-xs bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
+        <div class="flex items-center justify-between p-4 border-b border-slate-100 bg-slate-50">
+            <h3 class="font-bold text-slate-900 text-sm">Konum QR</h3>
+            <button type="button" id="closeLocationQrModal" class="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-white">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+        <div class="p-4 space-y-3 text-center">
+            <img id="locationQrImage" src="" alt="Konum QR" class="w-56 h-56 mx-auto rounded-lg border border-slate-200 bg-white">
+            <a id="locationQrLink" href="#" target="_blank" class="text-xs text-blue-600 hover:underline break-all"></a>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.querySelectorAll('[data-set-view]').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const input = document.getElementById('listViewModeInput');
+            const form = document.getElementById('serviceFilterForm');
+            if (!input || !form) return;
+            input.value = btn.getAttribute('data-set-view') || 'customer';
+            form.submit();
+        });
+    });
+
+    document.getElementById('selectAll').addEventListener('change', function(e) {
+        document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = e.target.checked);
+        updateServiceBulkState();
+    });
+
+    const serviceBulkForm = document.getElementById('bulkActionForm');
+    const serviceBulkAction = document.getElementById('serviceBulkAction');
+    const serviceBulkStatus = document.getElementById('serviceBulkStatus');
+    const serviceBulkPriority = document.getElementById('serviceBulkPriority');
+    const serviceBulkPersonnel = document.getElementById('serviceBulkPersonnel');
+    const serviceBulkCount = document.getElementById('serviceBulkCount');
+
+    function updateServiceBulkState() {
+        const checkedCount = document.querySelectorAll('.row-checkbox:checked').length;
+        if (serviceBulkCount) serviceBulkCount.textContent = `${checkedCount} kayıt seçili`;
+    }
+
+    function updateServiceBulkInputs() {
+        const action = serviceBulkAction?.value;
+        serviceBulkStatus?.classList.toggle('hidden', action !== 'set_status');
+        serviceBulkPriority?.classList.toggle('hidden', action !== 'set_priority');
+        serviceBulkPersonnel?.classList.toggle('hidden', action !== 'set_personnel');
+    }
+
+    document.querySelectorAll('.row-checkbox').forEach((cb) => {
+        cb.addEventListener('change', updateServiceBulkState);
+    });
+    serviceBulkAction?.addEventListener('change', updateServiceBulkInputs);
+    serviceBulkForm?.addEventListener('submit', (e) => {
+        const checkedCount = document.querySelectorAll('.row-checkbox:checked').length;
+        const action = serviceBulkAction?.value || '';
+        if (checkedCount === 0) {
+            e.preventDefault();
+            alert('Toplu işlem için en az bir servis seçin.');
+            return;
+        }
+        if (!action) {
+            e.preventDefault();
+            alert('Toplu işlem türü seçin.');
+            return;
+        }
+        if (action === 'delete' && !confirm(`${checkedCount} servis kaydını silmek istediğinize emin misiniz?`)) {
+            e.preventDefault();
+            return;
+        }
+    });
+    updateServiceBulkInputs();
+    updateServiceBulkState();
+
+    const customerInfoModal = document.getElementById('customerInfoModal');
+    const closeCustomerInfoModalBtn = document.getElementById('closeCustomerInfoModal');
+    const locationQrModal = document.getElementById('locationQrModal');
+    const closeLocationQrModalBtn = document.getElementById('closeLocationQrModal');
+
+    function buildQrUrl(rawUrl, size = 220) {
+        return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(rawUrl)}`;
+    }
+
+    function closeCustomerInfoModal() {
+        customerInfoModal.classList.add('hidden');
+    }
+
+    function closeLocationQrModal() {
+        locationQrModal.classList.add('hidden');
+    }
+
+    function escapeHtml(s) {
+        return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function renderCustomerServiceTimeline(timeline, counts) {
+        const box = document.getElementById('ciServices');
+        const countsEl = document.getElementById('ciServiceCounts');
+        if (!box) return;
+        if (countsEl && counts) {
+            countsEl.textContent = `${counts.open || 0} açık · ${counts.total || 0} toplam`;
+        }
+        if (!timeline || !timeline.length) {
+            box.innerHTML = '<p class="text-sm text-slate-400">Servis kaydı yok.</p>';
+            return;
+        }
+        box.innerHTML = timeline.map((item) => {
+            const openCls = item.is_open ? 'border-brand-200 bg-brand-50/50' : 'border-slate-100 bg-slate-50/50';
+            return `<a href="${escapeHtml(item.edit_url)}" class="block p-3 rounded-xl border ${openCls} hover:border-brand-300 transition-colors">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-mono font-bold text-slate-500">#${item.id}</span>
+                    <span class="text-xs font-bold px-2 py-0.5 rounded-md" style="background:${escapeHtml(item.status_color)}22;color:${escapeHtml(item.status_color)}">${escapeHtml(item.status_name)}</span>
+                    <span class="text-[11px] text-slate-400">${escapeHtml(item.created_at)}</span>
+                </div>
+                <p class="text-xs text-slate-600 mt-1">${escapeHtml(item.service_types)}</p>
+                <p class="text-[11px] text-slate-400 mt-0.5 line-clamp-2">${escapeHtml(item.notes_preview)}</p>
+            </a>`;
+        }).join('');
+    }
+
+    async function openCustomerInfoModal(customerId) {
+        try {
+            const apiBase = window.CUSTOMER_API_BASE || '/contact';
+            const sdBase = window.SD_BASE || '/services-dashboard';
+            const [profileRes, servicesRes] = await Promise.all([
+                fetch(`${apiBase}/musteriler/api/${customerId}/`),
+                fetch(`${sdBase}/services/musteri/${customerId}/ozet/`),
+            ]);
+            const data = await profileRes.json();
+            if (!profileRes.ok) {
+                alert(data.error || 'Müşteri bilgisi alınamadı.');
+                return;
+            }
+            let servicesData = { timeline: [], counts: {} };
+            try {
+                servicesData = await servicesRes.json();
+            } catch (e) { /* ignore */ }
+
+            document.getElementById('ciName').textContent = data.name || '-';
+            document.getElementById('ciPhone').textContent = data.phone || '-';
+            document.getElementById('ciRegion').textContent = data.region || '-';
+            document.getElementById('ciContract').textContent = `${data.contract_date || '-'} ${data.contract_age || ''}`.trim();
+
+            const locationLink = document.getElementById('ciLocation');
+            const locationEmpty = document.getElementById('ciLocationEmpty');
+            const ciQrWrap = document.getElementById('ciQrWrap');
+            const ciQrImage = document.getElementById('ciQrImage');
+            if (data.location_link) {
+                locationLink.href = data.location_link;
+                locationLink.classList.remove('hidden');
+                locationEmpty.classList.add('hidden');
+                ciQrImage.src = buildQrUrl(data.location_link, 160);
+                ciQrWrap.classList.remove('hidden');
+            } else {
+                locationLink.classList.add('hidden');
+                locationEmpty.classList.remove('hidden');
+                ciQrWrap.classList.add('hidden');
+                ciQrImage.src = '';
+            }
+
+            const productsBox = document.getElementById('ciProducts');
+            productsBox.innerHTML = '';
+            if (data.product_names && data.product_names.length) {
+                data.product_names.forEach((name) => {
+                    const chip = document.createElement('span');
+                    chip.className = 'px-2 py-0.5 rounded-lg text-[11px] font-bold bg-brand-100 text-brand-700';
+                    chip.textContent = name;
+                    productsBox.appendChild(chip);
+                });
+            } else {
+                productsBox.innerHTML = '<span class="text-sm text-slate-400">Tanımlı ürün yok</span>';
+            }
+
+            renderCustomerServiceTimeline(servicesData.timeline, servicesData.counts);
+            const newLink = document.getElementById('ciNewServiceLink');
+            if (newLink) newLink.href = `${sdBase}/services/new/?customer=${customerId}`;
+
+            customerInfoModal.classList.remove('hidden');
+            if (window.lucide) lucide.createIcons();
+        } catch (err) {
+            alert('Müşteri bilgisi alınırken hata oluştu.');
+        }
+    }
+
+    document.querySelectorAll('.customer-card-trigger').forEach((btn) => {
+        btn.addEventListener('click', () => openCustomerInfoModal(btn.dataset.customerId));
+    });
+    document.querySelectorAll('.open-location-qr').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const url = btn.dataset.locationUrl;
+            if (!url) return;
+            const qrImage = document.getElementById('locationQrImage');
+            const qrLink = document.getElementById('locationQrLink');
+            qrImage.src = buildQrUrl(url, 240);
+            qrLink.href = url;
+            qrLink.textContent = url;
+            locationQrModal.classList.remove('hidden');
+            if (window.lucide) lucide.createIcons();
+        });
+    });
+
+    closeCustomerInfoModalBtn?.addEventListener('click', closeCustomerInfoModal);
+    closeLocationQrModalBtn?.addEventListener('click', closeLocationQrModal);
+    customerInfoModal?.addEventListener('click', (e) => {
+        if (e.target === customerInfoModal) closeCustomerInfoModal();
+    });
+    locationQrModal?.addEventListener('click', (e) => {
+        if (e.target === locationQrModal) closeLocationQrModal();
+    });
+    document.addEventListener('keydown', (e) => {
+        const activeTag = (document.activeElement?.tagName || '').toUpperCase();
+        const inTextField = ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeTag) || document.activeElement?.isContentEditable;
+        if (e.shiftKey && !e.ctrlKey && !e.metaKey && !e.altKey && e.key.toLowerCase() === 'n' && !inTextField) {
+            e.preventDefault();
+            window.location.href = "{% url 'service_create' %}";
+            return;
+        }
+
+        if (e.key === 'Escape') {
+            closeCustomerInfoModal();
+            closeLocationQrModal();
+            closeQuickSheetModal();
+        }
+
+        const quickSheetOpen = quickSheetModal && !quickSheetModal.classList.contains('hidden');
+        if (!quickSheetOpen) return;
+
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+            e.preventDefault();
+            triggerQuickSheetSave();
+            return;
+        }
+
+        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+            e.preventDefault();
+            triggerQuickSheetSave();
+            return;
+        }
+
+        if (e.key === 'Enter') {
+            const tag = (document.activeElement?.tagName || '').toUpperCase();
+            if (tag !== 'TEXTAREA') {
+                e.preventDefault();
+                triggerQuickSheetSave();
+            }
+        }
+    });
+
+    const quickSheetModal = document.getElementById('quickSheetModal');
+    const closeQuickSheetModalBtn = document.getElementById('closeQuickSheetModal');
+    const cancelQuickSheetBtn = document.getElementById('cancelQuickSheetBtn');
+    const saveQuickSheetBtn = document.getElementById('saveQuickSheetBtn');
+
+    function setCheckedByValues(selector, values) {
+        const set = new Set((values || []).map((x) => parseInt(x, 10)));
+        document.querySelectorAll(selector).forEach((cb) => {
+            cb.checked = set.has(parseInt(cb.value, 10));
+        });
+    }
+
+    function getCheckedValues(selector) {
+        return Array.from(document.querySelectorAll(selector))
+            .filter((cb) => cb.checked)
+            .map((cb) => cb.value);
+    }
+
+    function openQuickSheetModal() {
+        quickSheetModal?.classList.remove('hidden');
+        if (window.lucide) lucide.createIcons();
+    }
+
+    function closeQuickSheetModal() {
+        quickSheetModal?.classList.add('hidden');
+    }
+
+    let qsOriginalStatusId = null;
+
+    async function loadQuickSheetData(serviceId) {
+        const res = await fetch(`${window.SD_BASE}/services/${serviceId}/quick-edit/`);
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Veri alınamadı');
+
+        document.getElementById('qsServiceId').value = data.service.id;
+        document.getElementById('qsStatus').value = data.service.status_id;
+        qsOriginalStatusId = String(data.service.status_id);
+        document.getElementById('qsPriority').value = data.service.priority_id;
+        document.getElementById('qsNotes').value = data.service.notes || '';
+        document.getElementById('qsCustomerPhone').value = data.customer.phone || '';
+        document.getElementById('qsCustomerRegion').value = data.customer.region || '';
+        document.getElementById('qsContractDate').value = data.customer.contract_date || '';
+        document.getElementById('qsLocationLink').value = data.customer.location_link || '';
+        setCheckedByValues('.qs-product', data.service.product_ids || []);
+        setCheckedByValues('.qs-service-type', data.service.service_type_ids || []);
+    }
+
+    async function saveQuickSheetData() {
+        const serviceId = document.getElementById('qsServiceId').value;
+        if (!serviceId) return;
+        const formData = new FormData();
+        formData.append('status_id', document.getElementById('qsStatus').value);
+        formData.append('priority_id', document.getElementById('qsPriority').value);
+        formData.append('notes', document.getElementById('qsNotes').value || '');
+        formData.append('customer_phone', document.getElementById('qsCustomerPhone').value || '');
+        formData.append('customer_region', document.getElementById('qsCustomerRegion').value || '');
+        formData.append('customer_contract_date', document.getElementById('qsContractDate').value || '');
+        formData.append('customer_location_link', document.getElementById('qsLocationLink').value || '');
+        getCheckedValues('.qs-product').forEach((v) => formData.append('product_ids', v));
+        getCheckedValues('.qs-service-type').forEach((v) => formData.append('service_type_ids', v));
+
+        const res = await fetch(`${window.SD_BASE}/services/${serviceId}/quick-edit/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCsrfToken() },
+            body: formData,
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || 'Kaydedilemedi');
+        return data;
+    }
+
+    async function triggerQuickSheetSave() {
+        try {
+            const serviceId = document.getElementById('qsServiceId').value;
+            const newStatusId = document.getElementById('qsStatus').value;
+            const statusChanged = qsOriginalStatusId !== null && String(newStatusId) !== String(qsOriginalStatusId);
+
+            if (statusChanged && window.showDeferredServiceStatusChange) {
+                const previewRes = await fetch(`${window.SD_BASE}/services/whatsapp/durum-onizle/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken(),
+                    },
+                    body: JSON.stringify({
+                        service_id: serviceId,
+                        new_status_id: newStatusId,
+                    }),
+                });
+                const previewData = await previewRes.json();
+                if (previewData.deferred && previewData.whatsapp_prompt) {
+                    window.showDeferredServiceStatusChange(previewData.whatsapp_prompt, {
+                        onApplied: async () => {
+                            await saveQuickSheetData();
+                            closeQuickSheetModal();
+                            location.reload();
+                        },
+                        onCancel: () => {},
+                    });
+                    return;
+                }
+            }
+
+            const data = await saveQuickSheetData();
+            closeQuickSheetModal();
+            if (window.handleServiceWhatsappStatusResponse && window.handleServiceWhatsappStatusResponse(data, () => location.reload())) {
+                return;
+            }
+            location.reload();
+        } catch (err) {
+            alert(err.message || 'Hızlı kaydet sırasında hata oluştu.');
+        }
+    }
+
+    document.querySelectorAll('.quick-sheet-edit-btn').forEach((btn) => {
+        btn.addEventListener('click', async () => {
+            try {
+                await loadQuickSheetData(btn.dataset.serviceId);
+                openQuickSheetModal();
+            } catch (err) {
+                alert(err.message || 'Hızlı edit açılırken hata oluştu.');
+            }
+        });
+    });
+
+    document.querySelectorAll('.quick-sheet-cell').forEach((cell) => {
+        cell.addEventListener('click', async (e) => {
+            if (e.target.closest('a, button, input, select, textarea, .quick-update-wrap')) return;
+            try {
+                await loadQuickSheetData(cell.dataset.serviceId);
+                openQuickSheetModal();
+            } catch (err) {
+                alert(err.message || 'Hızlı edit açılırken hata oluştu.');
+            }
+        });
+    });
+
+    saveQuickSheetBtn?.addEventListener('click', triggerQuickSheetSave);
+
+    closeQuickSheetModalBtn?.addEventListener('click', closeQuickSheetModal);
+    cancelQuickSheetBtn?.addEventListener('click', closeQuickSheetModal);
+    quickSheetModal?.addEventListener('click', (e) => {
+        if (e.target === quickSheetModal) closeQuickSheetModal();
+    });
+
+    function getCsrfToken() {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; csrftoken=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return '';
+    }
+
+    function closeAllQuickMenus() {
+        document.querySelectorAll('.quick-update-menu').forEach((m) => m.classList.add('hidden'));
+    }
+
+    async function quickUpdateService(serviceId, field, value) {
+        const formData = new FormData();
+        formData.append('service_id', String(serviceId));
+        formData.append('field', field);
+        formData.append('value', String(value));
+        const res = await fetch("{% url 'service_quick_update' %}", {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCsrfToken() },
+            body: formData,
+        });
+        return res.json();
+    }
+
+    document.querySelectorAll('.quick-update-wrap').forEach((wrap) => {
+        const trigger = wrap.querySelector('.quick-update-trigger');
+        const menu = wrap.querySelector('.quick-update-menu');
+        const serviceId = wrap.dataset.serviceId;
+        const field = wrap.dataset.field;
+
+        trigger?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isHidden = menu.classList.contains('hidden');
+            closeAllQuickMenus();
+            if (isHidden) menu.classList.remove('hidden');
+        });
+
+        menu?.querySelectorAll('.quick-update-option').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+                try {
+                    const data = await quickUpdateService(serviceId, field, btn.dataset.value);
+                    if (!data.ok) {
+                        alert(data.error || 'Güncelleme başarısız.');
+                        return;
+                    }
+                    if (field === 'status' && data.deferred && data.whatsapp_prompt && window.showDeferredServiceStatusChange) {
+                        window.showDeferredServiceStatusChange(data.whatsapp_prompt, {
+                            onApplied: () => location.reload(),
+                            onCancel: () => {},
+                        });
+                        return;
+                    }
+                    if (field === 'status' && window.handleServiceWhatsappStatusResponse) {
+                        window.handleServiceWhatsappStatusResponse(data, () => location.reload());
+                        return;
+                    }
+                    location.reload();
+                } catch (err) {
+                    alert('Hızlı güncelleme sırasında hata oluştu.');
+                } finally {
+                    menu.classList.add('hidden');
+                }
+            });
+        });
+    });
+
+    document.addEventListener('click', () => closeAllQuickMenus());
+
+    function applyVisibilityToggle(name, inputId) {
+        const el = document.getElementById(name);
+        const input = document.getElementById(inputId);
+        const form = document.getElementById('serviceFilterForm');
+        if (!el || !input || !form) return;
+        el.addEventListener('change', () => {
+            input.value = el.checked ? '1' : '0';
+            form.submit();
+        });
+    }
+    applyVisibilityToggle('togglePending', 'showPendingInput');
+    applyVisibilityToggle('toggleHidden', 'showHiddenInput');
+</script>
+{% endblock %}

@@ -1,0 +1,57 @@
+{% extends 'services_dashboard/base.html' %}
+
+{% block title %}AI Panel | GÖLGEDE YAŞAM{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    <h2 class="text-2xl font-bold text-slate-900">AI Paneli</h2>
+    <div class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+        <p class="text-sm text-slate-600">AI Sohbet durumu: <strong class="text-slate-800">{% if site_settings.ai_chat_enabled %}Aktif{% else %}Pasif{% endif %}</strong></p>
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="p-4 bg-slate-50 rounded-xl">
+                <p class="text-xs text-slate-400">Toplam Müşteri</p>
+                <p class="font-bold text-lg">{{ stats.total_customers }}</p>
+            </div>
+            <div class="p-4 bg-slate-50 rounded-xl">
+                <p class="text-xs text-slate-400">Toplam Servis Kaydı</p>
+                <p class="font-bold text-lg">{{ stats.total_services }}</p>
+            </div>
+            <div class="p-4 bg-slate-50 rounded-xl">
+                <p class="text-xs text-slate-400">Ürün Türleri</p>
+                <p class="font-bold text-lg">{{ stats.product_count }}</p>
+            </div>
+        </div>
+
+        <div class="mt-6">
+            <h4 class="font-bold">Hızlı Test</h4>
+            <p class="text-xs text-slate-400">Kısa bir sorgu gönderip AI'den yanıt alın.</p>
+            <form id="aiTestForm" class="mt-3 flex gap-2">
+                <input id="aiTestInput" type="text" placeholder="Sorunuzu yazın..." class="flex-1 p-2 bg-slate-50 rounded-xl border-none">
+                <button type="submit" class="px-4 py-2 bg-brand-600 text-white rounded-xl">Gönder</button>
+            </form>
+            <div id="aiTestResult" class="mt-3 p-4 bg-white border rounded-lg hidden"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('aiTestForm').addEventListener('submit', async function(e){
+    e.preventDefault();
+    const q = document.getElementById('aiTestInput').value.trim();
+    if(!q) return;
+    const resBox = document.getElementById('aiTestResult');
+    resBox.classList.remove('hidden');
+    resBox.innerText = 'Bekleniyor...';
+
+    try{
+        const resp = await fetch('{% url "ai_chat" %}', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json','X-CSRFToken': (function(){const v='; '+document.cookie;const p=v.split('; csrftoken=');return p.length===2?p.pop().split(';').shift():'';})()},
+            body: JSON.stringify({message: q})
+        });
+        const data = await resp.json();
+        if(data.message) resBox.innerText = data.message; else resBox.innerText = 'Hata: ' + (data.error||resp.statusText);
+    }catch(err){ resBox.innerText = 'Sunucu hatası: ' + err.message; }
+});
+</script>
+{% endblock %}

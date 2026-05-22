@@ -110,4 +110,16 @@ else
 fi
 log "Durdurmak: Ctrl+C  |  Log: $LOG_FILE"
 
+if [ -f "tools/whatsapp_bridge/package.json" ] && command -v node >/dev/null 2>&1; then
+  log "WhatsApp köprüsü başlatılıyor (port 3939)..."
+  (
+    cd "$ROOT/tools/whatsapp_bridge" || exit 1
+    [ -d node_modules ] || npm install
+    npm start
+  ) >> "$LOG_DIR/whatsapp-bridge.log" 2>&1 &
+  sleep 2
+else
+  log "WhatsApp köprüsü atlandı (Node.js veya tools/whatsapp_bridge yok)."
+fi
+
 python manage.py runserver 0.0.0.0:8000

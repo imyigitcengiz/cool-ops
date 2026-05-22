@@ -1,0 +1,189 @@
+{% csrf_token %}
+<script src="/static/js/whatsapp-send.js"></script>
+<script>
+    window.WA_API = {
+        send: '{% url "tools_whatsapp_send" %}',
+        ready: '{% url "tools_whatsapp_ready_connections" %}',
+        connect: '{% url "tools_whatsapp_baglan" %}',
+    };
+</script>
+<div id="whatsappModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[200] flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-lg overflow-hidden">
+        <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+            <div>
+                <h3 class="font-bold text-slate-900 flex items-center gap-2">
+                    <i data-lucide="message-circle" class="w-5 h-5 text-green-600"></i> WhatsApp Mesaj Gönder
+                </h3>
+                <p id="waRecipientLine" class="text-xs text-slate-500 mt-1">—</p>
+            </div>
+            <button type="button" onclick="closeWhatsAppModal()" class="text-slate-400 hover:text-slate-600">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <div class="px-6 pt-4 pb-2 border-b border-slate-100 bg-green-50/40">
+            <label class="block text-[11px] font-bold text-green-800 uppercase mb-1.5">Gönderen WhatsApp hattı</label>
+            <select id="waConnectionSelect" class="w-full p-2.5 bg-white border border-green-200 rounded-xl text-sm font-medium text-slate-800"></select>
+        </div>
+
+        <div class="p-6 space-y-4">
+            <div>
+                <label for="waMessageInput" class="block text-xs font-bold text-slate-500 uppercase mb-1.5">Mesaj</label>
+                <textarea id="waMessageInput" rows="7" placeholder="Mesajınızı yazın…" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-2xl text-sm resize-y focus:ring-2 focus:ring-green-500 focus:border-green-300 outline-none"></textarea>
+                <p class="text-[11px] text-slate-400 mt-1.5">
+                    Otomatik mesaj kuralları için
+                    <a href="{% url 'tools_whatsapp_baglan' %}#senaryolar" class="text-green-700 font-semibold hover:underline">WhatsApp Bağlan → Senaryolar</a>
+                </p>
+            </div>
+
+            <div id="waStatusBar" class="hidden px-3 py-2 rounded-xl text-xs font-semibold"></div>
+
+            <div class="flex gap-2">
+                <button type="button" id="waSendBtn" onclick="submitWhatsAppMessage()" class="flex-1 py-3 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700 disabled:opacity-50">
+                    Gönder
+                </button>
+                <button type="button" onclick="closeWhatsAppModal()" class="px-4 py-3 rounded-xl text-slate-500 font-bold hover:bg-slate-100">
+                    Vazgeç
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentPhone = '';
+    let currentWaContext = {};
+    let waSending = false;
+
+    function setWaStatus(text, kind) {
+        const bar = document.getElementById('waStatusBar');
+        if (!bar) return;
+        bar.textContent = text || '';
+        bar.classList.remove('hidden', 'bg-red-50', 'text-red-700', 'bg-emerald-50', 'text-emerald-700', 'bg-amber-50', 'text-amber-800', 'bg-slate-100', 'text-slate-600');
+        if (!text) {
+            bar.classList.add('hidden');
+            return;
+        }
+        bar.classList.remove('hidden');
+        if (kind === 'success') bar.classList.add('bg-emerald-50', 'text-emerald-700');
+        else if (kind === 'error') bar.classList.add('bg-red-50', 'text-red-700');
+        else if (kind === 'warn') bar.classList.add('bg-amber-50', 'text-amber-800');
+        else bar.classList.add('bg-slate-100', 'text-slate-600');
+    }
+
+    function setWaSending(active) {
+        waSending = active;
+        const btn = document.getElementById('waSendBtn');
+        const input = document.getElementById('waMessageInput');
+        if (btn) btn.disabled = active;
+        if (input) input.disabled = active;
+    }
+
+    async function refreshWaConnections() {
+        const select = document.getElementById('waConnectionSelect');
+        if (!select || !window.loadWhatsAppConnections) return;
+
+        try {
+            const data = await window.loadWhatsAppConnections(true);
+            const meta = window.populateWhatsAppConnectionSelect
+                ? window.populateWhatsAppConnectionSelect(select, data)
+                : { readyCount: 0, hasConnections: false };
+
+            if (!meta.hasConnections || meta.readyCount === 0) {
+                setWaStatus(meta.bridgeOffline
+                    ? 'WhatsApp köprüsü kapalı. Tools → WhatsApp Bağlan sayfasından bağlanın.'
+                    : 'Bağlı hat yok. WhatsApp Bağlan sayfasından QR okutun.', 'warn');
+            } else {
+                setWaStatus('', '');
+            }
+        } catch (err) {
+            if (window.populateWhatsAppConnectionSelect) {
+                window.populateWhatsAppConnectionSelect(select, { connections: [], bridge_offline: true });
+            }
+            setWaStatus((err.message || 'Bağlantı kontrol edilemedi.'), 'warn');
+        }
+    }
+
+    function openWhatsAppModal(phone, context = {}) {
+        currentPhone = phone;
+        currentWaContext = {
+            name: context.name || '-',
+            customerId: context.customerId || context.customer_id || null,
+            firmId: context.firmId || context.firm_id || null,
+        };
+        const recipient = document.getElementById('waRecipientLine');
+        if (recipient) {
+            recipient.textContent = (context.name && context.name !== '-')
+                ? context.name + ' · ' + (phone || '-')
+                : (phone || '-');
+        }
+        const input = document.getElementById('waMessageInput');
+        if (input) input.value = (context.prefill || '').trim();
+        setWaStatus('', '');
+        document.getElementById('whatsappModal').classList.remove('hidden');
+        refreshWaConnections();
+        if (window.lucide) lucide.createIcons();
+        if (input) setTimeout(function () { input.focus(); }, 80);
+    }
+
+    function closeWhatsAppModal() {
+        if (waSending) return;
+        document.getElementById('whatsappModal').classList.add('hidden');
+        setWaStatus('', '');
+    }
+
+    async function submitWhatsAppMessage() {
+        if (!currentPhone || waSending) return;
+        if (!window.sendWhatsAppViaBridge) {
+            alert('WhatsApp gönderim modülü yüklenemedi.');
+            return;
+        }
+
+        const message = (document.getElementById('waMessageInput')?.value || '').trim();
+        if (!message) {
+            setWaStatus('Mesaj boş olamaz.', 'error');
+            return;
+        }
+
+        const select = document.getElementById('waConnectionSelect');
+        const connectionId = window.getSelectedWhatsAppConnectionId
+            ? window.getSelectedWhatsAppConnectionId(select)
+            : null;
+        if (!connectionId) {
+            setWaStatus('Gönderim için bağlı bir WhatsApp hattı seçin.', 'error');
+            return;
+        }
+
+        setWaSending(true);
+        setWaStatus('Mesaj gönderiliyor…', 'info');
+
+        try {
+            await window.sendWhatsAppViaBridge({
+                phone: currentPhone,
+                message: message,
+                connectionId: connectionId,
+                recipientName: currentWaContext.name !== '-' ? currentWaContext.name : '',
+                customerId: currentWaContext.customerId,
+                firmId: currentWaContext.firmId,
+                source: 'manual',
+            });
+            setWaStatus('Mesaj gönderildi.', 'success');
+            setTimeout(closeWhatsAppModal, 900);
+        } catch (err) {
+            if (err.offline) {
+                setWaStatus((err.message || 'Köprü kapalı.') + ' → ' + (window.WA_CONNECT_URL || '/tools/whatsapp-baglan/'), 'error');
+            } else {
+                setWaStatus(err.message || 'Gönderim başarısız.', 'error');
+            }
+        } finally {
+            setWaSending(false);
+        }
+    }
+
+    document.addEventListener('change', function (e) {
+        if (e.target && e.target.id === 'waConnectionSelect' && window.savePreferredWhatsAppConnectionId) {
+            const id = window.getSelectedWhatsAppConnectionId(e.target);
+            if (id) window.savePreferredWhatsAppConnectionId(id);
+        }
+    });
+</script>

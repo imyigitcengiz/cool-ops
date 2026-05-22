@@ -10,11 +10,20 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import os
 import socket
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+_env_file = BASE_DIR / '.env'
+if _env_file.exists():
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(_env_file)
+    except ImportError:
+        pass
 
 
 def _lan_ipv4():
@@ -45,28 +54,52 @@ def _csrf_origins_for_port(port=8000):
 SECRET_KEY = 'django-insecure-*t7emu@y2jvbpi(gvcrbvtc*#6(cx)om5=xpzzdd*8y*n&6-ta'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DJANGO_DEBUG', '1').lower() in ('1', 'true', 'yes')
 
 # Geliştirme: aynı Wi‑Fi’deki telefon/tablet/PC’ler LAN IP ile bağlanabilsin
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
+_env_hosts = os.environ.get('DJANGO_ALLOWED_HOSTS', '').strip()
+if _env_hosts:
+    ALLOWED_HOSTS.extend(h.strip() for h in _env_hosts.split(',') if h.strip())
 _lan_ip = _lan_ipv4()
-if _lan_ip:
+if _lan_ip and _lan_ip not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(_lan_ip)
 if DEBUG:
     ALLOWED_HOSTS.append('*')
 
-CSRF_TRUSTED_ORIGINS = _csrf_origins_for_port(8000)
+_env_secret = os.environ.get('DJANGO_SECRET_KEY', '').strip()
+if _env_secret:
+    SECRET_KEY = _env_secret
+
+_env_csrf = os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').strip()
+if _env_csrf:
+    CSRF_TRUSTED_ORIGINS = [h.strip() for h in _env_csrf.split(',') if h.strip()]
+else:
+    CSRF_TRUSTED_ORIGINS = _csrf_origins_for_port(8000)
+
+WHATSAPP_BRIDGE_URL = os.environ.get('WHATSAPP_BRIDGE_URL', 'http://127.0.0.1:3939').strip()
+WHATSAPP_BRIDGE_AUTO_START = os.environ.get(
+    'DJANGO_WHATSAPP_BRIDGE_AUTO_START',
+    '1' if DEBUG else '0',
+).lower() in ('1', 'true', 'yes')
+WHATSAPP_BRIDGE_RUN_AS_ADMIN = os.environ.get(
+    'DJANGO_WHATSAPP_BRIDGE_RUN_AS_ADMIN', '0',
+).lower() in ('1', 'true', 'yes')
+# İsteğe bağlı: node.exe tam yolu (boşsa Program Files\nodejs aranır; Cursor IDE node'u atlanır)
+WHATSAPP_BRIDGE_NODE = r''
 
 
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',
     
     # Local apps
     'users',
@@ -74,15 +107,21 @@ INSTALLED_APPS = [
     'services',
     'core_settings',
     'analytics',
+    'tools',
+    'sales_leads',
+    'common',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'common.middleware.LoginRequiredMiddleware',
+    'common.middleware.PermissionMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -100,12 +139,21 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'core_settings.context_processors.whatsapp_context',
                 'core_settings.context_processors.site_settings',
+                'users.context_processors.user_profile_card',
+                'users.context_access.user_access',
             ],
         },
     },
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer',
+    }
+}
 
 
 # Database
@@ -141,9 +189,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'tr'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Istanbul'
 
 USE_I18N = True
 
@@ -153,12 +201,61 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-MEDIA_URL = 'media/'
+MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 AUTH_USER_MODEL = 'users.User'
 
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'home'
+LOGOUT_REDIRECT_URL = 'login'
 
+if not DEBUG:
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    SESSION_COOKIE_HTTPONLY = True
+    CSRF_COOKIE_HTTPONLY = True
+    if os.environ.get('DJANGO_SECURE_SSL', '').lower() in ('1', 'true', 'yes'):
+        SECURE_SSL_REDIRECT = True
+        SESSION_COOKIE_SECURE = True
+        CSRF_COOKIE_SECURE = True
+        SECURE_HSTS_SECONDS = 31536000
+        SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'simple': {
+            'format': '[{levelname}] {asctime} {name}: {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO' if not DEBUG else 'DEBUG',
+    },
+    'loggers': {
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'asyncio': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+    },
+}

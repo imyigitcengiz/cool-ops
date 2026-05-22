@@ -1,0 +1,423 @@
+{% load option_colors %}
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Servis Listesi Raporu</title>
+    <style id="layoutPrint"></style>
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: #1e293b;
+            line-height: 1.45;
+            background: #f1f5f9;
+        }
+
+        .no-print {
+            margin: 0 auto;
+            max-width: 980px;
+            padding: 16px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        .no-print.full-width { width: 100%; flex-basis: 100%; max-width: 980px; }
+        .no-print button,
+        .no-print select,
+        .no-print a.btn {
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            border: 1px solid #cbd5e1;
+            background: #fff;
+            color: #334155;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+        }
+        .no-print button.primary { background: #0284c7; border-color: #0284c7; color: #fff; }
+        .no-print button.dark { background: #475569; border-color: #475569; color: #fff; }
+        .no-print button.active { background: #0f172a; border-color: #0f172a; color: #fff; }
+        .no-print select { min-width: 200px; }
+
+        .col-picker {
+            gap: 14px !important;
+            padding-top: 8px;
+            border-top: 1px dashed #cbd5e1;
+            align-items: flex-start !important;
+        }
+        .col-picker .group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        .col-picker label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #475569;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .report {
+            margin: 0 auto;
+            padding: 0 16px 32px;
+            background: transparent;
+        }
+        body.layout-portrait .report { max-width: 210mm; }
+        body.layout-landscape .report { max-width: 297mm; }
+
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            padding-bottom: 12px;
+            margin-bottom: 12px;
+            border-bottom: 2px solid #334155;
+        }
+        .report-logo img {
+            display: block;
+            max-height: 44px;
+            width: auto;
+            max-width: 160px;
+            object-fit: contain;
+        }
+        .report-title {
+            font-size: 1.15rem;
+            font-weight: 800;
+            margin: 0;
+            text-align: right;
+        }
+        .report-meta {
+            font-size: 0.82rem;
+            color: #64748b;
+            margin-top: 4px;
+            text-align: right;
+        }
+
+        .filter-line {
+            font-size: 0.75rem;
+            color: #475569;
+            margin-bottom: 10px;
+            line-height: 1.4;
+        }
+
+        table.data {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+            table-layout: fixed;
+        }
+        table.data th,
+        table.data td {
+            border: 1px solid #cbd5e1;
+            padding: 6px 8px;
+            vertical-align: top;
+            text-align: left;
+            overflow-wrap: anywhere;
+            word-break: break-word;
+            hyphens: auto;
+        }
+        table.data thead th {
+            background: #f1f5f9;
+            font-weight: 700;
+            color: #0f172a;
+        }
+        table.data tbody tr:nth-child(even) { background: #fafafa; }
+
+        .badge {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            border: 1px solid transparent;
+            max-width: 100%;
+            line-height: 1.25;
+        }
+        .stack { display: flex; flex-direction: column; gap: 2px; }
+        .muted { color: #64748b; font-size: 0.92em; }
+
+        .report-footer {
+            margin-top: 14px;
+            padding-top: 10px;
+            border-top: 1px solid #e2e8f0;
+            font-size: 0.72rem;
+            color: #64748b;
+            text-align: right;
+        }
+
+        .hidden-col { display: none !important; }
+
+        /* --- Yazdırma --- */
+        @media print {
+            html {
+                margin: 0;
+                padding: 0;
+                font-size: 10pt;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+                color-adjust: exact;
+            }
+
+            body {
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #fff !important;
+                color: #000 !important;
+            }
+
+            .no-print { display: none !important; }
+
+            .report {
+                max-width: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                background: #fff !important;
+            }
+
+            .report-header {
+                border-bottom-color: #000;
+                page-break-after: avoid;
+            }
+            .filter-line { page-break-after: avoid; }
+
+            table.data {
+                font-size: 9pt;
+                page-break-inside: auto;
+            }
+            table.data thead { display: table-header-group; }
+            table.data tfoot { display: table-footer-group; }
+            table.data tr {
+                page-break-inside: avoid;
+                page-break-after: auto;
+            }
+            table.data th,
+            table.data td { padding: 4px 6px; }
+
+            .report-footer {
+                border-top-color: #ccc;
+                page-break-before: avoid;
+            }
+            td { orphans: 2; widows: 2; }
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+</head>
+<body class="layout-portrait">
+    <div class="no-print">
+        <label for="sortSelect"><strong>Sıralama</strong></label>
+        <select id="sortSelect" aria-label="Sıralama">
+            {% for value, label in sort_options %}
+            <option value="{{ value }}" {% if current_sort == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+        <strong>Kağıt</strong>
+        <button type="button" id="btnPortrait" class="active" onclick="setLayout('portrait')">A4 Dikey</button>
+        <button type="button" id="btnLandscape" onclick="setLayout('landscape')">A4 Yatay</button>
+        <a class="btn" href="{% url 'service_bulk_print' %}?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}download=csv">CSV</a>
+        <a class="btn" href="{% url 'service_bulk_print' %}?{% if request.GET %}{{ request.GET.urlencode }}&{% endif %}download=xlsx">Excel (.xlsx)</a>
+        <button type="button" class="btn" onclick="downloadJpeg()">JPEG indir</button>
+        <button type="button" class="primary" onclick="window.print()">Yazdır</button>
+        <button type="button" class="dark" onclick="window.close()">Kapat</button>
+
+        <div class="no-print full-width col-picker">
+            <span class="group"><strong>Sütunlar</strong></span>
+            <span class="group">
+                <label><input type="checkbox" checked data-col="0"> Müşteri</label>
+                <label><input type="checkbox" checked data-col="1"> Bölge</label>
+                <label><input type="checkbox" checked data-col="2"> Ürünler</label>
+                <label><input type="checkbox" checked data-col="3"> Arıza</label>
+                <label><input type="checkbox" checked data-col="4"> Notlar</label>
+                <label><input type="checkbox" checked data-col="5"> Durum</label>
+                <label><input type="checkbox" checked data-col="6"> Öncelik</label>
+                <label><input type="checkbox" checked data-col="7"> Personel</label>
+                <label><input type="checkbox" checked data-col="8"> Tarih</label>
+            </span>
+        </div>
+    </div>
+
+    <div class="report" id="reportCapture">
+        <header class="report-header">
+            <div class="report-logo">
+                {% if site_settings.logo %}
+                    <img src="{{ site_settings.logo.url }}" alt="">
+                {% else %}
+                    <span style="font-size:1.1rem;font-weight:800;">{{ site_settings.site_name }}</span>
+                {% endif %}
+            </div>
+            <div>
+                <h1 class="report-title">SERVİS LİSTESİ RAPORU</h1>
+                <div class="report-meta">{{ record_count }} kayıt · {{ "now"|date:"d.m.Y H:i" }}</div>
+            </div>
+        </header>
+
+        {% if filter_summary %}
+        <p class="filter-line"><strong>Filtreler:</strong> {{ filter_summary|join:" · " }}</p>
+        {% endif %}
+
+        <table class="data" id="serviceTable">
+            <thead>
+                <tr>
+                    <th style="width:13%;">Müşteri</th>
+                    <th style="width:8%;">Bölge</th>
+                    <th style="width:11%;">Ürünler</th>
+                    <th style="width:11%;">Arıza tipi</th>
+                    <th style="width:22%;">Servis notları</th>
+                    <th style="width:9%;">Durum</th>
+                    <th style="width:9%;">Öncelik</th>
+                    <th style="width:11%;">Personel</th>
+                    <th style="width:6%;">Tarih</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in services %}
+                <tr>
+                    <td>
+                        <strong>{{ s.customer.name }}</strong>
+                        {% if s.customer.phone %}<br><span class="muted">{{ s.customer.phone }}</span>{% endif %}
+                    </td>
+                    <td>{{ s.customer.region|default:"-" }}</td>
+                    <td>
+                        <div class="stack">
+                            {% for p in s.products.all %}
+                            <span style="color:{{ p.color_hex }};font-weight:700;">{{ p.name }}</span>
+                            {% empty %}-{% endfor %}
+                        </div>
+                    </td>
+                    <td>
+                        <div class="stack">
+                            {% for st in s.service_types.all %}
+                            {% with st_color=st|service_type_color_for_products:s.products.all %}
+                            <span style="color:{{ st_color }};font-weight:700;">{{ st.name }}</span>
+                            {% endwith %}
+                            {% empty %}-{% endfor %}
+                        </div>
+                    </td>
+                    <td>{{ s.notes|default:"-" }}</td>
+                    <td>
+                        <span class="badge" style="background:{{ s.status.color_hex|option_badge_bg }};color:{{ s.status.color_hex|option_badge_text }};border-color:{{ s.status.color_hex|option_badge_border }};">{{ s.status.name }}</span>
+                    </td>
+                    <td>
+                        <span class="badge" style="background:{{ s.priority.color_hex|option_badge_bg }};color:{{ s.priority.color_hex|option_badge_text }};border-color:{{ s.priority.color_hex|option_badge_border }};">{{ s.priority.name }}</span>
+                    </td>
+                    <td>
+                        {% if s.service_personnel %}
+                        {{ s.service_personnel.name }}{% if s.service_personnel.team %}<br><span class="muted">{{ s.service_personnel.team.name }}</span>{% endif %}
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>{{ s.created_at|date:"d.m.Y" }}</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="9" style="text-align:center;padding:2rem;color:#94a3b8;">Kayıt bulunamadı.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <footer class="report-footer">
+            {{ site_settings.site_name }} — Servis raporu
+        </footer>
+    </div>
+
+    <script>
+        function layoutCss(mode) {
+            var portrait = mode !== 'landscape';
+            var page = portrait ? 'A4 portrait' : 'A4 landscape';
+            return '@media print { @page { size: ' + page + '; margin: 12mm 14mm; } }';
+        }
+
+        function setLayout(mode) {
+            var portrait = mode !== 'landscape';
+            document.body.classList.toggle('layout-portrait', portrait);
+            document.body.classList.toggle('layout-landscape', !portrait);
+            document.getElementById('btnPortrait').classList.toggle('active', portrait);
+            document.getElementById('btnLandscape').classList.toggle('active', !portrait);
+            var el = document.getElementById('layoutPrint');
+            if (el) el.textContent = layoutCss(mode);
+        }
+
+        function toggleColumn(colIndex, visible) {
+            var table = document.getElementById('serviceTable');
+            if (!table) return;
+            var rows = table.rows;
+            for (var i = 0; i < rows.length; i++) {
+                var cell = rows[i].cells[colIndex];
+                if (cell) {
+                    cell.classList.toggle('hidden-col', !visible);
+                }
+            }
+        }
+
+        function syncColumnPickers() {
+            document.querySelectorAll('.col-picker input[data-col]').forEach(function (inp) {
+                var idx = parseInt(inp.getAttribute('data-col'), 10);
+                inp.addEventListener('change', function () {
+                    toggleColumn(idx, inp.checked);
+                });
+            });
+        }
+
+        async function downloadJpeg() {
+            var node = document.getElementById('reportCapture');
+            if (!node || typeof html2canvas === 'undefined') {
+                alert('JPEG oluşturma kütüphanesi yüklenemedi.');
+                return;
+            }
+            try {
+                var canvas = await html2canvas(node, {
+                    backgroundColor: '#ffffff',
+                    scale: 2,
+                    useCORS: true,
+                    logging: false,
+                    windowWidth: node.scrollWidth,
+                    windowHeight: node.scrollHeight
+                });
+                var url = canvas.toDataURL('image/jpeg', 0.92);
+                var a = document.createElement('a');
+                var ts = new Date();
+                var stamp = ts.getFullYear() +
+                    String(ts.getMonth() + 1).padStart(2, '0') +
+                    String(ts.getDate()).padStart(2, '0') + '-' +
+                    String(ts.getHours()).padStart(2, '0') +
+                    String(ts.getMinutes()).padStart(2, '0');
+                a.href = url;
+                a.download = 'servis-raporu-' + stamp + '.jpg';
+                a.click();
+            } catch (e) {
+                alert('JPEG oluşturulamadı: ' + (e.message || e));
+            }
+        }
+
+        (function () {
+            var sel = document.getElementById('sortSelect');
+            if (sel) {
+                sel.addEventListener('change', function () {
+                    var u = new URL(window.location.href);
+                    u.searchParams.set('sort', sel.value);
+                    u.searchParams.delete('download');
+                    window.location.href = u.toString();
+                });
+            }
+            setLayout('portrait');
+            syncColumnPickers();
+            window.addEventListener('beforeprint', function () {
+                var el = document.getElementById('layoutPrint');
+                if (!el) return;
+                el.textContent = layoutCss(document.body.classList.contains('layout-landscape') ? 'landscape' : 'portrait');
+            });
+        })();
+    </script>
+</body>
+</html>

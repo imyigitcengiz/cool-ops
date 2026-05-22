@@ -1,0 +1,40 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+venv/
+.venv/
+env/
+
+# Django
+*.log
+logs/
+db.sqlite3
+db.sqlite3-journal
+staticfiles/
+media/
+
+# Ortam / gizli
+.env
+.env.*
+!.env.example
+deploy/1panel/.env.example
+
+# IDE / OS
+.idea/
+.vscode/
+.cursor/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Node (WhatsApp köprüsü)
+tools/whatsapp_bridge/node_modules/
+tools/whatsapp_bridge/.wwebjs_cache/
+tools/whatsapp_bridge/session/
+tools/whatsapp_bridge/.wwebjs_auth/
+
+# Geçici
+*.bak
+*.tmp

@@ -40,6 +40,33 @@ if defined LAN_IP (
 )
 call :log "Durdurmak: Ctrl+C  ^|  Log: %LOG_FILE%"
 
+REM WhatsApp koprusu — Django ile birlikte otomatik (port 3939)
+if exist "tools\whatsapp_bridge\server.js" (
+  where node >nul 2>&1
+  if not errorlevel 1 (
+    call :log "WhatsApp koprusu baslatiliyor (port 3939)..."
+    if not exist "tools\whatsapp_bridge\node_modules" (
+      call :log "npm install (ilk kurulum)..."
+      pushd "tools\whatsapp_bridge"
+      call npm install
+      popd
+    )
+    if exist "tools\whatsapp_bridge\start_bridge.cmd" (
+      start "GY WhatsApp Bridge" /min cmd /c "cd /d \"%ROOT%\tools\whatsapp_bridge\" && start_bridge.cmd"
+    ) else (
+      start "GY WhatsApp Bridge" /min cmd /k "cd /d \"%ROOT%\tools\whatsapp_bridge\" && npm start"
+    )
+    timeout /t 4 /nobreak >nul
+  ) else (
+    call :log "UYARI: Node.js yok — WhatsApp koprusu baslatilamadi. nodejs.org adresinden kurun."
+  )
+) else (
+  call :log "WhatsApp koprusu (server.js) bulunamadi."
+)
+
+call :log "RBAC izinleri senkronize ediliyor..."
+python manage.py sync_permissions >nul 2>&1
+
 python manage.py runserver 0.0.0.0:8000
 goto :eof
 
@@ -86,6 +113,7 @@ echo        pip install -r requirements.txt
 echo.
 echo   6^) Veritabanini hazirlayin:
 echo        python manage.py migrate
+echo        python manage.py sync_permissions --reset-system-roles
 echo.
 echo   7^) windows_start_app.bat dosyasini tekrar calistirin.
 echo.

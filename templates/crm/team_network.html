@@ -1,0 +1,103 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}Ekipler{% endblock %}
+
+{% block header_title %}
+<h1 class="text-lg font-bold text-slate-900">Ekipler</h1>
+<p class="text-sm text-slate-500">Servis modülü için ekip tanımları — ürün grupları, şirket hattı ve aktif/pasif durumu.</p>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+    {% if can_manage_teams %}
+    <form method="post" class="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 space-y-3">
+        {% csrf_token %}
+        <input type="hidden" name="add_team" value="1">
+        <h3 class="font-bold text-slate-900">Yeni Ekip</h3>
+        <div class="space-y-2">
+            <label class="text-xs font-bold text-slate-500 uppercase tracking-wide">Ekip Adı</label>
+            {{ team_form.name }}
+        </div>
+        <div class="space-y-2">
+            <label class="text-xs font-bold text-slate-500 uppercase tracking-wide">Yetenekli Ürün Grupları</label>
+            {{ team_form.product_groups }}
+            <p class="text-[11px] text-slate-400">Ctrl/Cmd ile birden fazla seçim yapabilirsiniz.</p>
+        </div>
+        <div class="space-y-2">
+            <label class="text-xs font-bold text-slate-500 uppercase tracking-wide">Şirket Hattı</label>
+            {{ team_form.company_phone }}
+        </div>
+        <label class="inline-flex items-center gap-2 text-sm text-slate-700">{{ team_form.is_active }} Aktif</label>
+        <button type="submit" class="w-full bg-brand-600 text-white py-2.5 rounded-xl font-bold hover:bg-brand-700">Ekip Ekle</button>
+    </form>
+
+    <section class="bg-white rounded-3xl border border-slate-200 shadow-sm p-4 space-y-2">
+        <h3 class="font-bold text-slate-900 px-2">Kayıtlı Ekipler</h3>
+        {% for t in teams %}
+        <div class="rounded-xl border border-slate-100 bg-slate-50/80 p-3 flex items-center justify-between gap-3">
+            <div class="min-w-0">
+                <p class="text-sm font-bold text-slate-800 truncate">{{ t.name }}</p>
+                <p class="text-xs text-slate-500">{{ t.company_phone|default:"Numara yok" }}</p>
+                <div class="mt-1 flex flex-wrap gap-1">
+                    {% for product in t.product_groups.all %}
+                    <span class="px-1.5 py-0.5 text-[10px] rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">{{ product.name }}</span>
+                    {% empty %}
+                    <span class="text-[10px] text-slate-400">Yetenekli ürün grubu seçilmemiş</span>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="flex items-center gap-1">
+                <button type="button" class="team-edit-toggle p-2 text-slate-400 hover:text-brand-600 rounded-lg">
+                    <i data-lucide="pencil" class="w-4 h-4"></i>
+                </button>
+                <form method="post" class="inline" onsubmit="return confirm('Silinsin mi?');">
+                    {% csrf_token %}
+                    <input type="hidden" name="delete_team" value="1">
+                    <input type="hidden" name="id" value="{{ t.id }}">
+                    <button type="submit" class="p-2 text-slate-300 hover:text-red-500 rounded-lg"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                </form>
+            </div>
+        </div>
+        <div class="team-edit-panel hidden border border-slate-100 border-t-0 rounded-b-xl bg-white p-3 -mt-2">
+            <form method="post" class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {% csrf_token %}
+                <input type="hidden" name="update_team" value="1">
+                <input type="hidden" name="id" value="{{ t.id }}">
+                <input type="text" name="name" value="{{ t.name }}" required class="w-full p-2 bg-slate-50 border-none rounded-xl text-sm">
+                <input type="text" name="company_phone" value="{{ t.company_phone|default:'' }}" class="w-full p-2 bg-slate-50 border-none rounded-xl text-sm" placeholder="Şirket hattı">
+                <select name="product_groups" multiple class="w-full p-2 bg-slate-50 border-none rounded-xl text-sm md:col-span-2" size="6">
+                    {% for product in team_form.fields.product_groups.queryset %}
+                    <option value="{{ product.id }}" {% if product in t.product_groups.all %}selected{% endif %}>{{ product.name }}</option>
+                    {% endfor %}
+                </select>
+                <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+                    <input type="checkbox" name="is_active" class="w-4 h-4 accent-brand-600 rounded" {% if t.is_active %}checked{% endif %}> Aktif
+                </label>
+                <button type="submit" class="bg-brand-600 text-white py-2 rounded-xl text-sm font-bold hover:bg-brand-700">Kaydet</button>
+            </form>
+        </div>
+        {% empty %}
+        <p class="text-sm text-slate-400 p-2">Henüz ekip tanımlı değil.</p>
+        {% endfor %}
+    </section>
+    {% else %}
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-8 text-center text-slate-500">
+        <p class="text-sm">Ekip yönetimi için yetkiniz yok.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.querySelectorAll('.team-edit-toggle').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const panel = btn.closest('.rounded-xl').nextElementSibling;
+                if (panel) panel.classList.toggle('hidden');
+                if (window.lucide) lucide.createIcons();
+            });
+        });
+    });
+</script>
+{% endblock %}

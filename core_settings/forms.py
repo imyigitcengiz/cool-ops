@@ -10,6 +10,7 @@ from .models import (
     SolutionPartnerType,
     ServiceTeam,
     ServicePersonnel,
+    PersonnelPayment,
     StatusOption,
     WhatsAppTemplate,
 )
@@ -18,6 +19,7 @@ INPUT = 'w-full p-3 bg-slate-50 border-none rounded-xl text-sm'
 
 
 class SiteSettingsForm(forms.ModelForm):
+    """Geriye dönük uyumluluk — genel + AI alanları."""
     class Meta:
         model = SiteSettings
         fields = [
@@ -35,14 +37,28 @@ class SiteSettingsForm(forms.ModelForm):
         }
 
 
-class ProfileSettingsForm(forms.ModelForm):
+class GeneralSiteSettingsForm(forms.ModelForm):
     class Meta:
         model = SiteSettings
-        fields = ['sidebar_profile_name', 'sidebar_profile_role']
+        fields = ['site_name', 'logo', 'company_phone', 'company_address']
         widgets = {
-            'sidebar_profile_name': forms.TextInput(attrs={'class': INPUT, 'placeholder': 'Örn: Yiğit Cengiz'}),
-            'sidebar_profile_role': forms.TextInput(attrs={'class': INPUT, 'placeholder': 'Örn: Operasyon Yöneticisi'}),
+            'site_name': forms.TextInput(attrs={'class': INPUT}),
+            'company_phone': forms.TextInput(attrs={'class': INPUT}),
+            'company_address': forms.Textarea(attrs={'class': INPUT, 'rows': 2}),
         }
+
+
+class AISettingsForm(forms.ModelForm):
+    class Meta:
+        model = SiteSettings
+        fields = ['openai_api_key', 'google_api_key', 'ai_chat_enabled', 'ai_system_prompt']
+        widgets = {
+            'openai_api_key': forms.TextInput(attrs={'class': INPUT, 'placeholder': 'sk-...'}),
+            'google_api_key': forms.TextInput(attrs={'class': INPUT, 'placeholder': 'AIza...'}),
+            'ai_chat_enabled': forms.CheckboxInput(attrs={'class': 'w-5 h-5 accent-violet-600 rounded'}),
+            'ai_system_prompt': forms.Textarea(attrs={'class': INPUT, 'rows': 4}),
+        }
+
 
 
 class ColorOptionForm(forms.ModelForm):
@@ -182,4 +198,21 @@ class ServicePersonnelForm(forms.ModelForm):
         self.fields['team'].empty_label = 'Ekip seçin'
         self.fields['product_groups'].queryset = ProductOption.objects.order_by('name')
 
+
+class PersonnelPaymentForm(forms.ModelForm):
+    class Meta:
+        model = PersonnelPayment
+        fields = ['personnel', 'payment_type', 'amount', 'payment_date', 'notes']
+        widgets = {
+            'personnel': forms.Select(attrs={'class': INPUT}),
+            'payment_type': forms.Select(attrs={'class': INPUT}),
+            'amount': forms.NumberInput(attrs={'class': INPUT, 'step': '0.01', 'min': '0', 'placeholder': '0.00'}),
+            'payment_date': forms.DateInput(attrs={'class': INPUT, 'type': 'date'}),
+            'notes': forms.TextInput(attrs={'class': INPUT, 'placeholder': 'Opsiyonel not'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['personnel'].queryset = ServicePersonnel.objects.filter(is_active=True).order_by('name')
+        self.fields['personnel'].empty_label = 'Personel seçin'
 

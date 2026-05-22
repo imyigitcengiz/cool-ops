@@ -1,0 +1,284 @@
+{% extends 'sales_lead/base.html' %}
+
+
+
+{% block title %}Raporlar{% endblock %}
+
+
+
+{% block header_title %}
+
+<h1 class="text-lg font-bold text-slate-900">Satış Raporları</h1>
+
+<p class="text-sm text-slate-500">Ödeme planı detaylı tablo — dinamik ara ödeme sütunları</p>
+
+{% endblock %}
+
+
+
+{% block header_actions %}
+
+{% if user_perms.sales_export %}
+
+<a href="{% url 'sales_lead_export_csv' %}?format=report" class="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-xl hover:bg-slate-900 text-sm font-semibold">
+
+    <i data-lucide="download" class="w-4 h-4"></i> Rapor CSV
+
+</a>
+
+{% endif %}
+
+{% endblock %}
+
+
+
+{% block content %}
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+
+    <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+
+        <h2 class="font-bold text-slate-900 mb-4">Aylık Satış Özeti</h2>
+
+        <div class="overflow-x-auto">
+
+            <table class="w-full text-sm">
+
+                <thead class="bg-slate-50">
+
+                    <tr>
+
+                        <th class="px-4 py-3 text-left font-bold text-slate-700">Dönem</th>
+
+                        <th class="px-4 py-3 text-left font-bold text-slate-700">Adet</th>
+
+                        <th class="px-4 py-3 text-left font-bold text-slate-700">Toplam</th>
+
+                    </tr>
+
+                </thead>
+
+                <tbody class="divide-y divide-slate-100">
+
+                    {% for row in monthly_stats %}
+
+                    <tr>
+
+                        <td class="px-4 py-3">{{ row.label }}</td>
+
+                        <td class="px-4 py-3 font-semibold">{{ row.count }}</td>
+
+                        <td class="px-4 py-3">{{ row.amount|floatformat:2 }} ₺</td>
+
+                    </tr>
+
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </div>
+
+
+
+    <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+
+        <h2 class="font-bold text-slate-900 mb-4">Durum Dağılımı</h2>
+
+        <ul class="space-y-3">
+
+            {% for row in status_breakdown %}
+
+            <li class="flex items-center justify-between p-3 bg-slate-50 rounded-xl">
+
+                <span class="font-medium text-slate-700">
+
+                    {% if row.status == 'completed' %}Tamamlandı
+
+                    {% elif row.status == 'pending' %}Beklemede
+
+                    {% elif row.status == 'cancelled' %}İptal
+
+                    {% else %}{{ row.status }}{% endif %}
+
+                </span>
+
+                <span class="font-bold text-brand-600">{{ row.total }}</span>
+
+            </li>
+
+            {% endfor %}
+
+        </ul>
+
+    </div>
+
+</div>
+
+
+
+<div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden mb-8">
+
+    <div class="p-5 border-b border-slate-100 bg-slate-50">
+
+        <h2 class="font-bold text-slate-900">Detaylı Satış Raporu</h2>
+
+        <p class="text-xs text-slate-500 mt-1">AD SOYAD · TELEFON · YER · PROJE · TARİH · TOPLAM · PEŞİNAT · ARA ÖDEME(ler) · KALAN · NOT · ÜRÜNLER</p>
+
+    </div>
+
+    <div class="overflow-x-auto">
+
+        <table class="w-full text-sm whitespace-nowrap">
+
+            <thead class="bg-slate-50 border-b border-slate-100">
+
+                <tr>
+
+                    <th class="px-3 py-3 text-xs font-bold text-slate-700 uppercase">Ad Soyad</th>
+
+                    <th class="px-3 py-3 text-xs font-bold text-slate-700 uppercase">Telefon</th>
+
+                    <th class="px-3 py-3 text-xs font-bold text-slate-700 uppercase">Yer</th>
+
+                    <th class="px-3 py-3 text-xs font-bold text-slate-700 uppercase">Proje</th>
+
+                    <th class="px-3 py-3 text-xs font-bold text-slate-700 uppercase">Tarih</th>
+
+                    <th class="px-3 py-3 text-xs font-bold text-slate-700 uppercase text-right">Toplam</th>
+
+                    <th class="px-3 py-3 text-xs font-bold text-slate-700 uppercase text-right">Peşinat</th>
+
+                    {% if max_interim_count > 1 %}
+                        {% for _ in interim_column_indices %}
+                        <th class="px-3 py-3 text-xs font-bold text-slate-700 uppercase text-right">Ara Ödeme {{ forloop.counter }}</th>
+                        {% endfor %}
+                    {% else %}
+                        <th class="px-3 py-3 text-xs font-bold text-slate-700 uppercase text-right">Ara Ödeme</th>
+                    {% endif %}
+
+                    <th class="px-3 py-3 text-xs font-bold text-slate-700 uppercase text-right">Kalan</th>
+
+                    <th class="px-3 py-3 text-xs font-bold text-slate-700 uppercase min-w-[160px]">Not</th>
+
+                    <th class="px-3 py-3 text-xs font-bold text-slate-700 uppercase min-w-[180px]">Ürünler</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody class="divide-y divide-slate-100">
+
+                {% for sale in report_leads %}
+
+                <tr class="hover:bg-slate-50 align-top">
+
+                    <td class="px-3 py-3 font-semibold">{{ sale.customer.name }}</td>
+
+                    <td class="px-3 py-3">{{ sale.customer.phone|default:"-" }}</td>
+
+                    <td class="px-3 py-3">{{ sale.customer.region|default:"-" }}</td>
+
+                    <td class="px-3 py-3 max-w-[140px] truncate" title="{{ sale.project_display }}">{{ sale.project_display }}</td>
+
+                    <td class="px-3 py-3">{{ sale.sale_date|date:"d.m.Y" }}</td>
+
+                    <td class="px-3 py-3 text-right">{% if sale.sale_amount %}{{ sale.sale_amount|floatformat:2 }} ₺{% else %}-{% endif %}</td>
+
+                    <td class="px-3 py-3 text-right">{% if sale.down_payment %}{{ sale.down_payment|floatformat:2 }} ₺{% else %}-{% endif %}</td>
+
+                    {% if max_interim_count > 1 %}
+                        {% for amount in sale.report_interim_cells %}
+                        <td class="px-3 py-3 text-right">{% if amount %}{{ amount|floatformat:2 }} ₺{% else %}-{% endif %}</td>
+                        {% endfor %}
+                    {% else %}
+                        <td class="px-3 py-3 text-right">{% if sale.interim_payments_total %}{{ sale.interim_payments_total|floatformat:2 }} ₺{% else %}-{% endif %}</td>
+                    {% endif %}
+
+                    <td class="px-3 py-3 text-right font-semibold {% if sale.remaining_balance > 0 %}text-amber-700{% else %}text-emerald-700{% endif %}">
+
+                        {{ sale.remaining_balance|floatformat:2 }} ₺
+
+                    </td>
+
+                    <td class="px-3 py-3 text-slate-600 text-xs whitespace-normal max-w-[200px]">{{ sale.notes|default:"-" }}</td>
+
+                    <td class="px-3 py-3 text-slate-600 text-xs whitespace-normal max-w-[220px]">
+                        {% for line in sale.product_lines.all %}
+                        <div>{{ line.product.name }} × {{ line.quantity }}{% if line.color %} <span class="text-slate-400">({{ line.color.name }})</span>{% endif %}{% if line.note %} — {{ line.note }}{% endif %}</div>
+                        {% empty %}-{% endfor %}
+                    </td>
+
+                </tr>
+
+                {% empty %}
+
+                <tr><td colspan="12" class="px-4 py-10 text-center text-slate-400">Rapor verisi yok.</td></tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+
+
+<div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+
+    <h2 class="font-bold text-slate-900 mb-4">Yer Bazlı Satış</h2>
+
+    <div class="overflow-x-auto">
+
+        <table class="w-full text-sm">
+
+            <thead class="bg-slate-50">
+
+                <tr>
+
+                    <th class="px-4 py-3 text-left font-bold text-slate-700">Yer</th>
+
+                    <th class="px-4 py-3 text-left font-bold text-slate-700">Satış Adedi</th>
+
+                    <th class="px-4 py-3 text-left font-bold text-slate-700">Toplam Tutar</th>
+
+                </tr>
+
+            </thead>
+
+            <tbody class="divide-y divide-slate-100">
+
+                {% for row in region_stats %}
+
+                <tr>
+
+                    <td class="px-4 py-3">{{ row.customer__region }}</td>
+
+                    <td class="px-4 py-3 font-semibold">{{ row.total }}</td>
+
+                    <td class="px-4 py-3">{{ row.amount|default:0|floatformat:2 }} ₺</td>
+
+                </tr>
+
+                {% empty %}
+
+                <tr><td colspan="3" class="px-4 py-8 text-center text-slate-400">Yer verisi yok.</td></tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+{% endblock %}
+

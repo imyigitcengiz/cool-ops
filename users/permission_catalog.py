@@ -1,0 +1,152 @@
+"""Sistem izin kataloğu — (codename, ad, modül, tür, sıra, açıklama)."""
+
+PERMISSION_KIND_ACCESS = 'access'
+PERMISSION_KIND_ACTION = 'action'
+
+PERMISSIONS = [
+    ('access.home', 'Ana sayfa', 'Genel', PERMISSION_KIND_ACCESS, 10,
+     'Portal ana sayfasına giriş.'),
+    ('access.services', 'Servis modülü', 'Servis', PERMISSION_KIND_ACCESS, 20,
+     'Servis dashboard ve servis listesine erişim.'),
+    ('access.contact', 'Contact modülü', 'Contact', PERMISSION_KIND_ACCESS, 30,
+     'Contact özet, müşteri ve ilgili sayfalara erişim.'),
+    ('access.sales', 'Satış modülü', 'Satış', PERMISSION_KIND_ACCESS, 40,
+     'Satış paneli ve kayıt listesine erişim.'),
+    ('access.tools', 'Tools modülü', 'Tools', PERMISSION_KIND_ACCESS, 50,
+     'Tools ana sayfasına erişim.'),
+    ('access.settings', 'Sistem ayarları', 'Ayarlar', PERMISSION_KIND_ACCESS, 60,
+     'Site ayarları, durum/ürün tanımları sayfası.'),
+
+    ('services.manage', 'Servis kaydı oluştur & düzenle', 'Servis', PERMISSION_KIND_ACTION, 110,
+     'Yeni servis, düzenleme, hızlı güncelleme ve quick-edit.'),
+    ('services.delete', 'Servis kaydı sil', 'Servis', PERMISSION_KIND_ACTION, 120,
+     'Tekil ve toplu servis silme.'),
+    ('services.bulk', 'Toplu servis işlemleri', 'Servis', PERMISSION_KIND_ACTION, 130,
+     'Toplu durum/öncelik değiştirme ve personel atama.'),
+    ('services.print', 'Servis yazdırma', 'Servis', PERMISSION_KIND_ACTION, 140,
+     'Tekil ve toplu yazdırma.'),
+    ('services.whatsapp', 'Servis WhatsApp gönderimi', 'Servis', PERMISSION_KIND_ACTION, 150,
+     'Durum değişiminde WhatsApp onayı ve otomatik dağıtım.'),
+
+    ('contact.customers_view', 'Müşteri listesi görüntüle', 'Contact', PERMISSION_KIND_ACTION, 205,
+     'Müşteri listesi, detay ve seçim API\'lerini salt okunur görüntüleme.'),
+    ('contact.customers', 'Müşteri oluştur & düzenle', 'Contact', PERMISSION_KIND_ACTION, 210,
+     'Yeni müşteri, güncelleme, hızlı düzenleme ve toplu güncelleme.'),
+    ('contact.customers_delete', 'Müşteri sil', 'Contact', PERMISSION_KIND_ACTION, 220,
+     'Müşteri kaydı silme ve toplu silme.'),
+    ('contact.firms', 'Firma & etiket yönetimi', 'Contact', PERMISSION_KIND_ACTION, 230,
+     'Firma kazı, firma listesi, etiket yöneticisi.'),
+    ('contact.teams', 'Ekip yönetimi', 'Contact', PERMISSION_KIND_ACTION, 240,
+     'Servis ekiplerini tanımlama, düzenleme ve silme.'),
+    ('contact.personnel', 'Personel kayıtları', 'Contact', PERMISSION_KIND_ACTION, 245,
+     'Servis personeli tanımlama, düzenleme ve silme.'),
+    ('contact.payroll', 'Maaş ödemeleri', 'Contact', PERMISSION_KIND_ACTION, 250,
+     'Personel maaş ve avans ödemesi ekleme, düzenleme ve silme.'),
+    ('contact.solution', 'Çözüm ağı yönetimi', 'Contact', PERMISSION_KIND_ACTION, 260,
+     'Çözüm ortağı ekleme, düzenleme ve silme.'),
+
+    ('sales.manage', 'Satış kaydı oluştur & düzenle', 'Satış', PERMISSION_KIND_ACTION, 310,
+     'Yeni satış, düzenleme ve kayıt güncelleme.'),
+    ('sales.delete', 'Satış kaydı sil', 'Satış', PERMISSION_KIND_ACTION, 320,
+     'Satış kaydı silme.'),
+    ('sales.reports', 'Satış raporları', 'Satış', PERMISSION_KIND_ACTION, 330,
+     'Rapor ekranını görüntüleme.'),
+    ('sales.export', 'Satış CSV dışa aktarım', 'Satış', PERMISSION_KIND_ACTION, 340,
+     'Rapor verisini CSV olarak indirme.'),
+
+    ('tools.whatsapp', 'WhatsApp bağlan & mesaj', 'Tools', PERMISSION_KIND_ACTION, 410,
+     'WhatsApp köprüsü, bağlantılar ve mesaj gönderme.'),
+    ('tools.whatsapp_scenarios', 'WhatsApp senaryo şablonları', 'Tools', PERMISSION_KIND_ACTION, 420,
+     'Durum senaryoları ve otomatik mesaj kuralları.'),
+    ('tools.ai', 'Yapay zeka ayarları', 'Tools', PERMISSION_KIND_ACTION, 430,
+     'AI paneli, sohbet ve API ayarları.'),
+    ('tools.backup', 'Yedekleme & geri yükleme', 'Tools', PERMISSION_KIND_ACTION, 440,
+     'Sistem yedeği alma ve geri yükleme.'),
+]
+
+DEFAULT_ROLES = {
+    'admin': {
+        'name': 'Yönetici',
+        'description': 'Tüm modül ve fonksiyon izinleri (süper admin paneli hariç).',
+        'is_system': True,
+        'permissions': [row[0] for row in PERMISSIONS],
+    },
+    'operation': {
+        'name': 'Operasyon',
+        'description': 'Servis, contact ve operasyon araçları.',
+        'is_system': True,
+        'permissions': [
+            'access.home', 'access.services', 'access.contact', 'access.tools',
+            'services.manage', 'services.bulk', 'services.print', 'services.whatsapp',
+            'contact.customers_view', 'contact.customers', 'contact.firms', 'contact.teams', 'contact.personnel', 'contact.solution',
+            'tools.whatsapp', 'tools.whatsapp_scenarios',
+        ],
+    },
+    'service': {
+        'name': 'Servis Personeli',
+        'description': 'Servis kayıtları ve müşteri görüntüleme.',
+        'is_system': True,
+        'permissions': [
+            'access.home', 'access.services', 'access.contact',
+            'services.manage', 'services.print', 'services.whatsapp',
+            'contact.customers_view', 'contact.customers',
+        ],
+    },
+    'sales': {
+        'name': 'Satış Temsilcisi',
+        'description': 'Satış kayıtları ve müşteri erişimi.',
+        'is_system': True,
+        'permissions': [
+            'access.home', 'access.sales', 'access.contact',
+            'sales.manage', 'sales.reports', 'sales.export',
+            'contact.customers_view', 'contact.customers', 'contact.payroll',
+        ],
+    },
+    'accounting': {
+        'name': 'Muhasebe',
+        'description': 'Maaş ödemeleri ve müşteri görüntüleme (düzenleme yok).',
+        'is_system': True,
+        'permissions': [
+            'access.home', 'access.contact',
+            'contact.customers_view', 'contact.payroll',
+        ],
+    },
+}
+
+ROUTE_PERMISSIONS = [
+    ('/yonetim/', None),
+    ('/profil/', None),
+    ('/services-dashboard/settings/', 'access.settings'),
+    ('/services-dashboard/api/', 'access.settings'),
+    ('/services-dashboard/services/bulk-delete/', 'services.delete'),
+    ('/services-dashboard/services/bulk-manage/', 'services.bulk'),
+    ('/services-dashboard/services/bulk-print/', 'services.print'),
+    ('/services-dashboard/services/send-whatsapp/', 'services.whatsapp'),
+    ('/services-dashboard/services/send-whatsapp-auto/', 'services.whatsapp'),
+    ('/services-dashboard/services/new/', 'services.manage'),
+    ('/services-dashboard/', 'access.services'),
+    ('/contact/personel/', ('contact.personnel', 'contact.payroll')),
+    ('/contact/ekip/', 'contact.teams'),
+    ('/contact/cozum-agi/', 'contact.solution'),
+    ('/contact/musteriler/yeni/', 'contact.customers'),
+    ('/contact/musteriler/toplu-sil/', 'contact.customers_delete'),
+    ('/contact/musteriler/toplu-islem/', 'contact.customers'),
+    ('/contact/musteriler/hizli-ekle/', 'contact.customers'),
+    ('/contact/musteriler/', ('contact.customers_view', 'contact.customers')),
+    ('/contact/firmalar/', 'contact.firms'),
+    ('/contact/firma-kazi/', 'contact.firms'),
+    ('/contact/', 'access.contact'),
+    ('/sales-lead/raporlar/export-csv/', 'sales.export'),
+    ('/sales-lead/raporlar/', 'sales.reports'),
+    ('/sales-lead/yeni/', 'sales.manage'),
+    ('/sales-lead/', 'access.sales'),
+    ('/tools/yedekler/', 'tools.backup'),
+    ('/tools/ai/', 'tools.ai'),
+    ('/tools/whatsapp', 'tools.whatsapp'),
+    ('/tools/', 'access.tools'),
+    ('/admin/', None),
+    ('/', 'access.home'),
+]
+
+LOGIN_EXEMPT_PREFIXES = ('/giris/', '/static/', '/media/')
+SUPERUSER_ONLY_PREFIXES = ('/yonetim/',)

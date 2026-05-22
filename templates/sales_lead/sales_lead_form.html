@@ -1,0 +1,227 @@
+{% extends 'sales_lead/base.html' %}
+
+{% block title %}{% if is_edit %}Proje Düzenle{% elif add_project_mode %}Yeni Proje{% else %}Yeni Satış{% endif %}{% endblock %}
+
+{% block header_title %}
+<h1 class="text-lg font-bold text-slate-900">
+    {% if is_edit %}Proje Düzenle{% elif add_project_mode %}Mevcut Müşteriye Yeni Proje{% else %}Yeni Satış / Proje{% endif %}
+</h1>
+<p class="text-sm text-slate-500">Bir müşteriye birden fazla proje eklenebilir — her proje ayrı satış kaydıdır.</p>
+{% endblock %}
+
+{% block header_actions %}
+{% if selected_customer and user_perms.sales_manage %}
+<a href="{% url 'sales_lead_create' %}?customer={{ selected_customer.id }}" class="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-xl hover:bg-brand-700 text-sm font-semibold">
+    <i data-lucide="plus" class="w-4 h-4"></i> Bu müşteriye proje ekle
+</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<form method="post" class="max-w-6xl">
+    {% csrf_token %}
+
+    {% if selected_customer and customer_projects %}
+    <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-5 mb-6">
+        <div class="flex items-center justify-between gap-3 mb-3">
+            <h2 class="font-bold text-slate-900">{{ selected_customer.name }} — Mevcut Projeler</h2>
+            <span class="text-xs font-bold text-slate-500">{{ customer_projects|length }} proje</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+                    <tr>
+                        <th class="px-3 py-2 text-left">Proje</th>
+                        <th class="px-3 py-2 text-left">Tarih</th>
+                        <th class="px-3 py-2 text-right">Toplam</th>
+                        <th class="px-3 py-2 text-right">Kalan</th>
+                        <th class="px-3 py-2 text-right">İşlem</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for p in customer_projects %}
+                    <tr>
+                        <td class="px-3 py-2 font-semibold">{{ p.project_display }}</td>
+                        <td class="px-3 py-2">{{ p.sale_date|date:"d.m.Y" }}</td>
+                        <td class="px-3 py-2 text-right">{% if p.sale_amount %}{{ p.sale_amount|floatformat:2 }} ₺{% else %}-{% endif %}</td>
+                        <td class="px-3 py-2 text-right">{{ p.remaining_balance|floatformat:2 }} ₺</td>
+                        <td class="px-3 py-2 text-right">
+                            <a href="{% url 'sales_lead_edit' p.pk %}" class="text-brand-600 hover:underline font-semibold">Düzenle</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div class="lg:col-span-2 space-y-6">
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-5 {% if add_project_mode %}opacity-95{% endif %}">
+                <div class="flex items-center justify-between">
+                    <h2 class="font-bold text-slate-900">Müşteri Bilgileri</h2>
+                    {% if add_project_mode or is_edit %}
+                    <span class="text-xs font-bold text-brand-700 bg-brand-50 px-2 py-1 rounded-lg">Paylaşılan bilgi</span>
+                    {% endif %}
+                </div>
+
+                {% if not is_edit and not add_project_mode %}
+                <label class="flex items-center gap-3 cursor-pointer">
+                    {{ form.use_existing_customer }}
+                    <span class="text-sm font-semibold text-slate-700">{{ form.use_existing_customer.label }}</span>
+                </label>
+                <div id="existingCustomerBlock" class="space-y-2 hidden">
+                    <label class="text-sm font-semibold text-slate-700">{{ form.existing_customer.label }}</label>
+                    {{ form.existing_customer }}
+                    {% if form.existing_customer.errors %}<p class="text-red-500 text-xs">{{ form.existing_customer.errors.0 }}</p>{% endif %}
+                </div>
+                {% else %}
+                {{ form.use_existing_customer }}
+                {{ form.existing_customer }}
+                {% endif %}
+
+                <div id="customerFields" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {% for field in form %}
+                        {% if field.name in 'name phone region address location_link contract_date' %}
+                        <div class="space-y-2 {% if field.name == 'address' %}md:col-span-2{% endif %}">
+                            <label class="text-sm font-semibold text-slate-700">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.errors %}<p class="text-red-500 text-xs">{{ field.errors.0 }}</p>{% endif %}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
+                <h2 class="font-bold text-slate-900">Proje & Ödeme Planı</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {% for field in form %}
+                        {% if field.name in 'project sale_date sale_amount down_payment assigned_to status' %}
+                        <div class="space-y-2 {% if field.name == 'project' %}md:col-span-2{% endif %}">
+                            <label class="text-sm font-semibold text-slate-700">{{ field.label }}{% if field.name == 'project' %} <span class="text-red-500">*</span>{% endif %}</label>
+                            {{ field }}
+                            {% if field.errors %}<p class="text-red-500 text-xs">{{ field.errors.0 }}</p>{% endif %}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between gap-3">
+                        <label class="text-sm font-semibold text-slate-700">Ara Ödemeler</label>
+                        <button type="button" id="addInterimPaymentBtn"
+                                class="inline-flex items-center gap-1.5 text-xs font-bold text-brand-700 bg-brand-50 hover:bg-brand-100 px-3 py-1.5 rounded-lg">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Ara ödeme ekle
+                        </button>
+                    </div>
+                    <div id="interimPaymentsContainer" class="space-y-2"></div>
+                    <p class="text-xs text-slate-500">İstediğiniz kadar ara ödeme ekleyebilirsiniz.</p>
+                </div>
+
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between gap-3">
+                        <label class="text-sm font-semibold text-slate-700">Proje Ürünleri</label>
+                        <button type="button" id="addProductLineBtn"
+                                class="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 px-3 py-1.5 rounded-lg">
+                            <i data-lucide="plus" class="w-3.5 h-3.5"></i> Ürün ekle
+                        </button>
+                    </div>
+                    <div id="productLinesContainer" class="space-y-3"></div>
+                    <p class="text-xs text-slate-500">Her ürün için adet, renk (site ayarlarından tanımlı) ve not girebilirsiniz.</p>
+                </div>
+
+                <p class="text-xs text-slate-500 bg-slate-50 rounded-xl p-3 border border-slate-100">
+                    <strong>Kalan</strong> = Toplam − Peşinat − Ara ödemeler (her proje kendi ödeme planına sahiptir)
+                </p>
+            </div>
+        </div>
+
+        <aside class="lg:sticky lg:top-24 self-start space-y-4">
+            <div class="bg-amber-50 border border-amber-200 rounded-3xl p-6 shadow-sm">
+                <h2 class="font-bold text-amber-900 mb-1 flex items-center gap-2">
+                    <i data-lucide="sticky-note" class="w-5 h-5"></i> Not Köşesi
+                </h2>
+                <p class="text-xs text-amber-800/80 mb-3">Bu projeye özel notlar</p>
+                {{ form.notes }}
+                {% if form.notes.errors %}<p class="text-red-500 text-xs mt-1">{{ form.notes.errors.0 }}</p>{% endif %}
+            </div>
+
+            {% if is_edit and lead %}
+            <div class="bg-brand-50 border border-brand-100 rounded-2xl p-4 text-sm text-brand-800">
+                Bu müşteriye ait <strong>{{ lead.customer.sales_leads.count }}</strong> proje,
+                <strong>{{ lead.service_count }}</strong> servis kaydı var.
+                {% if user_perms.services_manage %}
+                <a href="{% url 'service_create' %}?customer={{ lead.customer.id }}" class="underline font-semibold ml-1">Servis ekle</a>
+                {% endif %}
+            </div>
+            {% endif %}
+
+            <div class="flex flex-col gap-3 bg-white border border-slate-200 rounded-3xl p-4 shadow-sm">
+                <button type="submit" class="w-full bg-brand-600 hover:bg-brand-700 text-white py-3 rounded-2xl font-bold shadow-lg shadow-brand-200">
+                    {% if add_project_mode %}Projeyi Kaydet{% else %}Kaydet{% endif %}
+                </button>
+                <a href="{% url 'sales_lead_list' %}" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 py-3 rounded-2xl font-bold text-center">
+                    İptal
+                </a>
+            </div>
+        </aside>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+{{ sales_lead_form_js|json_script:"salesLeadFormData" }}
+<script>
+window.SALES_LEAD_FORM = JSON.parse(document.getElementById('salesLeadFormData').textContent);
+</script>
+<script src="/static/js/sales-lead-form.js"></script>
+<script>
+(function () {
+    const useExisting = document.querySelector('input[name="use_existing_customer"]');
+    const existingBlock = document.getElementById('existingCustomerBlock');
+    const customerFields = document.getElementById('customerFields');
+    const existingSelect = document.querySelector('select[name="existing_customer"]');
+    const addProjectMode = {{ add_project_mode|yesno:"true,false" }};
+    const isEdit = {{ is_edit|yesno:"true,false" }};
+
+    function setCustomerFieldsDisabled(disabled) {
+        if (!customerFields) return;
+        customerFields.classList.toggle('opacity-50', disabled);
+        customerFields.querySelectorAll('input, textarea').forEach(el => { el.readOnly = disabled; });
+    }
+
+    function toggleCustomerMode() {
+        const use = useExisting && useExisting.checked && useExisting.type !== 'hidden';
+        if (existingBlock) existingBlock.classList.toggle('hidden', !use);
+        setCustomerFieldsDisabled(use || addProjectMode || isEdit);
+    }
+
+    if (useExisting && useExisting.type !== 'hidden') {
+        useExisting.addEventListener('change', toggleCustomerMode);
+    }
+    toggleCustomerMode();
+
+    if (existingSelect && existingSelect.type !== 'hidden') {
+        existingSelect.addEventListener('change', function () {
+            const id = this.value;
+            if (!id) return;
+            window.location.href = '{% url "sales_lead_create" %}?customer=' + id;
+        });
+    }
+
+    const phoneInput = document.querySelector('input[name="phone"]');
+    if (phoneInput && window.intlTelInput && !addProjectMode && !isEdit) {
+        const iti = window.intlTelInput(phoneInput, {
+            initialCountry: 'tr',
+            separateDialCode: true,
+            utilsScript: 'https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.10/build/js/utils.js',
+        });
+        phoneInput.closest('form').addEventListener('submit', function () {
+            if (iti.isValidNumber()) phoneInput.value = iti.getNumber();
+        });
+    }
+})();
+</script>
+{% endblock %}

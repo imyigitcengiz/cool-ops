@@ -1,0 +1,69 @@
+from django.contrib import messages
+from django.shortcuts import redirect
+from django.views.generic import TemplateView
+
+from core_settings.backup import export_backup_response, import_backup_file
+from core_settings.forms import AISettingsForm
+from core_settings.models import SiteSettings
+from customers.models import Customer
+from services.models import ServiceRecord
+
+
+class ToolsAISettingsView(TemplateView):
+    template_name = 'tools/ai_settings.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        settings = SiteSettings.objects.first()
+        context['ai_form'] = AISettingsForm(instance=settings)
+        context['ai_enabled'] = bool(settings and settings.ai_chat_enabled)
+        return context
+
+    def post(self, request, *args, **kwargs):
+        settings = SiteSettings.objects.first()
+        if not settings:
+            settings = SiteSettings.objects.create(site_name='GÖLGEDE YAŞAM')
+        form = AISettingsForm(request.POST, instance=settings)
+        if form.is_valid():
+            form.save()
+            messages.success(request, 'AI ayarları kaydedildi.')
+        else:
+            messages.error(request, f'Ayarlar kaydedilemedi: {form.errors.as_text()}')
+        return redirect('tools_ai_settings')
+
+
+class ToolsAIPanelView(TemplateView):
+    template_name = 'tools/ai_panel.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        settings = SiteSettings.objects.first()
+        context['site_settings'] = settings
+        context['stats'] = {
+            'total_customers': Customer.objects.count(),
+            'total_services': ServiceRecord.objects.count(),
+            'product_count': ServiceRecord.objects.values('products').distinct().count(),
+        }
+        return context
+
+
+class ToolsSystemBackupView(TemplateView):
+    template_name = 'tools/system_backup.html'
+
+    def post(self, request, *args, **kwargs):
+        if 'export_backup' in request.POST:
+            try:
+                return export_backup_response()
+            except Exception as exc:
+                messages.error(request, f'Yedekleme sırasında hata oluştu: {exc}')
+                return redirect('tools_system_backup')
+
+        if 'import_backup' in request.POST:
+            ok, msg = import_backup_file(request.FILES.get('backup_file'))
+            if ok:
+                messages.success(request, msg)
+            else:
+                messages.error(request, msg)
+            return redirect('tools_system_backup')
+
+        return redirect('tools_system_backup')

@@ -1,0 +1,9 @@
+{% if user_perms.contact_customers %}
+<a href="{% url 'customer_update' c.id %}" class="text-brand-600 hover:underline font-semibold mr-2">Düzenle</a>
+{% endif %}
+{% if user_perms.contact_customers_delete %}
+<form method="post" action="{% url 'customer_delete' c.id %}" class="inline">
+    {% csrf_token %}
+    <button type="submit" onclick="return confirm('Silinsin mi?')" class="text-red-500 hover:underline font-semibold">Sil</button>
+</form>
+{% endif %}

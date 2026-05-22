@@ -36,7 +36,22 @@ class ServiceRecord(models.Model):
         ('expired', 'Garanti Bitti'),
     ]
     warranty_status = models.CharField(max_length=20, choices=WARRANTY_STATUS_CHOICES, default='active', verbose_name="Garanti Durumu")
-    
+
+    list_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='Normal fiyat',
+    )
+    discounted_price = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name='İndirimli fiyat',
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -44,6 +59,17 @@ class ServiceRecord(models.Model):
         if self.warranty_status == 'expired' or 'ücretli' in self.status.name.lower():
             return False
         return True
+
+    @staticmethod
+    def status_name_is_paid(status_name: str) -> bool:
+        return 'ücretli' in (status_name or '').lower()
+
+    def requires_pricing_fields(self) -> bool:
+        if self.warranty_status == 'expired':
+            return True
+        if self.status_id and self.status_name_is_paid(self.status.name):
+            return True
+        return False
 
     def __str__(self):
         return f"{self.customer.name} ({self.status.name})"

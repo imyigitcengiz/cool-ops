@@ -1,0 +1,9 @@
+{% if user_perms.services_whatsapp %}
+{% if whatsapp_prompt_queue %}{{ whatsapp_prompt_queue|json_script:"whatsappPromptQueueData" }}{% else %}<script id="whatsappPromptQueueData" type="application/json">[]</script>{% endif %}
+{% include 'services_dashboard/partials/whatsapp_status_prompt_modal.html' %}
+<script>
+    window.SERVICE_WA_STATUS_CONFIRM_URL = '{% url "service_whatsapp_status_confirm" %}';
+    window.SERVICE_WA_STATUS_APPLY_URL = '{% url "service_status_change_apply" %}';
+</script>
+<script src="/static/js/service-whatsapp-prompt.js"></script>
+{% endif %}

@@ -1,0 +1,213 @@
+import csv
+import json
+
+from django.db.models import Q
+from django.http import HttpResponse, JsonResponse
+from django.views.decorators.http import require_http_methods
+from django.views.generic import TemplateView
+
+from tools.firm_memory import enrich_search_results, register_scrape, serialize_firm
+from tools.google_maps_search import GoogleMapsSearchError, search_businesses
+from tools.models import FirmTag, MapsScrapedFirm
+from tools.outreach_memory import memory_stats, messaged_firm_count
+from tools.phone_utils import is_whatsapp_eligible, is_turkish_landline, whatsapp_url
+
+
+class ToolsHubView(TemplateView):
+    template_name = 'tools/index.html'
+
+
+class FirmaKaziView(TemplateView):
+    template_name = 'crm/firms_hub.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_mode'] = 'scrape'
+        context['memory_count'] = MapsScrapedFirm.objects.count()
+        context['messaged_count'] = messaged_firm_count()
+        return context
+
+
+class FirmalarView(TemplateView):
+    template_name = 'crm/firms_hub.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_mode'] = 'directory'
+        context['memory_count'] = MapsScrapedFirm.objects.count()
+        context['messaged_count'] = messaged_firm_count()
+        return context
+
+
+class TagManagerView(TemplateView):
+    template_name = 'crm/tag_manager.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['tag_count'] = FirmTag.objects.count()
+        return context
+
+
+class GoogleMapsFirmaBulmaView(FirmalarView):
+    """Geriye dönük uyumluluk — Firmalar rehberine yönlendirilir."""
+
+
+class WhatsappBaglanView(TemplateView):
+    template_name = 'tools/whatsapp_baglan.html'
+
+    def get_context_data(self, **kwargs):
+        import sys
+        from django.conf import settings as django_settings
+        context = super().get_context_data(**kwargs)
+        context['whatsapp_bridge_url'] = getattr(django_settings, 'WHATSAPP_BRIDGE_URL', 'http://127.0.0.1:3939')
+        context['whatsapp_bridge_auto_start'] = getattr(django_settings, 'WHATSAPP_BRIDGE_AUTO_START', True)
+        context['whatsapp_bridge_is_windows'] = sys.platform == 'win32'
+        return context
+
+
+def _json_body(request):
+    try:
+        return json.loads(request.body.decode('utf-8'))
+    except json.JSONDecodeError:
+        return None
+
+
+@require_http_methods(['POST'])
+def google_maps_search(request):
+    body = _json_body(request)
+    if body is None:
+        return JsonResponse({'ok': False, 'error': 'Geçersiz istek gövdesi.'}, status=400)
+
+    query = (body.get('query') or '').strip()
+    location = (body.get('location') or '').strip()
+    max_results = body.get('max_results') or 20
+    phone_filter = (body.get('phone_filter') or 'all').strip()
+    if phone_filter not in ('all', 'mobile', 'landline'):
+        phone_filter = 'all'
+    tag_ids = []
+    for raw in body.get('tag_ids') or []:
+        try:
+            tag_ids.append(int(raw))
+        except (TypeError, ValueError):
+            continue
+    scrape_region = (body.get('scrape_region') or location or '').strip()[:80]
+
+    if not query:
+        return JsonResponse({'ok': False, 'error': 'Arama ifadesi girin.'}, status=400)
+
+    try:
+        raw_results = search_businesses(query, location, max_results)
+        results = enrich_search_results(
+            raw_results,
+            phone_filter=phone_filter,
+            tag_ids=tag_ids,
+            scrape_region=scrape_region,
+        )
+    except GoogleMapsSearchError as exc:
+        return JsonResponse({'ok': False, 'error': str(exc)}, status=502)
+    except Exception:
+        return JsonResponse({
+            'ok': False,
+            'error': 'Arama sırasında bir hata oluştu. Lütfen bir süre sonra tekrar deneyin.',
+        }, status=502)
+
+    new_count = sum(1 for r in results if r.get('saved_to_memory') and not r.get('already_in_memory'))
+    memory_count = sum(1 for r in results if r.get('already_in_memory'))
+    saved_count = sum(1 for r in results if r.get('saved_to_memory'))
+    stats = memory_stats()
+    return JsonResponse({
+        'ok': True,
+        'count': len(results),
+        'new_count': new_count,
+        'memory_count': memory_count,
+        'saved_count': saved_count,
+        'phone_filter': phone_filter,
+        'results': results,
+        **stats,
+    })
+
+
+@require_http_methods(['GET'])
+def firms_memory_list(request):
+    q = (request.GET.get('q') or '').strip()
+    tag_id = request.GET.get('tag_id')
+    region = (request.GET.get('region') or '').strip()
+    whatsapp_only = request.GET.get('whatsapp_only') in ('1', 'true', 'yes')
+    page = max(int(request.GET.get('page') or 1), 1)
+    page_size = min(max(int(request.GET.get('page_size') or 50), 1), 200)
+
+    qs = MapsScrapedFirm.objects.prefetch_related('tags').all().order_by('-last_scraped_at')
+    if q:
+        qs = qs.filter(
+            Q(name__icontains=q)
+            | Q(phone__icontains=q)
+            | Q(address__icontains=q)
+            | Q(notes__icontains=q)
+            | Q(region__icontains=q)
+        )
+    if region:
+        qs = qs.filter(region__iexact=region)
+    if tag_id:
+        try:
+            qs = qs.filter(tags__id=int(tag_id))
+        except (TypeError, ValueError):
+            pass
+
+    total = qs.count()
+    start = (page - 1) * page_size
+    page_firms = list(qs[start:start + page_size])
+    if whatsapp_only:
+        page_firms = [f for f in page_firms if is_whatsapp_eligible(f.phone, f.phone_normalized)]
+    items = [serialize_firm(f) for f in page_firms]
+    stats = memory_stats()
+    regions = list(
+        MapsScrapedFirm.objects.exclude(region='')
+        .values_list('region', flat=True)
+        .distinct()
+        .order_by('region')
+    )
+    return JsonResponse({
+        'ok': True,
+        'total': total,
+        'page': page,
+        'page_size': page_size,
+        'results': items,
+        'regions': regions,
+        **stats,
+    })
+
+
+@require_http_methods(['POST'])
+def google_maps_export_csv(request):
+    body = _json_body(request)
+    if body is None:
+        return JsonResponse({'ok': False, 'error': 'Geçersiz veri.'}, status=400)
+
+    rows = body.get('results') or []
+    if not rows:
+        return JsonResponse({'ok': False, 'error': 'Dışa aktarılacak kayıt yok.'}, status=400)
+
+    response = HttpResponse(content_type='text/csv; charset=utf-8')
+    response['Content-Disposition'] = 'attachment; filename="google-maps-firma-listesi.csv"'
+    response.write('\ufeff')
+    writer = csv.writer(response, delimiter=';')
+    writer.writerow([
+        'Firma Adı', 'Adres', 'Telefon', 'WhatsApp', 'Web Sitesi', 'Puan', 'Yorum',
+        'Hafızada', 'Mesaj Gönderildi', 'Place ID', 'Maps URL',
+    ])
+    for row in rows:
+        phone = row.get('phone', '-')
+        writer.writerow([
+            row.get('name', '-'),
+            row.get('address', '-'),
+            phone,
+            row.get('whatsapp_url') or whatsapp_url(phone),
+            row.get('website', '-'),
+            row.get('rating', '-'),
+            row.get('reviews', '-'),
+            'Evet' if row.get('already_in_memory') else 'Hayır',
+            row.get('messages_sent', 0),
+            row.get('place_id', ''),
+            row.get('maps_url', '-'),
+        ])
+    return response

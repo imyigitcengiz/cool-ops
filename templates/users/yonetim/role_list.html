@@ -1,0 +1,52 @@
+{% extends 'users/yonetim/base.html' %}
+{% block title %}Roller{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900">Roller & İzinler</h1>
+        <p class="text-sm text-slate-500 mt-1">Modül erişimi ve fonksiyon izinlerini rol bazında yapılandırın</p>
+    </div>
+    <a href="{% url 'admin_role_create' %}" class="px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700">+ Yeni rol</a>
+</div>
+<div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-slate-50 text-left">
+            <tr>
+                <th class="px-5 py-3 font-bold text-slate-600">Rol</th>
+                <th class="px-5 py-3 font-bold text-slate-600">Kullanıcı</th>
+                <th class="px-5 py-3 font-bold text-slate-600">Tür</th>
+                <th class="px-5 py-3 font-bold text-slate-600 text-right">İşlem</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+            {% for role in roles %}
+            <tr class="hover:bg-slate-50">
+                <td class="px-5 py-4">
+                    <p class="font-semibold text-slate-900">{{ role.name }}</p>
+                    <p class="text-xs text-slate-500">{{ role.description|default:"—" }}</p>
+                </td>
+                <td class="px-5 py-4">{{ role.user_count }}</td>
+                <td class="px-5 py-4">
+                    {% if role.is_system %}<span class="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold">Sistem</span>{% else %}<span class="px-2 py-0.5 rounded-lg bg-violet-50 text-violet-700 text-xs font-bold">Özel</span>{% endif %}
+                </td>
+                <td class="px-5 py-4">
+                    <div class="flex items-center justify-end gap-2">
+                        <a href="{% url 'admin_role_edit' role.pk %}" class="px-3 py-1.5 rounded-lg bg-brand-50 text-brand-700 text-xs font-bold hover:bg-brand-100">Düzenle</a>
+                        {% if not role.is_system and role.user_count == 0 %}
+                        <a href="{% url 'admin_role_delete' role.pk %}" class="px-3 py-1.5 rounded-lg bg-red-50 text-red-700 text-xs font-bold hover:bg-red-100">Sil</a>
+                        {% elif not role.is_system %}
+                        <span class="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-400 text-xs font-bold cursor-not-allowed" title="Bu role atanmış kullanıcılar var">Silinemez</span>
+                        {% else %}
+                        <span class="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-400 text-xs font-bold cursor-not-allowed" title="Sistem rolleri silinemez">Silinemez</span>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="px-5 py-10 text-center text-slate-400">Henüz rol tanımlı değil.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<p class="text-xs text-slate-400 mt-4">Özel roller, üzerinde kullanıcı yoksa silinebilir. Sistem rolleri (Yönetici, Operasyon vb.) korunur.</p>
+{% endblock %}

@@ -1,0 +1,162 @@
+{% extends 'services_dashboard/base.html' %}
+
+{% block title %}Site Ayarları | GÖLGEDE YAŞAM{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-8 pb-12">
+    <h2 class="text-2xl font-bold text-slate-900">Sistem Ayarları</h2>
+
+    <!-- General Settings -->
+    <section class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+        <h3 class="text-lg font-bold text-slate-900 border-b border-slate-100 pb-4">Genel Bilgiler</h3>
+        <form method="post" enctype="multipart/form-data" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            {% csrf_token %}
+            <input type="hidden" name="update_site" value="1">
+            <div class="space-y-4">
+                <div class="space-y-2">
+                    <label class="text-sm font-semibold text-slate-700">Site Adı</label>
+                    {{ settings_form.site_name }}
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-semibold text-slate-700">Logo</label>
+                    {{ settings_form.logo }}
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-semibold text-slate-700">Firma Telefonu</label>
+                    {{ settings_form.company_phone }}
+                </div>
+                <div class="space-y-2 md:col-span-2">
+                    <label class="text-sm font-semibold text-slate-700">Firma Adresi</label>
+                    {{ settings_form.company_address }}
+                </div>
+            </div>
+            <div class="flex items-end">
+                <button type="submit" class="w-full bg-brand-600 text-white py-3 rounded-xl font-bold hover:bg-brand-700 transition-all">
+                    Kaydet
+                </button>
+            </div>
+        </form>
+    </section>
+    
+    <!-- Seçenek yönetimi -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {% include 'services_dashboard/partials/option_add_card.html' with title='Ürün Seçenekleri' form=product_form items=products add_action='add_product' update_action='update_product' delete_action='delete_product' default_color='#0284c7' use_product_item=True all_service_types=all_service_types %}
+        {% include 'services_dashboard/partials/option_add_card.html' with title='Arıza / Servis Tipleri' helper_text='Renkler bağlı ürünlerden otomatik alınır. Bu alanda sadece ürün ilişkisini yönetirsiniz.' form=service_type_form items=service_types add_action='add_service_type' update_action='update_service_type' delete_action='delete_service_type' hide_color_picker=True default_color='#8b5cf6' use_service_type_relation_item=True all_products=all_products %}
+        {% include 'services_dashboard/partials/option_add_card.html' with title='Servis Durumları' helper_text='Varsayılan: aktif, beklemede, tamamlandı, iptal, ücretli, iptal ücretli. Servis listesinde yalnızca aktif kayıtlar görünür.' form=status_form items=statuses add_action='add_status' update_action='update_status' delete_action='delete_status' default_color='#3b82f6' %}
+        {% include 'services_dashboard/partials/option_add_card.html' with title='Öncelik Seviyeleri' form=priority_form items=priorities add_action='add_priority' update_action='update_priority' delete_action='delete_priority' default_color='#6b7280' %}
+    </div>
+
+    <section class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-6 border-b border-slate-100 bg-slate-50">
+            <h3 class="font-bold text-slate-900">Çözüm Ortağı Türleri</h3>
+            <p class="text-xs text-slate-500 mt-1">Taşeron/Nakliye/Dış Servisçi türlerini buradan özelleştirebilirsiniz.</p>
+        </div>
+        <div class="p-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <form method="post" class="space-y-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                {% csrf_token %}
+                <input type="hidden" name="add_solution_partner_type" value="1">
+                <div class="space-y-2">
+                    <label class="text-xs font-bold text-slate-500 uppercase tracking-wide">Tür adı</label>
+                    {{ solution_partner_type_form.name }}
+                </div>
+                <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+                    {{ solution_partner_type_form.is_active }} Aktif
+                </label>
+                <button type="submit" class="w-full bg-brand-600 text-white py-2.5 rounded-xl font-bold hover:bg-brand-700 transition-all text-sm">
+                    Tür Ekle
+                </button>
+            </form>
+
+            <div class="space-y-2 max-h-[320px] overflow-y-auto pr-1">
+                {% for t in solution_partner_types %}
+                <div class="rounded-2xl border border-slate-100 bg-slate-50/80 overflow-hidden">
+                    <div class="flex items-center justify-between p-3 gap-2">
+                        <div class="min-w-0 flex-1">
+                            <p class="text-sm font-bold text-slate-800 truncate">{{ t.name }}</p>
+                            <p class="text-[11px] text-slate-500">{% if t.is_active %}Aktif{% else %}Pasif{% endif %}</p>
+                        </div>
+                        <button type="button" class="type-edit-toggle p-2 text-slate-400 hover:text-brand-600 rounded-lg"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                        <form method="post" class="inline" onsubmit="return confirm('Silmek istediğinize emin misiniz?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="delete_solution_partner_type" value="1">
+                            <input type="hidden" name="id" value="{{ t.id }}">
+                            <button type="submit" class="p-2 text-slate-300 hover:text-red-500 rounded-lg"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </form>
+                    </div>
+                    <div class="type-edit-panel hidden border-t border-slate-100 bg-white p-4">
+                        <form method="post" class="space-y-3">
+                            {% csrf_token %}
+                            <input type="hidden" name="update_solution_partner_type" value="1">
+                            <input type="hidden" name="id" value="{{ t.id }}">
+                            <input type="text" name="name" value="{{ t.name }}" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+                            <label class="inline-flex items-center gap-2 text-sm text-slate-700">
+                                <input type="checkbox" name="is_active" class="w-4 h-4 accent-brand-600 rounded" {% if t.is_active %}checked{% endif %}> Aktif
+                            </label>
+                            <button type="submit" class="w-full py-2 bg-brand-600 text-white rounded-xl text-sm font-bold">Kaydet</button>
+                        </form>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-xs text-slate-400 text-center py-6">Henüz tür yok.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/color-picker.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const scrollKey = 'siteSettingsScrollY';
+        const savedScroll = sessionStorage.getItem(scrollKey);
+        if (savedScroll !== null) {
+            window.scrollTo({ top: parseInt(savedScroll, 10) || 0, behavior: 'auto' });
+            sessionStorage.removeItem(scrollKey);
+        }
+
+        document.querySelectorAll('form').forEach(function(form) {
+            form.addEventListener('submit', function() {
+                sessionStorage.setItem(scrollKey, String(window.scrollY));
+            });
+        });
+
+        if (window.initColorPickers) initColorPickers();
+
+        document.querySelectorAll('.option-edit-toggle').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const panel = btn.closest('.option-item').querySelector('.option-edit-panel');
+                const open = !panel.classList.contains('hidden');
+                document.querySelectorAll('.option-edit-panel').forEach(p => p.classList.add('hidden'));
+                if (!open) {
+                    panel.classList.remove('hidden');
+                    if (window.initColorPickers) initColorPickers(panel);
+                }
+                if (window.lucide) lucide.createIcons();
+            });
+        });
+
+        document.querySelectorAll('.type-edit-toggle').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const panel = btn.closest('.rounded-2xl').querySelector('.type-edit-panel');
+                panel.classList.toggle('hidden');
+                if (window.lucide) lucide.createIcons();
+            });
+        });
+
+        const companyPhoneInput = document.querySelector('input[name="company_phone"]');
+        if (companyPhoneInput && window.intlTelInput) {
+            const iti = window.intlTelInput(companyPhoneInput, {
+                initialCountry: "tr",
+                separateDialCode: true,
+                utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.10/build/js/utils.js",
+            });
+            const form = companyPhoneInput.closest('form');
+            form.addEventListener('submit', function() {
+                if (iti.isValidNumber()) companyPhoneInput.value = iti.getNumber();
+            });
+        }
+    });
+</script>
+{% endblock %}

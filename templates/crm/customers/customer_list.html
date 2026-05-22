@@ -1,0 +1,173 @@
+﻿{% extends 'crm/base.html' %}
+
+{% block title %}Müşteriler{% endblock %}
+
+{% block header_title %}
+<h1 class="text-lg font-bold text-slate-900">Müşteriler</h1>
+<p class="text-sm text-slate-500">Müşteri kayıtları satış işlemleriyle oluşturulur; ürün ve sözleşme bilgileri servis modülüyle ortaktır.</p>
+{% endblock %}
+
+{% block header_actions %}
+{% include 'common/customer_list_header_actions.html' %}
+{% endblock %}
+
+{% block content %}
+<div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden mb-4">
+    <form method="get" class="p-4 border-b border-slate-100 bg-slate-50">
+        <div class="relative max-w-xl">
+            <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Müşteri adı, telefon veya bölge ara..."
+                   class="w-full p-2.5 pl-10 bg-white border border-slate-200 rounded-xl text-sm">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+        </div>
+    </form>
+
+    <form id="bulkActionForm" method="post" action="{% url 'customer_bulk_manage' %}">
+        {% csrf_token %}
+        {% if user_perms.contact_customers or user_perms.contact_customers_delete %}
+        <div class="p-4 border-b border-slate-100 bg-slate-50 flex flex-wrap items-center gap-2">
+            <span id="customerBulkCount" class="text-xs font-bold text-slate-500">0 kayıt seçili</span>
+            <select id="customerBulkAction" name="bulk_action" class="p-2 bg-white border border-slate-200 rounded-xl text-sm">
+                <option value="">Toplu işlem seçin</option>
+                {% if user_perms.contact_customers %}
+                <option value="set_region">Bölge güncelle</option>
+                <option value="set_contract_date">Sözleşme tarihi güncelle</option>
+                <option value="add_product">Ürün ekle</option>
+                <option value="remove_product">Ürün kaldır</option>
+                {% endif %}
+                {% if user_perms.contact_customers_delete %}
+                <option value="delete">Seçilenleri sil</option>
+                {% endif %}
+            </select>
+            <input id="customerBulkRegion" name="bulk_region" class="hidden p-2 bg-white border border-slate-200 rounded-xl text-sm" placeholder="Yeni bölge">
+            <input id="customerBulkContractDate" type="date" name="bulk_contract_date" class="hidden p-2 bg-white border border-slate-200 rounded-xl text-sm">
+            <select id="customerBulkProduct" name="bulk_product_id" class="hidden p-2 bg-white border border-slate-200 rounded-xl text-sm">
+                <option value="">Ürün seçin</option>
+                {% for p in products %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="px-3 py-2 bg-slate-900 text-white rounded-xl text-sm font-semibold hover:bg-slate-800">Uygula</button>
+        </div>
+        {% endif %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+                <thead class="bg-slate-50 border-b border-slate-100">
+                    <tr>
+                        {% if user_perms.contact_customers or user_perms.contact_customers_delete %}
+                        <th class="px-4 py-3 w-10"><input type="checkbox" id="selectAll" class="w-4 h-4 accent-brand-600 rounded"></th>
+                        {% endif %}
+                        <th class="px-4 py-3 font-bold text-slate-700">Müşteri</th>
+                        <th class="px-4 py-3 font-bold text-slate-700">Telefon</th>
+                        <th class="px-4 py-3 font-bold text-slate-700">Bölge</th>
+                        <th class="px-4 py-3 font-bold text-slate-700">Ürünler</th>
+                        <th class="px-4 py-3 font-bold text-slate-700">Sözleşme</th>
+                        <th class="px-4 py-3 font-bold text-slate-700">Satış</th>
+                        <th class="px-4 py-3 font-bold text-slate-700">Servis</th>
+                        <th class="px-4 py-3 font-bold text-slate-700 text-right">İşlem</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for c in customers %}
+                    <tr class="hover:bg-slate-50">
+                        {% if user_perms.contact_customers or user_perms.contact_customers_delete %}
+                        <td class="px-4 py-3"><input type="checkbox" name="ids" value="{{ c.id }}" class="row-checkbox w-4 h-4 accent-brand-600 rounded"></td>
+                        {% endif %}
+                        <td class="px-4 py-3 font-semibold text-slate-900">
+                            {% if user_perms.contact_customers %}
+                            <a href="{% url 'customer_update' c.id %}" class="text-brand-600 hover:underline">{{ c.name }}</a>
+                            {% else %}
+                            {{ c.name }}
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="flex items-center gap-2">
+                                <span>{{ c.phone|default:"-" }}</span>
+                                {% if c.phone and user_perms.tools_whatsapp %}
+                                <button type="button" onclick="openWhatsAppModal('{{ c.phone|escapejs }}', { name: '{{ c.name|escapejs }}', phone: '{{ c.phone|escapejs }}', region: '{{ c.region|default:"-"|escapejs }}', date: '{{ c.contract_date|date:"d.m.Y"|default:"-"|escapejs }}', customerId: {{ c.id }} })"
+                                        class="p-1 bg-green-50 text-green-600 rounded-lg"><i data-lucide="message-circle" class="w-3.5 h-3.5"></i></button>
+                                {% endif %}
+                            </div>
+                        </td>
+                        <td class="px-4 py-3">{{ c.region|default:"-" }}</td>
+                        <td class="px-4 py-3">
+                            {% for p in c.products.all %}<span class="inline-block px-2 py-0.5 bg-slate-100 rounded text-[10px] font-bold mr-1">{{ p.name }}</span>{% empty %}-{% endfor %}
+                        </td>
+                        <td class="px-4 py-3">
+                            <span class="font-semibold text-brand-600">{{ c.contract_date|date:"d.m.Y"|default:"-" }}</span>
+                        </td>
+                        <td class="px-4 py-3">
+                            {% if c.sales_count %}
+                            <span class="font-semibold">{{ c.sales_count }}</span>
+                            {% if c.last_sale_date %}<span class="text-xs text-slate-400 block">{{ c.last_sale_date|date:"d.m.Y" }}</span>{% endif %}
+                            {% else %}
+                            <span class="text-slate-400">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3">
+                            {% if c.service_count %}
+                            {{ c.service_count }}
+                            {% elif user_perms.services_manage %}
+                            <a href="{% url 'service_create' %}?customer={{ c.id }}" class="text-brand-600 hover:underline text-xs font-semibold">Servis ekle</a>
+                            {% else %}
+                            <span class="text-slate-400">—</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-right whitespace-nowrap">
+                            {% include 'common/customer_row_actions.html' with c=c %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="9" class="px-4 py-12 text-center text-slate-400">Henüz müşteri yok.{% if user_perms.sales_manage %} <a href="{% url 'sales_lead_create' %}" class="text-brand-600 font-semibold underline">Yeni satış</a> kaydı oluşturun.{% endif %}</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+    function getCsrfToken() {
+        const m = document.cookie.match(/csrftoken=([^;]+)/);
+        return m ? m[1] : '';
+    }
+
+    const selectAll = document.getElementById('selectAll');
+    selectAll?.addEventListener('change', (e) => {
+        document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = e.target.checked);
+        updateCustomerBulkState();
+    });
+    document.querySelectorAll('.row-checkbox').forEach(cb => cb.addEventListener('change', updateCustomerBulkState));
+
+    const customerBulkForm = document.getElementById('bulkActionForm');
+    const customerBulkAction = document.getElementById('customerBulkAction');
+    const customerBulkRegion = document.getElementById('customerBulkRegion');
+    const customerBulkContractDate = document.getElementById('customerBulkContractDate');
+    const customerBulkProduct = document.getElementById('customerBulkProduct');
+    const customerBulkCount = document.getElementById('customerBulkCount');
+
+    function updateCustomerBulkState() {
+        const n = document.querySelectorAll('.row-checkbox:checked').length;
+        if (customerBulkCount) customerBulkCount.textContent = `${n} kayıt seçili`;
+    }
+    function updateCustomerBulkInputs() {
+        const action = customerBulkAction?.value;
+        customerBulkRegion?.classList.toggle('hidden', action !== 'set_region');
+        customerBulkContractDate?.classList.toggle('hidden', action !== 'set_contract_date');
+        customerBulkProduct?.classList.toggle('hidden', !['add_product', 'remove_product'].includes(action));
+    }
+    customerBulkAction?.addEventListener('change', updateCustomerBulkInputs);
+    customerBulkForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!customerBulkAction?.value) return alert('Toplu işlem seçin.');
+        if (!document.querySelectorAll('.row-checkbox:checked').length) return alert('Müşteri seçin.');
+        const res = await fetch(customerBulkForm.action, { method: 'POST', headers: { 'X-CSRFToken': getCsrfToken() }, body: new FormData(customerBulkForm) });
+        const data = await res.json();
+        if (!res.ok || !data.ok) return alert(data.error || 'İşlem başarısız.');
+        location.reload();
+    });
+    updateCustomerBulkInputs();
+    updateCustomerBulkState();
+})();
+</script>
+{% endblock %}

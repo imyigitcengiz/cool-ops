@@ -1,0 +1,213 @@
+from django.http import JsonResponse
+from django.utils import timezone
+from django.views.decorators.http import require_http_methods
+
+from customers.models import Customer
+from tools.models import MapsScrapedFirm, WhatsappConnection, WhatsappOutboundMessage
+from tools.outreach_memory import ensure_firm_record, sync_firm_message_stats
+from tools.phone_utils import is_whatsapp_eligible, normalize_phone
+from tools.views import _json_body
+from tools.whatsapp_client import (
+    WhatsappBridgeError,
+    WhatsappBridgeOffline,
+    bridge_connection_status,
+    bridge_send,
+)
+
+
+def _list_connection_candidates(preferred_id=None) -> list[int]:
+    ids = []
+    if preferred_id:
+        try:
+            ids.append(int(preferred_id))
+        except (TypeError, ValueError):
+            pass
+    for conn in WhatsappConnection.objects.order_by('-last_connected_at', 'name'):
+        if conn.id not in ids:
+            ids.append(conn.id)
+    return ids
+
+
+def pick_ready_connection(preferred_id=None, *, strict=False) -> tuple[int | None, dict | None, str | None]:
+    last_offline = None
+    candidates = _list_connection_candidates(preferred_id)
+    if strict and preferred_id:
+        try:
+            candidates = [int(preferred_id)]
+        except (TypeError, ValueError):
+            return None, None, 'Geçersiz WhatsApp hattı seçimi.'
+    for cid in candidates:
+        try:
+            status = bridge_connection_status(cid)
+        except WhatsappBridgeOffline as exc:
+            last_offline = exc
+            raise
+        except WhatsappBridgeError:
+            if strict:
+                return None, None, 'Seçilen WhatsApp hattına ulaşılamadı.'
+            continue
+        if status.get('status') == 'ready':
+            return cid, status, None
+        if strict:
+            conn = WhatsappConnection.objects.filter(pk=cid).first()
+            label = conn.name if conn else f'Hat #{cid}'
+            return None, status, f'"{label}" şu an bağlı değil. Başka hat seçin veya QR ile bağlanın.'
+    if last_offline:
+        raise last_offline
+    return None, None, None
+
+
+def _log_and_send(
+    *,
+    phone_raw: str,
+    phone_norm: str,
+    message: str,
+    connection_id: int | None,
+    recipient_name: str = '',
+    customer_id=None,
+    firm_id=None,
+    source: str = WhatsappOutboundMessage.SOURCE_MANUAL,
+):
+    firm = None
+    if firm_id:
+        firm = MapsScrapedFirm.objects.filter(pk=firm_id).first()
+    elif customer_id:
+        customer = Customer.objects.filter(pk=customer_id).first()
+        if customer and phone_norm:
+            firm = ensure_firm_record(
+                name=customer.name,
+                phone_raw=phone_raw or phone_norm,
+                phone_normalized=phone_norm,
+                notes='Müşteri mesajı',
+            )
+    elif phone_norm:
+        firm = MapsScrapedFirm.objects.filter(phone_normalized=phone_norm).first()
+
+    outbound = WhatsappOutboundMessage.objects.create(
+        firm=firm,
+        recipient_name=recipient_name or (firm.name if firm else 'Alıcı'),
+        phone_normalized=phone_norm,
+        phone_display=phone_raw or phone_norm,
+        message=message,
+        status=WhatsappOutboundMessage.STATUS_SENDING,
+        source=source,
+    )
+
+    conn_id, _, conn_err = pick_ready_connection(connection_id, strict=bool(connection_id))
+    if conn_err:
+        outbound.status = WhatsappOutboundMessage.STATUS_FAILED
+        outbound.error_message = conn_err
+        outbound.save(update_fields=['status', 'error_message'])
+        return connection_id, outbound, conn_err, None
+    if not conn_id:
+        outbound.status = WhatsappOutboundMessage.STATUS_FAILED
+        outbound.error_message = 'Bağlı WhatsApp hattı yok. Tools → WhatsApp Bağlan sayfasından QR ile bağlanın.'
+        outbound.save(update_fields=['status', 'error_message'])
+        return None, outbound, 'Bağlı WhatsApp hattı yok. Tools → WhatsApp Bağlan sayfasından QR ile bağlanın.', None
+
+    try:
+        result = bridge_send(conn_id, phone_norm, message)
+    except WhatsappBridgeOffline as exc:
+        outbound.status = WhatsappOutboundMessage.STATUS_FAILED
+        outbound.error_message = str(exc)
+        outbound.save(update_fields=['status', 'error_message'])
+        raise
+    except WhatsappBridgeError as exc:
+        outbound.status = WhatsappOutboundMessage.STATUS_FAILED
+        outbound.error_message = str(exc)
+        outbound.save(update_fields=['status', 'error_message'])
+        return conn_id, outbound, str(exc), None
+
+    outbound.status = WhatsappOutboundMessage.STATUS_SENT
+    outbound.sent_at = timezone.now()
+    outbound.error_message = ''
+    outbound.save(update_fields=['status', 'sent_at', 'error_message'])
+    if firm:
+        sync_firm_message_stats(firm)
+    return conn_id, outbound, None, result
+
+
+@require_http_methods(['GET'])
+def whatsapp_ready_connections_api(request):
+    try:
+        items = []
+        for conn in WhatsappConnection.objects.order_by('-last_connected_at', 'name'):
+            try:
+                bridge = bridge_connection_status(conn.id)
+            except WhatsappBridgeOffline:
+                return JsonResponse({
+                    'ok': True,
+                    'connections': items,
+                    'bridge_offline': True,
+                })
+            except WhatsappBridgeError:
+                bridge = {'status': 'disconnected'}
+            items.append({
+                'id': conn.id,
+                'name': conn.name,
+                'phone': bridge.get('phone') or conn.phone,
+                'pushname': bridge.get('pushname') or conn.pushname,
+                'status': bridge.get('status') or 'disconnected',
+                'ready': bridge.get('status') == 'ready',
+            })
+        ready = [c for c in items if c['ready']]
+        return JsonResponse({
+            'ok': True,
+            'connections': items,
+            'ready_count': len(ready),
+            'default_connection_id': ready[0]['id'] if len(ready) == 1 else (ready[0]['id'] if ready else None),
+            'bridge_offline': False,
+        })
+    except WhatsappBridgeOffline as exc:
+        return JsonResponse({'ok': False, 'offline': True, 'error': str(exc), 'connections': []}, status=503)
+
+
+@require_http_methods(['POST'])
+def whatsapp_send_api(request):
+    body = _json_body(request) or {}
+    phone_raw = (body.get('phone') or '').strip()
+    message = (body.get('message') or '').strip()
+    allow_empty = bool(body.get('allow_empty'))
+    connection_id = body.get('connection_id')
+    recipient_name = (body.get('recipient_name') or '').strip()
+    customer_id = body.get('customer_id')
+    firm_id = body.get('firm_id')
+    source = (body.get('source') or WhatsappOutboundMessage.SOURCE_MANUAL).strip()
+
+    phone_norm = normalize_phone(phone_raw)
+    if not is_whatsapp_eligible(phone_raw, phone_norm):
+        return JsonResponse({'ok': False, 'error': 'Geçersiz numara veya sabit hat — WhatsApp ile gönderilemez.'}, status=400)
+    if not message and not allow_empty:
+        return JsonResponse({'ok': False, 'error': 'Mesaj boş olamaz.'}, status=400)
+    if not message:
+        message = 'Merhaba'
+
+    try:
+        conn_id, outbound, err, result = _log_and_send(
+            phone_raw=phone_raw,
+            phone_norm=phone_norm,
+            message=message,
+            connection_id=connection_id,
+            recipient_name=recipient_name,
+            customer_id=customer_id,
+            firm_id=firm_id,
+            source=source,
+        )
+    except WhatsappBridgeOffline as exc:
+        return JsonResponse({'ok': False, 'offline': True, 'error': str(exc)}, status=503)
+
+    if err:
+        return JsonResponse({
+            'ok': False,
+            'error': err,
+            'offline': 'köprü' in err.lower() or 'bağlı whatsapp' in err.lower(),
+            'message_id': outbound.id if outbound else None,
+        }, status=502 if conn_id else 503)
+
+    return JsonResponse({
+        'ok': True,
+        'connection_id': conn_id,
+        'message_id': outbound.id,
+        'bridge_message_id': (result or {}).get('messageId'),
+        'recipient_name': outbound.recipient_name,
+    })

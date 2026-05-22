@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ana Sayfa | {{ site_settings.site_name }}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff', 100: '#e0f2fe', 500: '#0ea5e9', 600: '#0284c7', 700: '#0369a1',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>body { font-family: 'Inter', sans-serif; }</style>
+</head>
+<body class="min-h-screen bg-slate-100 text-slate-900">
+    <div class="min-h-screen flex flex-col">
+        <header class="bg-white border-b border-slate-200">
+            <div class="max-w-5xl mx-auto px-6 py-5 flex items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    {% if site_settings.logo %}
+                    <img src="{{ site_settings.logo.url }}" alt="" class="h-10 w-10 rounded-xl object-contain">
+                    {% else %}
+                    <span class="h-10 w-10 rounded-xl bg-brand-600 text-white flex items-center justify-center font-bold text-lg">{{ site_settings.site_name.0|upper }}</span>
+                    {% endif %}
+                    <div>
+                        <h1 class="text-xl font-bold text-slate-900">{{ site_settings.site_name }}</h1>
+                        <p class="text-sm text-slate-500">{{ user_profile_card.display_name }} · {{ user_profile_card.subtitle }}</p>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    {% if user_access.admin_panel %}
+                    <a href="{% url 'admin_dashboard' %}" class="px-3 py-2 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700">Süper Admin</a>
+                    {% endif %}
+                    <a href="{% url 'profile_settings' %}" class="flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-sm font-semibold text-slate-700">
+                        {% if user_profile_card.avatar_url %}
+                        <img src="{{ user_profile_card.avatar_url }}" alt="" class="w-8 h-8 rounded-full object-cover">
+                        {% else %}
+                        <span class="w-8 h-8 rounded-full bg-brand-100 text-brand-700 text-xs font-bold flex items-center justify-center">{{ user_profile_card.initials }}</span>
+                        {% endif %}
+                        Profil
+                    </a>
+                </div>
+            </div>
+        </header>
+
+        <main class="flex-1 max-w-5xl mx-auto w-full px-6 py-12">
+            {% if messages %}
+            <div class="mb-6 space-y-2">
+                {% for message in messages %}
+                <div class="px-4 py-3 rounded-xl text-sm font-semibold {% if message.tags == 'error' %}bg-red-50 text-red-700 border border-red-100{% else %}bg-blue-50 text-blue-700 border border-blue-100{% endif %}">{{ message }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+            <div class="mb-10">
+                <h2 class="text-2xl font-bold text-slate-900">Hoş geldiniz, {{ user_profile_card.display_name }}</h2>
+                <p class="text-slate-600 mt-2">Yetkiniz olan modülü seçin.</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {% if user_access.contact %}
+                <a href="{% url 'contact_hub' %}" class="group block bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-violet-200 transition-all p-6">
+                    <div class="w-12 h-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mb-4 group-hover:bg-violet-600 group-hover:text-white transition-colors"><i data-lucide="contact" class="w-6 h-6"></i></div>
+                    <h3 class="text-lg font-bold text-slate-900">Contact</h3>
+                    <p class="text-sm text-slate-500 mt-2">Müşteriler, firmalar, çözüm ağı, personel.</p>
+                </a>
+                {% endif %}
+                {% if user_access.services %}
+                <a href="{% url 'dashboard' %}" class="group block bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-brand-200 transition-all p-6">
+                    <div class="w-12 h-12 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mb-4 group-hover:bg-brand-600 group-hover:text-white transition-colors"><i data-lucide="wrench" class="w-6 h-6"></i></div>
+                    <h3 class="text-lg font-bold text-slate-900">Servis Yönetim</h3>
+                    <p class="text-sm text-slate-500 mt-2">Servis kayıtları, operasyon paneli, WhatsApp.</p>
+                </a>
+                {% endif %}
+                {% if user_access.sales %}
+                <a href="{% url 'sales_lead_dashboard' %}" class="group block bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-amber-200 transition-all p-6">
+                    <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-4 group-hover:bg-amber-600 group-hover:text-white transition-colors"><i data-lucide="badge-dollar-sign" class="w-6 h-6"></i></div>
+                    <h3 class="text-lg font-bold text-slate-900">Satış Kayıtları</h3>
+                    <p class="text-sm text-slate-500 mt-2">Satış işlemleri ve raporlar.</p>
+                </a>
+                {% endif %}
+                {% if user_access.tools %}
+                <a href="{% url 'tools_hub' %}" class="group block bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-slate-300 transition-all p-6">
+                    <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center mb-4 group-hover:bg-slate-700 group-hover:text-white transition-colors"><i data-lucide="hammer" class="w-6 h-6"></i></div>
+                    <h3 class="text-lg font-bold text-slate-900">Tools</h3>
+                    <p class="text-sm text-slate-500 mt-2">WhatsApp, AI ve yedekleme araçları.</p>
+                </a>
+                {% endif %}
+                {% if user_access.admin_panel %}
+                <a href="{% url 'admin_dashboard' %}" class="group block bg-white rounded-3xl border border-red-200 shadow-sm hover:shadow-xl hover:border-red-300 transition-all p-6 bg-red-50/30">
+                    <div class="w-12 h-12 rounded-2xl bg-red-100 text-red-600 flex items-center justify-center mb-4 group-hover:bg-red-600 group-hover:text-white transition-colors"><i data-lucide="shield" class="w-6 h-6"></i></div>
+                    <h3 class="text-lg font-bold text-slate-900">Süper Admin Paneli</h3>
+                    <p class="text-sm text-slate-500 mt-2">Kullanıcılar, roller ve izin yönetimi.</p>
+                </a>
+                {% endif %}
+            </div>
+            {% if not user_access.contact and not user_access.services and not user_access.sales and not user_access.tools and not user_access.admin_panel %}
+            <div class="mt-8 p-6 rounded-2xl bg-amber-50 border border-amber-100 text-amber-800 text-sm">
+                Hesabınıza henüz modül izni atanmamış. Yöneticinizle iletişime geçin.
+            </div>
+            {% endif %}
+        </main>
+    </div>
+    <script>lucide.createIcons();</script>
+</body>
+</html>

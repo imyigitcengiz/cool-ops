@@ -1,0 +1,46 @@
+{% extends 'users/yonetim/base.html' %}
+{% block title %}Kullanıcılar{% endblock %}
+{% block content %}
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900">Kullanıcılar</h1>
+        <p class="text-sm text-slate-500 mt-1">Sistem kullanıcı hesaplarını yönetin</p>
+    </div>
+    <a href="{% url 'admin_user_create' %}" class="px-4 py-2 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700">+ Yeni kullanıcı</a>
+</div>
+<div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-slate-50">
+            <tr>
+                <th class="px-5 py-3 text-left font-bold text-slate-600">Kullanıcı</th>
+                <th class="px-5 py-3 text-left font-bold text-slate-600">Rol</th>
+                <th class="px-5 py-3 text-left font-bold text-slate-600">Durum</th>
+                <th class="px-5 py-3 text-right font-bold text-slate-600">İşlem</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+            {% for u in users %}
+            <tr class="hover:bg-slate-50">
+                <td class="px-5 py-4">
+                    <p class="font-semibold text-slate-900">{{ u.display_name }}</p>
+                    <p class="text-xs text-slate-500">@{{ u.username }} · {{ u.email|default:"—" }}</p>
+                </td>
+                <td class="px-5 py-4">{{ u.role_label }}</td>
+                <td class="px-5 py-4">
+                    {% if u.is_active %}<span class="text-emerald-600 font-bold">Aktif</span>{% else %}<span class="text-slate-400">Pasif</span>{% endif %}
+                    {% if u.is_superuser %}<span class="ml-2 px-2 py-0.5 rounded bg-red-50 text-red-700 text-xs font-bold">Süper</span>{% endif %}
+                </td>
+                <td class="px-5 py-4 text-right whitespace-nowrap">
+                    <a href="{% url 'admin_user_edit' u.pk %}" class="text-brand-600 font-bold mr-3">Düzenle</a>
+                    {% if u.pk != request.user.pk %}
+                    <a href="{% url 'admin_user_delete' u.pk %}" class="text-red-600 font-bold hover:underline">Sil</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="px-5 py-10 text-center text-slate-400">Kullanıcı yok.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

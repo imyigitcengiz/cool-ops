@@ -1,0 +1,594 @@
+{% extends 'services_dashboard/base.html' %}
+
+{% block title %}{% if object %}Servis Düzenle{% else %}Yeni Servis{% endif %} | GÖLGEDE YAŞAM{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+    <!-- Main Form -->
+    <div class="lg:col-span-2 space-y-6">
+        <div class="flex items-center justify-between">
+            <h2 class="text-2xl font-bold text-slate-900">{% if object %}Servis Düzenle{% else %}Yeni Servis{% endif %}</h2>
+            <div class="flex items-center gap-2">
+            {% if object and object.status.list_group != 'active' and object.status.list_group != 'pending' %}
+            <button type="button" onclick="reopenServiceRecord({{ object.id }})" class="px-4 py-2 bg-amber-50 text-amber-800 border border-amber-200 rounded-xl text-sm font-bold hover:bg-amber-100 flex items-center gap-2">
+                <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Yeniden aç
+            </button>
+            {% endif %}
+            {% if object %}
+            <a href="{% url 'service_print' object.id %}" target="_blank" class="px-4 py-2 bg-slate-900 text-white rounded-xl text-sm font-bold flex items-center gap-2 hover:bg-slate-800 transition-all">
+                <i data-lucide="printer" class="w-4 h-4"></i> Yazdır
+            </a>
+            {% endif %}
+            </div>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" class="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+            {% csrf_token %}
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <label class="text-sm font-semibold text-slate-700">Müşteri Seçin</label>
+                    <div class="flex gap-2">
+                        <div class="flex-1">{{ form.customer }}</div>
+                        <button type="button" onclick="openCustomerModal()" class="p-3 bg-brand-50 text-brand-600 rounded-xl hover:bg-brand-100 transition-colors" title="Yeni Müşteri Ekle">
+                            <i data-lucide="user-plus" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-sm font-semibold text-slate-700">Çözüm Ortağı (Taşeron/Nakliye/Dış Servisçi)</label>
+                    {{ form.solution_partner }}
+                    <p class="text-[10px] text-slate-400">Problem çözümünde görev alan harici kaynak.</p>
+                </div>
+            </div>
+            <div id="customerOpenServicesPanel" class="hidden"></div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between gap-2">
+                        <label class="text-sm font-semibold text-slate-700">Durum</label>
+                        <div class="flex gap-1">
+                        <button type="button" data-quick-edit="status" class="text-[10px] font-bold text-slate-500 hover:bg-slate-100 px-2 py-1 rounded-lg">Düzenle</button>
+                        <button type="button" data-quick-add="status" class="text-[10px] font-bold text-brand-600 hover:bg-brand-50 px-2 py-1 rounded-lg">+ Ekle</button>
+                        </div>
+                    </div>
+                    {{ form.status }}
+                </div>
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between gap-2">
+                        <label class="text-sm font-semibold text-slate-700">Öncelik</label>
+                        <div class="flex gap-1">
+                        <button type="button" data-quick-edit="priority" class="text-[10px] font-bold text-slate-500 hover:bg-slate-100 px-2 py-1 rounded-lg">Düzenle</button>
+                        <button type="button" data-quick-add="priority" class="text-[10px] font-bold text-brand-600 hover:bg-brand-50 px-2 py-1 rounded-lg">+ Ekle</button>
+                        </div>
+                    </div>
+                    {{ form.priority }}
+                </div>
+            </div>
+
+            <!-- Customer Quick View Panel -->
+            <div id="customerQuickView" class="hidden animate-in fade-in slide-in-from-top-4 duration-300">
+                <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100 grid grid-cols-2 gap-4">
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Telefon</p>
+                        <div class="flex items-center gap-2">
+                            <p id="qvPhone" class="text-sm font-bold text-slate-700">-</p>
+                            <button type="button" id="qvWhatsapp" onclick="openCustomerWhatsAppFromQuickView()" class="p-1 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 hidden">
+                                <i data-lucide="message-circle" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Bölge</p>
+                        <p id="qvRegion" class="text-sm font-bold text-slate-700">-</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sözleşme Tarihi</p>
+                        <div class="flex items-center gap-1">
+                            <p id="qvContract" class="text-sm font-bold text-brand-600">-</p>
+                            <span id="qvContractAge" class="text-[10px] text-slate-400 font-medium"></span>
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Konum</p>
+                        <a id="qvLocation" href="#" target="_blank" class="text-xs font-bold text-blue-600 hover:underline hidden">Haritada Gör <i data-lucide="external-link" class="inline w-3 h-3"></i></a>
+                        <p id="qvLocationEmpty" class="text-xs text-slate-400">Kayıtlı değil</p>
+                    </div>
+                    <div class="col-span-2 pt-2 border-t border-slate-100">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Müşterinin Kayıtlı Ürünleri</p>
+                        <div id="qvProducts" class="flex flex-wrap gap-1">
+                            <!-- Products will be injected here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-sm font-semibold text-slate-700">Garanti Durumu</label>
+                {{ form.warranty_status }}
+            </div>
+
+            <div id="paidServicePricing" class="hidden space-y-4 p-5 bg-amber-50 border border-amber-200 rounded-2xl">
+                <div>
+                    <h4 class="text-sm font-bold text-amber-900 flex items-center gap-2">
+                        <i data-lucide="banknote" class="w-4 h-4"></i>
+                        Ücretli Servis Fiyatları
+                    </h4>
+                    <p class="text-xs text-amber-800/80 mt-1">Ücretli durum veya garanti bitmiş kayıtlar için normal ve indirimli fiyat girebilirsiniz.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="space-y-2">
+                        <label class="text-sm font-semibold text-slate-700">{{ form.list_price.label }}</label>
+                        {{ form.list_price }}
+                    </div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-semibold text-slate-700">{{ form.discounted_price.label }}</label>
+                        {{ form.discounted_price }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <label class="text-sm font-semibold text-slate-700">Ürünler</label>
+                    <div class="flex gap-2 flex-wrap">
+                    <button type="button" data-quick-edit="product" class="text-[10px] font-bold text-slate-500 hover:bg-slate-100 px-2 py-1.5 rounded-lg border border-slate-200">Düzenle</button>
+                    <button type="button" data-quick-add="product" class="text-[10px] font-bold text-slate-600 hover:bg-slate-100 px-3 py-1.5 rounded-lg border border-slate-200">+ Ürün</button>
+                    <button type="button" onclick="syncProductsToCustomer()" class="text-[10px] font-bold text-brand-600 hover:text-brand-700 bg-brand-50 px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
+                        <i data-lucide="refresh-cw" class="w-3 h-3"></i> MÜŞTERİYE YENİ ÜRÜN TANIMLA
+                    </button>
+                    </div>
+                </div>
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div id="productCheckboxesContainer" class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {% for checkbox in form.products %}
+                            <label class="flex items-center gap-2 p-2 hover:bg-white rounded-lg transition-colors cursor-pointer group">
+                                {{ checkbox.tag }}
+                                <span class="text-sm text-slate-600 group-hover:text-brand-600">{{ checkbox.choice_label }}</span>
+                            </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="space-y-4">
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <label class="text-sm font-semibold text-slate-700">Arıza / Servis Tipleri</label>
+                    <div class="flex gap-1">
+                    <button type="button" data-quick-edit="service_type" class="text-[10px] font-bold text-slate-500 hover:bg-slate-100 px-2 py-1.5 rounded-lg">Düzenle</button>
+                    <button type="button" data-quick-add="service_type" class="text-[10px] font-bold text-brand-600 hover:bg-brand-50 px-3 py-1.5 rounded-lg">+ Ekle</button>
+                    </div>
+                </div>
+                <p id="serviceTypeFilterHint" class="text-xs text-slate-500 font-medium"></p>
+                <div class="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div id="serviceTypeCheckboxesContainer" class="grid grid-cols-2 md:grid-cols-3 gap-3"></div>
+                </div>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-sm font-semibold text-slate-700">Atanan Kişi / Ekip</label>
+                {{ form.assigned_to }}
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-sm font-semibold text-slate-700">Sorumlu Servis Personeli</label>
+                {{ form.service_personnel }}
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-sm font-semibold text-slate-700">Servis Notları</label>
+                {{ form.notes }}
+            </div>
+
+            <!-- Image Upload -->
+            <div class="space-y-4 pt-4">
+                <label class="text-sm font-semibold text-slate-700">Resimler</label>
+                <div class="grid grid-cols-4 gap-4" id="imagePreviewContainer">
+                    {% if object %}
+                        {% for img in object.images.all %}
+                        <div class="relative aspect-square rounded-2xl overflow-hidden border border-slate-200 group">
+                            <img src="{{ img.image.url }}" class="w-full h-full object-cover">
+                        </div>
+                        {% endfor %}
+                    {% endif %}
+                    <label class="aspect-square rounded-2xl border-2 border-dashed border-slate-200 flex flex-col items-center justify-center text-slate-400 hover:border-brand-500 hover:text-brand-500 cursor-pointer transition-all">
+                        <i data-lucide="image-plus" class="w-6 h-6 mb-1"></i>
+                        <span class="text-[10px] font-bold">RESİM EKLE</span>
+                        <input type="file" name="images" multiple class="hidden" onchange="previewImages(this)">
+                    </label>
+                </div>
+            </div>
+
+            <div class="flex gap-4 pt-8">
+                <button type="submit" class="flex-1 bg-brand-600 hover:bg-brand-700 text-white py-4 rounded-2xl font-bold transition-all shadow-lg shadow-brand-200">
+                    Kaydı Kaydet
+                </button>
+                <a href="{% url 'services' %}" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-600 py-4 rounded-2xl font-bold text-center transition-all">
+                    İptal
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="space-y-6">
+        <section class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+            <h3 class="font-bold text-slate-900 flex items-center gap-2">
+                <i data-lucide="zap" class="w-5 h-5 text-amber-500"></i> Hızlı Yönetim
+            </h3>
+            <p class="text-xs text-slate-500 leading-relaxed">Durum, öncelik, ürün ve arıza tiplerini ekleme veya düzenleme yapabilirsiniz. Ürün–arıza eşlemesi için Sistem Ayarları → Ürünler bölümünü kullanın.</p>
+            <div class="grid grid-cols-2 gap-2">
+                <button type="button" data-quick-add="status" class="py-2 px-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-100">+ Durum</button>
+                <button type="button" data-quick-add="priority" class="py-2 px-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-100">+ Öncelik</button>
+                <button type="button" data-quick-add="product" class="py-2 px-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-100">+ Ürün</button>
+                <button type="button" data-quick-add="service_type" class="py-2 px-2 text-xs font-bold bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-100">+ Arıza tipi</button>
+            </div>
+            <a href="{% url 'site_settings' %}" class="block text-center text-xs font-bold text-brand-600 hover:underline pt-2">Tüm seçenekleri düzenle →</a>
+        </section>
+        {% if object %}
+        <section class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+            <h3 class="font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-4">
+                <i data-lucide="history" class="w-5 h-5 text-brand-600"></i> İşlem Geçmişi
+            </h3>
+            <div class="space-y-4 max-h-[600px] overflow-y-auto pr-2">
+                {% for entry in object.history.all %}
+                <div class="relative pl-6 pb-4 border-l border-slate-100 last:pb-0">
+                    <div class="absolute left-[-5px] top-0 w-2 h-2 rounded-full bg-brand-500"></div>
+                    <p class="text-xs text-slate-400 mb-1">{{ entry.created_at|date:"d.m.Y H:i" }}</p>
+                    <p class="text-sm font-medium text-slate-700">{{ entry.action }}</p>
+                    <p class="text-[10px] text-slate-400">Yapan: {{ entry.user.username|default:"Sistem" }}</p>
+                    {% if entry.snapshot %}
+                    <form method="post" action="{% url 'service_restore_history' object.id entry.id %}" class="pt-2">
+                        {% csrf_token %}
+                        <button type="submit" class="px-2 py-1 rounded-lg text-[11px] font-bold bg-violet-100 text-violet-700 hover:bg-violet-200">
+                            Bu Kayda Geri Yükle
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% empty %}
+                <p class="text-sm text-slate-400 text-center py-8">Henüz işlem geçmişi yok.</p>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Customer Quick Add Modal (Unchanged but ensuring it exists) -->
+<div id="customerModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden">
+        <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50">
+            <h3 class="font-bold text-slate-900">Hızlı Müşteri Ekle</h3>
+            <button onclick="closeCustomerModal()" class="text-slate-400 hover:text-slate-600">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <div class="p-6 space-y-4">
+            <div class="space-y-2">
+                <label class="text-sm font-semibold text-slate-700">Ad Soyad / Firma</label>
+                <input type="text" id="quickCustName" class="w-full p-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-brand-500">
+            </div>
+            <div class="space-y-2">
+                <label class="text-sm font-semibold text-slate-700">Telefon</label>
+                <input type="text" id="quickCustPhone" class="w-full p-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-brand-500">
+            </div>
+            <div class="space-y-2">
+                <label class="text-sm font-semibold text-slate-700">Bölge</label>
+                <input type="text" id="quickCustRegion" class="w-full p-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-brand-500">
+            </div>
+            <div class="space-y-2">
+                <label class="text-sm font-semibold text-slate-700">Sözleşme Tarihi</label>
+                <input type="date" id="quickCustContract" class="w-full p-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-brand-500">
+            </div>
+            <div class="space-y-2">
+                <label class="text-sm font-semibold text-slate-700">Konum Linki</label>
+                <input type="text" id="quickCustLocation" class="w-full p-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-brand-500">
+            </div>
+            <button onclick="saveQuickCustomer()" class="w-full bg-brand-600 text-white py-3 rounded-xl font-bold hover:bg-brand-700 transition-all shadow-lg shadow-brand-200">
+                Müşteriyi Kaydet
+            </button>
+        </div>
+    </div>
+</div>
+
+{{ options_catalog|json_script:"optionsCatalogData" }}
+{{ initial_product_ids|json_script:"initialProductIds" }}
+{{ initial_service_type_ids|json_script:"initialServiceTypeIds" }}
+
+<div id="quickOptionModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden max-h-[90vh] overflow-y-auto">
+        <div class="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50 sticky top-0">
+            <h3 id="quickOptionModalTitle" class="font-bold text-slate-900">Yeni seçenek</h3>
+            <button type="button" id="quickOptionCancelBtn" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+        </div>
+        <div class="p-6 space-y-4">
+            <input type="hidden" id="quickOptionType">
+            <input type="hidden" id="quickOptionId">
+            <div class="space-y-2">
+                <label class="text-sm font-semibold text-slate-700">İsim</label>
+                <input type="text" id="quickOptionName" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl">
+            </div>
+            <div id="quickOptionColorWrap" class="space-y-2">
+                <label class="text-sm font-semibold text-slate-700">Renk</label>
+                {% include 'services_dashboard/partials/color_picker.html' with value='#3b82f6' %}
+            </div>
+            <div id="quickOptionProductTypesWrap" class="hidden space-y-2">
+                <label class="text-sm font-semibold text-slate-700">Arıza tipleri (ürüne özel)</label>
+                <div id="quickProductServiceTypes" class="max-h-32 overflow-y-auto p-2 bg-slate-50 rounded-xl border border-slate-100 space-y-1"></div>
+            </div>
+            <button type="button" id="quickOptionSaveBtn" class="w-full bg-brand-600 text-white py-3 rounded-xl font-bold hover:bg-brand-700">Kaydet</button>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/color-picker.js"></script>
+<script src="/static/js/service-form-options.js"></script>
+<script src="/static/js/service-customer-hints.js"></script>
+<script>
+    (function () {
+        const pricingBox = document.getElementById('paidServicePricing');
+        const statusSelect = document.querySelector('select[name="status"]');
+        const warrantySelect = document.querySelector('select[name="warranty_status"]');
+        let catalog = {};
+        try {
+            catalog = JSON.parse(document.getElementById('optionsCatalogData')?.textContent || '{}');
+        } catch (e) {}
+
+        function statusIsPaid(statusId) {
+            const hit = (catalog.statuses || []).find((s) => String(s.id) === String(statusId));
+            return !!(hit && hit.is_paid);
+        }
+
+        function updatePaidPricingVisibility() {
+            if (!pricingBox) return;
+            const paidStatus = statusSelect && statusIsPaid(statusSelect.value);
+            const warrantyExpired = warrantySelect && warrantySelect.value === 'expired';
+            pricingBox.classList.toggle('hidden', !(paidStatus || warrantyExpired));
+        }
+
+        statusSelect?.addEventListener('change', updatePaidPricingVisibility);
+        warrantySelect?.addEventListener('change', updatePaidPricingVisibility);
+        updatePaidPricingVisibility();
+    })();
+</script>
+<script>
+    const customerSelect = document.querySelector('select[name="customer"]');
+    if (customerSelect) {
+        customerSelect.addEventListener('change', (e) => fetchCustomerDetails(e.target.value, true));
+        // Initial load if selected (skip product sync if editing)
+        if (customerSelect.value) {
+            const isEditing = {% if object %}true{% else %}false{% endif %};
+            fetchCustomerDetails(customerSelect.value, !isEditing);
+        }
+    }
+
+    let originalProductIds = [];
+
+    function updateProductStyling() {
+        const checkboxes = document.querySelectorAll('input[name="products"]');
+        checkboxes.forEach(cb => {
+            const label = cb.closest('label');
+            const span = label.querySelector('span');
+            const productId = parseInt(cb.value);
+            
+            // Reset styles
+            label.classList.remove('bg-emerald-50', 'border-emerald-200', 'bg-blue-50', 'border-blue-200', 'border', 'ring-2', 'ring-emerald-500/20', 'ring-blue-500/20');
+            span.classList.remove('text-emerald-700', 'text-blue-700', 'font-bold');
+            
+            if (cb.checked) {
+                label.classList.add('border');
+                if (originalProductIds.includes(productId)) {
+                    // Already owned - Green (Emerald)
+                    label.classList.add('bg-emerald-50', 'border-emerald-200', 'ring-2', 'ring-emerald-500/20');
+                    span.classList.add('text-emerald-700', 'font-bold');
+                } else {
+                    // New for this customer - Blue
+                    label.classList.add('bg-blue-50', 'border-blue-200', 'ring-2', 'ring-blue-500/20');
+                    span.classList.add('text-blue-700', 'font-bold');
+                }
+            }
+        });
+    }
+
+    // Delegate change event to product container
+    document.getElementById('productCheckboxesContainer')?.addEventListener('change', (e) => {
+        if (e.target.name === 'products') {
+            updateProductStyling();
+        }
+    });
+
+    async function fetchCustomerDetails(id, syncProducts = false) {
+        if (!id) {
+            document.getElementById('customerQuickView').classList.add('hidden');
+            originalProductIds = [];
+            updateProductStyling();
+            return;
+        }
+        try {
+            const apiBase = window.CUSTOMER_API_BASE || window.ORTAK_BASE || '/ortak';
+            const response = await fetch(`${apiBase}/musteriler/api/${id}/`);
+            const data = await response.json();
+            if (data.name) {
+                document.getElementById('qvPhone').innerText = data.phone;
+                
+                const waLink = document.getElementById('qvWhatsapp');
+                if (data.phone && data.phone !== '-') {
+                    waLink.classList.remove('hidden');
+                } else {
+                    waLink.classList.add('hidden');
+                }
+
+                document.getElementById('qvRegion').innerText = data.region;
+                document.getElementById('qvContract').innerText = data.contract_date;
+                document.getElementById('qvContractAge').innerText = data.contract_age;
+                
+                const locLink = document.getElementById('qvLocation');
+                const locEmpty = document.getElementById('qvLocationEmpty');
+                if (data.location_link) {
+                    locLink.href = data.location_link;
+                    locLink.classList.remove('hidden');
+                    locEmpty.classList.add('hidden');
+                } else {
+                    locLink.classList.add('hidden');
+                    locEmpty.classList.remove('hidden');
+                }
+                document.getElementById('customerQuickView').classList.remove('hidden');
+                
+                // Set original product IDs for styling
+                originalProductIds = data.product_ids || [];
+
+                // Inject products into Quick View
+                const qvProducts = document.getElementById('qvProducts');
+                qvProducts.innerHTML = '';
+                if (data.product_names && data.product_names.length > 0) {
+                    data.product_names.forEach(name => {
+                        const span = document.createElement('span');
+                        span.className = 'px-1.5 py-0.5 bg-brand-100 text-brand-700 rounded text-[9px] font-bold';
+                        span.innerText = name;
+                        qvProducts.appendChild(span);
+                    });
+                } else {
+                    qvProducts.innerHTML = '<span class="text-[9px] text-slate-400 font-medium">Tanımlı ürün yok</span>';
+                }
+
+                // Sync products if requested
+                if (syncProducts) {
+                    const productCheckboxes = document.querySelectorAll('input[name="products"]');
+                    productCheckboxes.forEach(cb => {
+                        cb.checked = originalProductIds.includes(parseInt(cb.value));
+                    });
+                }
+
+                // Apply styling regardless of sync
+                updateProductStyling();
+                if (window.refreshServiceTypesForProducts) window.refreshServiceTypesForProducts();
+
+                lucide.createIcons();
+                customerSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+        } catch (e) { console.error('API Error', e); }
+    }
+
+    async function syncProductsToCustomer() {
+        const customerId = customerSelect.value;
+        if (!customerId) {
+            alert('Lütfen önce bir müşteri seçin.');
+            return;
+        }
+
+        const selectedProductIds = Array.from(document.querySelectorAll('input[name="products"]:checked')).map(cb => parseInt(cb.value));
+        
+        try {
+            const apiBase = window.CUSTOMER_API_BASE || window.ORTAK_BASE || '/ortak';
+            const response = await fetch(`${apiBase}/musteriler/api/${customerId}/urunler/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ product_ids: selectedProductIds })
+            });
+            const data = await response.json();
+            if (data.status === 'ok') {
+                alert('Müşterinin ürün listesi güncellendi!');
+                // Update local state and styling
+                originalProductIds = selectedProductIds;
+                updateProductStyling();
+            } else {
+                alert('Hata oluştu.');
+            }
+        } catch (e) {
+            console.error('Sync Error', e);
+            alert('Bir hata oluştu.');
+        }
+    }
+
+    function openCustomerModal() { document.getElementById('customerModal').classList.remove('hidden'); }
+    function closeCustomerModal() { document.getElementById('customerModal').classList.add('hidden'); }
+
+    function openCustomerWhatsAppFromQuickView() {
+        const phone = document.getElementById('qvPhone').innerText || '';
+        const selectedCustomer = customerSelect?.selectedOptions?.[0]?.text || '-';
+        const serviceTypes = Array.from(document.querySelectorAll('#serviceTypeCheckboxesContainer input[type="checkbox"]:checked'))
+            .map(cb => (cb.closest('label')?.innerText || '').trim())
+            .filter(Boolean)
+            .join(', ') || '-';
+        const noteText = (document.querySelector('textarea[name="notes"]')?.value || '').trim() || '-';
+        const region = document.getElementById('qvRegion').innerText || '-';
+        openWhatsAppModal(phone, {
+            name: selectedCustomer,
+            ariza: serviceTypes,
+            status: document.querySelector('select[name="status"]')?.selectedOptions?.[0]?.text || '-',
+            note: noteText,
+            region: region,
+            phone: phone,
+            date: new Date().toLocaleDateString('tr-TR'),
+        });
+    }
+
+    let quickIti;
+    document.addEventListener('DOMContentLoaded', function() {
+        const quickPhoneInput = document.getElementById('quickCustPhone');
+        if (quickPhoneInput) {
+            quickIti = window.intlTelInput(quickPhoneInput, {
+                initialCountry: "tr",
+                separateDialCode: true,
+                utilsScript: "https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.10/build/js/utils.js",
+            });
+        }
+    });
+
+    async function saveQuickCustomer() {
+        const name = document.getElementById('quickCustName').value;
+        let phone = document.getElementById('quickCustPhone').value;
+        const region = document.getElementById('quickCustRegion').value;
+        const contract = document.getElementById('quickCustContract').value;
+        const location = document.getElementById('quickCustLocation').value;
+
+        if (!name) return alert('İsim gerekli!');
+        
+        // Get full number from iti
+        if (quickIti && quickIti.isValidNumber()) {
+            phone = quickIti.getNumber();
+        }
+
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('phone', phone);
+        formData.append('region', region);
+        formData.append('contract_date', contract);
+        formData.append('location_link', location);
+        formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+
+        try {
+            const response = await fetch('{% url "customer_quick_add" %}', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            if (data.id) {
+                const option = new Option(data.name, data.id, true, true);
+                customerSelect.add(option);
+                fetchCustomerDetails(data.id);
+                closeCustomerModal();
+            }
+        } catch (e) { alert('Hata oluştu!'); }
+    }
+
+    function previewImages(input) {
+        const container = document.getElementById('imagePreviewContainer');
+        if (input.files) {
+            Array.from(input.files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const div = document.createElement('div');
+                    div.className = 'relative aspect-square rounded-2xl overflow-hidden border border-slate-200 group';
+                    div.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover">`;
+                    container.insertBefore(div, container.lastElementChild);
+                }
+                reader.readAsDataURL(file);
+            });
+        }
+    }
+</script>
+{% endblock %}

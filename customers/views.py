@@ -1,51 +1,92 @@
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.urls import reverse_lazy
 from django.shortcuts import redirect, get_object_or_404
-from .models import Customer
-from .forms import CustomerForm
-from django.db.models import Q
+from django.db.models import Count, Max, Q
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
-from core_settings.models import ProductOption
 
-class CustomerListView(ListView):
+from common.decorators import permission_required
+from common.permissions import (
+    CUSTOMERS_DELETE_PERM,
+    CUSTOMERS_EDIT_PERM,
+    CUSTOMERS_VIEW_PERM,
+)
+from core_settings.models import ProductOption
+from users.mixins import PermissionRequiredMixin
+
+from services.whatsapp_status_prompt import (
+    build_whatsapp_customer_created_prompt,
+    pop_whatsapp_status_prompt_queue,
+    queue_whatsapp_status_prompts,
+)
+
+from .models import Customer
+from .forms import CustomerForm
+
+
+class CustomerListView(PermissionRequiredMixin, ListView):
+    permission_required = (CUSTOMERS_VIEW_PERM, CUSTOMERS_EDIT_PERM)
+    permission_any = True
     model = Customer
-    template_name = 'customers/customer_list.html'
+    template_name = 'crm/customers/customer_list.html'
     context_object_name = 'customers'
-    ordering = ['name']
+    ordering = []
 
     def get_queryset(self):
-        queryset = super().get_queryset().prefetch_related('products')
+        queryset = (
+            Customer.objects.prefetch_related('products', 'sales_leads')
+            .annotate(
+                sales_count=Count('sales_leads', distinct=True),
+                last_sale_date=Max('sales_leads__sale_date'),
+                service_count=Count('service_records', distinct=True),
+            )
+            .order_by('-last_sale_date', 'name')
+        )
         q = self.request.GET.get('q')
         if q:
             queryset = queryset.filter(
-                Q(name__icontains=q) |
-                Q(phone__icontains=q) |
-                Q(region__icontains=q)
+                Q(name__icontains=q)
+                | Q(phone__icontains=q)
+                | Q(region__icontains=q)
             )
         return queryset
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['products'] = ProductOption.objects.order_by('name')
+        context['whatsapp_prompt_queue'] = pop_whatsapp_status_prompt_queue(self.request)
         return context
 
-class CustomerCreateView(CreateView):
+
+class CustomerCreateView(PermissionRequiredMixin, CreateView):
+    permission_required = CUSTOMERS_EDIT_PERM
     model = Customer
     form_class = CustomerForm
-    template_name = 'customers/customer_form.html'
+    template_name = 'crm/customers/customer_form.html'
     success_url = reverse_lazy('customers')
 
-class CustomerUpdateView(UpdateView):
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        prompt = build_whatsapp_customer_created_prompt(self.object)
+        queue_whatsapp_status_prompts(self.request, prompt)
+        return response
+
+
+class CustomerUpdateView(PermissionRequiredMixin, UpdateView):
+    permission_required = CUSTOMERS_EDIT_PERM
     model = Customer
     form_class = CustomerForm
-    template_name = 'customers/customer_form.html'
+    template_name = 'crm/customers/customer_form.html'
     success_url = reverse_lazy('customers')
 
-class CustomerDeleteView(DeleteView):
+
+class CustomerDeleteView(PermissionRequiredMixin, DeleteView):
+    permission_required = CUSTOMERS_DELETE_PERM
     model = Customer
     success_url = reverse_lazy('customers')
 
+
+@permission_required(CUSTOMERS_DELETE_PERM)
 def bulk_delete_customers(request):
     if request.method == 'POST':
         ids = request.POST.getlist('ids')
@@ -54,6 +95,7 @@ def bulk_delete_customers(request):
 
 
 @require_http_methods(["POST"])
+@permission_required(CUSTOMERS_EDIT_PERM)
 def bulk_manage_customers(request):
     ids = [int(x) for x in request.POST.getlist('ids') if str(x).isdigit()]
     action = (request.POST.get('bulk_action') or '').strip()
@@ -99,6 +141,8 @@ def bulk_manage_customers(request):
 
     return JsonResponse({'ok': False, 'error': 'Geçersiz toplu işlem.'}, status=400)
 
+
+@permission_required(CUSTOMERS_EDIT_PERM)
 def quick_customer_create(request):
     if request.method == 'POST':
         name = request.POST.get('name')
@@ -108,12 +152,14 @@ def quick_customer_create(request):
         contract_date = request.POST.get('contract_date')
         if name:
             customer = Customer.objects.create(
-                name=name, phone=phone, region=region, 
+                name=name, phone=phone, region=region,
                 location_link=location_link, contract_date=contract_date or None
             )
             return JsonResponse({'id': customer.id, 'name': customer.name})
     return JsonResponse({'error': 'Geçersiz veri'}, status=400)
 
+
+@permission_required(CUSTOMERS_VIEW_PERM, CUSTOMERS_EDIT_PERM, any_perm=True)
 def customer_detail_api(request, pk):
     try:
         c = Customer.objects.get(pk=pk)
@@ -132,7 +178,9 @@ def customer_detail_api(request, pk):
     except Customer.DoesNotExist:
         return JsonResponse({'error': 'Müşteri bulunamadı'}, status=404)
 
+
 @require_http_methods(["POST"])
+@permission_required(CUSTOMERS_EDIT_PERM)
 def update_customer_products(request, pk):
     import json
     data = json.loads(request.body)
@@ -144,6 +192,16 @@ def update_customer_products(request, pk):
 
 @require_http_methods(["GET", "POST"])
 def customer_quick_edit_api(request, pk):
+    user = request.user
+    if request.method == 'GET':
+        if not user.is_superuser and not user.has_any_perm_codename(
+            CUSTOMERS_VIEW_PERM, CUSTOMERS_EDIT_PERM
+        ):
+            return JsonResponse({'ok': False, 'error': 'Yetkiniz yok.'}, status=403)
+    else:
+        if not user.is_superuser and not user.has_perm_codename(CUSTOMERS_EDIT_PERM):
+            return JsonResponse({'ok': False, 'error': 'Yetkiniz yok.'}, status=403)
+
     customer = get_object_or_404(Customer.objects.prefetch_related('products'), pk=pk)
     if request.method == 'GET':
         return JsonResponse({
@@ -176,3 +234,30 @@ def customer_quick_edit_api(request, pk):
     customer.products.set(product_ids)
 
     return JsonResponse({'ok': True})
+
+
+@require_http_methods(['GET'])
+@permission_required(CUSTOMERS_VIEW_PERM, CUSTOMERS_EDIT_PERM, any_perm=True)
+def customers_picker_api(request):
+    q = (request.GET.get('q') or '').strip()
+    include_all = request.GET.get('all') in ('1', 'true', 'yes')
+    qs = Customer.objects.prefetch_related('products').order_by('name')
+    if not include_all:
+        qs = qs.exclude(phone__isnull=True).exclude(phone='')
+    if q:
+        qs = qs.filter(Q(name__icontains=q) | Q(phone__icontains=q) | Q(region__icontains=q))
+    results = []
+    for c in qs[:200]:
+        phone = (c.phone or '').strip()
+        if not include_all and not phone:
+            continue
+        results.append({
+            'id': c.id,
+            'name': c.name,
+            'phone': phone or '-',
+            'region': c.region or '',
+            'whatsapp_eligible': bool(phone),
+            'product_names': [p.name for p in c.products.all()],
+            'contract_date': c.contract_date.strftime('%d.%m.%Y') if c.contract_date else '',
+        })
+    return JsonResponse({'ok': True, 'results': results, 'count': len(results)})

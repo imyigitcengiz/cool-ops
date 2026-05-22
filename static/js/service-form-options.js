@@ -225,7 +225,8 @@
       ).map((cb) => parseInt(cb.value, 10));
     }
 
-    const url = id ? '/api/options/quick-update/' : '/api/options/quick-create/';
+    const base = window.SD_BASE || '/services-dashboard';
+    const url = id ? `${base}/api/options/quick-update/` : `${base}/api/options/quick-create/`;
     if (id) {
       body.id = parseInt(id, 10);
     }

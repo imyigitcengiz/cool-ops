@@ -1,0 +1,85 @@
+{% extends 'crm/base.html' %}
+
+{% block title %}WhatsApp Şablonları{% endblock %}
+
+{% block header_title %}
+<h1 class="text-lg font-bold text-slate-900">WhatsApp Şablonları</h1>
+<p class="text-sm text-slate-500">Servis kayıtları ve CRM genelinde kullanılan mesaj şablonları.</p>
+{% endblock %}
+
+{% block content %}
+<section class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden max-w-3xl">
+    <div class="p-6 border-b border-slate-100 bg-slate-50">
+        <h2 class="font-bold text-slate-900 flex items-center gap-2">
+            <i data-lucide="message-circle" class="w-5 h-5 text-green-600"></i> Şablon yönetimi
+        </h2>
+    </div>
+    <div class="p-6 space-y-6">
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            <input type="hidden" name="add_whatsapp" value="1">
+            <div class="space-y-2">
+                <label class="text-sm font-semibold text-slate-700">Şablon Başlığı</label>
+                {{ whatsapp_form.title }}
+            </div>
+            <div class="space-y-2">
+                <label class="text-sm font-semibold text-slate-700">Mesaj Metni</label>
+                {{ whatsapp_form.message }}
+                <p class="text-[10px] text-slate-400">
+                    Dinamik alanlar: <code>[name]</code>, <code>[arıza]</code>, <code>[status]</code>, <code>[not]</code>, <code>[bölge]</code>, <code>[phone]</code>, <code>[tarih]</code>
+                </p>
+            </div>
+            <button type="submit" class="w-full bg-brand-600 text-white py-3 rounded-xl font-bold hover:bg-brand-700 transition-all flex items-center justify-center gap-2">
+                <i data-lucide="plus" class="w-4 h-4"></i> Şablon Ekle
+            </button>
+        </form>
+
+        <div class="space-y-3 pt-4 border-t border-slate-100">
+            <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Kayıtlı şablonlar</h3>
+            <div class="space-y-2">
+                {% for t in whatsapp_templates %}
+                <div class="rounded-2xl border border-slate-100 bg-slate-50/80 overflow-hidden">
+                    <div class="flex items-center justify-between p-3 gap-2">
+                        <div class="min-w-0 flex-1">
+                            <p class="text-sm font-bold text-slate-700 truncate">{{ t.title }}</p>
+                            <p class="text-[11px] text-slate-400 line-clamp-2">{{ t.message }}</p>
+                        </div>
+                        <button type="button" class="wa-edit-toggle p-2 text-slate-400 hover:text-brand-600 rounded-lg"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                        <form method="post" class="inline" onsubmit="return confirm('Silmek istediğinize emin misiniz?');">
+                            {% csrf_token %}
+                            <input type="hidden" name="delete_whatsapp" value="1">
+                            <input type="hidden" name="id" value="{{ t.id }}">
+                            <button type="submit" class="p-2 text-slate-300 hover:text-red-500 rounded-lg"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                        </form>
+                    </div>
+                    <div class="wa-edit-panel hidden border-t border-slate-100 bg-white p-4">
+                        <form method="post" class="space-y-3">
+                            {% csrf_token %}
+                            <input type="hidden" name="update_whatsapp" value="1">
+                            <input type="hidden" name="id" value="{{ t.id }}">
+                            <input type="text" name="title" value="{{ t.title }}" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+                            <textarea name="message" rows="4" required class="w-full p-2 bg-slate-50 border border-slate-200 rounded-xl text-sm">{{ t.message }}</textarea>
+                            <button type="submit" class="w-full py-2 bg-brand-600 text-white rounded-xl text-sm font-bold">Kaydet</button>
+                        </form>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-xs text-slate-400 text-center py-6">Henüz şablon yok.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.wa-edit-toggle').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        const panel = btn.closest('.rounded-2xl').querySelector('.wa-edit-panel');
+        panel.classList.toggle('hidden');
+        if (window.lucide) lucide.createIcons();
+    });
+});
+</script>
+{% endblock %}

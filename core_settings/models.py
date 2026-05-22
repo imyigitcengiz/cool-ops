@@ -4,10 +4,27 @@ from .color_utils import DEFAULT_HEX, normalize_hex
 
 
 class SiteSettings(models.Model):
+    BULK_PRINT_SORT_CHOICES = [
+        ('created_desc', 'Tarih (Yeni -> Eski)'),
+        ('created_asc', 'Tarih (Eski -> Yeni)'),
+        ('customer', 'Müşteri Adına Göre'),
+        ('product', 'Ürüne Göre'),
+        ('team', 'Ekibe Göre'),
+        ('personnel', 'Personele Göre'),
+        ('status', 'Duruma Göre'),
+        ('priority', 'Önceliğe Göre'),
+    ]
+
     site_name = models.CharField(max_length=255, default="GÖLGEDE YAŞAM")
     logo = models.ImageField(upload_to='site/', null=True, blank=True)
     company_phone = models.CharField(max_length=50, blank=True, null=True, verbose_name="Firma Telefonu")
     company_address = models.TextField(blank=True, null=True, verbose_name="Firma Adresi")
+    bulk_print_default_sort = models.CharField(
+        max_length=20,
+        choices=BULK_PRINT_SORT_CHOICES,
+        default='created_desc',
+        verbose_name='Toplu Yazdır Varsayılan Sıralama',
+    )
     sidebar_profile_name = models.CharField(max_length=100, default="Yönetici", verbose_name="Sol Alt Profil Adı")
     sidebar_profile_role = models.CharField(max_length=100, default="Admin", verbose_name="Sol Alt Profil Ünvanı")
 
@@ -19,6 +36,14 @@ class SiteSettings(models.Model):
         null=True,
         default="Sen bir asistanasın. Kullanıcının sorularını yanıtla ve ona yardımcı ol.",
         verbose_name="Yapay Zeka Sistem Talimatı",
+    )
+    whatsapp_default_delay = models.PositiveSmallIntegerField(
+        default=4,
+        verbose_name='WhatsApp varsayılan bekleme (sn)',
+    )
+    whatsapp_skip_globally_default = models.BooleanField(
+        default=False,
+        verbose_name='WhatsApp: daha önce mesaj atılanları varsayılan atla',
     )
 
     class Meta:
@@ -82,24 +107,114 @@ class ProductOption(ColorOptionMixin, models.Model):
         return self.name
 
 
+class ProductColorOption(ColorOptionMixin, models.Model):
+    product = models.ForeignKey(
+        ProductOption,
+        on_delete=models.CASCADE,
+        related_name='color_options',
+        verbose_name='Ürün',
+    )
+    name = models.CharField(max_length=100, verbose_name='Renk adı')
+
+    class Meta:
+        verbose_name = 'Ürün rengi'
+        verbose_name_plural = 'Ürün renkleri'
+        ordering = ['name']
+        constraints = [
+            models.UniqueConstraint(fields=['product', 'name'], name='uniq_product_color_name'),
+        ]
+
+    def __str__(self):
+        return f'{self.product.name} — {self.name}'
+
+
 class StatusOption(ColorOptionMixin, models.Model):
+    LIST_ACTIVE = 'active'
+    LIST_PENDING = 'pending'
+    LIST_HIDDEN = 'hidden'
+    LIST_GROUP_CHOICES = [
+        (LIST_ACTIVE, 'Liste: varsayılan göster'),
+        (LIST_PENDING, 'Liste: isteğe bağlı (beklemede)'),
+        (LIST_HIDDEN, 'Liste: varsayılan gizle'),
+    ]
+
     name = models.CharField(max_length=100)
+    sort_order = models.PositiveSmallIntegerField(default=0, verbose_name='Sıra')
+    list_group = models.CharField(
+        max_length=20,
+        choices=LIST_GROUP_CHOICES,
+        default=LIST_ACTIVE,
+        verbose_name='Liste görünürlüğü',
+    )
 
     class Meta:
         verbose_name = "Servis durumu"
         verbose_name_plural = "Servis durumları"
+        ordering = ['sort_order', 'name']
 
     def __str__(self):
         return self.name
 
 
 class WhatsAppTemplate(models.Model):
-    title = models.CharField(max_length=100, verbose_name="Şablon Başlığı")
-    message = models.TextField(verbose_name="Mesaj İçeriği")
+    SCENARIO_SERVICE_CREATED = 'service_created'
+    SCENARIO_SERVICE_STATUS = 'service_status'
+    SCENARIO_SALES_LEAD_CREATED = 'sales_lead_created'
+    SCENARIO_SALES_LEAD_STATUS = 'sales_lead_status'
+    SCENARIO_CUSTOMER_CREATED = 'customer_created'
+    SCENARIO_CHOICES = (
+        (SCENARIO_SERVICE_CREATED, 'Servis — ilk kayıt açılışı'),
+        (SCENARIO_SERVICE_STATUS, 'Servis — durum değişimi'),
+        (SCENARIO_SALES_LEAD_CREATED, 'Satış — ilk kayıt'),
+        (SCENARIO_SALES_LEAD_STATUS, 'Satış — durum değişimi'),
+        (SCENARIO_CUSTOMER_CREATED, 'Müşteri — ilk kayıt'),
+    )
+
+    title = models.CharField(max_length=100, verbose_name="Kural adı")
+    message = models.TextField(verbose_name="Mesaj içeriği")
+    scenario = models.CharField(
+        max_length=40,
+        choices=SCENARIO_CHOICES,
+        default=SCENARIO_SERVICE_STATUS,
+        verbose_name='Senaryo',
+    )
+    trigger_from = models.CharField(
+        max_length=80,
+        blank=True,
+        default='',
+        verbose_name='Eski durum (önce)',
+        help_text='Durum değişiminde önceki değer. Boş = herhangi.',
+    )
+    trigger_to = models.CharField(
+        max_length=80,
+        blank=True,
+        default='',
+        verbose_name='Yeni durum (sonra)',
+        help_text='Oluşturma anındaki durum veya değişim sonrası durum. Boş = herhangi.',
+    )
+    trigger_value = models.CharField(
+        max_length=80,
+        blank=True,
+        default='',
+        verbose_name='Durum / koşul (eski)',
+        help_text='Kullanımdan kalktı — trigger_to kullanın.',
+    )
+    auto_send = models.BooleanField(default=True, verbose_name='Otomatik gönder')
+    is_active = models.BooleanField(default=True, verbose_name='Aktif')
+    connection = models.ForeignKey(
+        'tools.WhatsappConnection',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='scenario_templates',
+        verbose_name='Gönderen hat',
+    )
+    sort_order = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
         verbose_name = "WhatsApp Şablonu"
         verbose_name_plural = "WhatsApp Şablonları"
+        ordering = ['sort_order', 'title']
 
     def __str__(self):
         return self.title
@@ -176,6 +291,43 @@ class ServicePersonnel(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class PersonnelPayment(models.Model):
+    TYPE_SALARY = 'salary'
+    TYPE_ADVANCE = 'advance'
+    TYPE_CHOICES = (
+        (TYPE_SALARY, 'Maaş'),
+        (TYPE_ADVANCE, 'Avans'),
+    )
+
+    personnel = models.ForeignKey(
+        ServicePersonnel,
+        on_delete=models.CASCADE,
+        related_name='payments',
+        verbose_name='Personel',
+    )
+    payment_type = models.CharField(max_length=20, choices=TYPE_CHOICES, verbose_name='Tür')
+    amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name='Tutar')
+    payment_date = models.DateField(verbose_name='Ödeme tarihi')
+    notes = models.CharField(max_length=255, blank=True, verbose_name='Not')
+    recorded_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='personnel_payments',
+        verbose_name='Kaydeden',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Personel ödemesi'
+        verbose_name_plural = 'Personel ödemeleri'
+        ordering = ['-payment_date', '-created_at']
+
+    def __str__(self):
+        return f'{self.personnel.name} — {self.get_payment_type_display()} ({self.amount})'
 
 
 class SolutionPartner(models.Model):

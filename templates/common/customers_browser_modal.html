@@ -1,0 +1,85 @@
+<div id="customersBrowserModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[130] flex items-center justify-center p-4">
+    <div class="w-full max-w-3xl bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50 shrink-0">
+            <div>
+                <h3 class="font-bold text-slate-900">Müşteriler</h3>
+                <p class="text-xs text-slate-500 mt-0.5">Contact müşteri rehberi</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <a href="{% url 'customers' %}" target="_blank" class="text-xs font-semibold text-brand-600 hover:text-brand-700 px-3 py-1.5 rounded-lg hover:bg-brand-50">Tam sayfa →</a>
+                <button type="button" id="closeCustomersBrowserBtn" class="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-white">
+                    <i data-lucide="x" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+        <div class="p-4 border-b border-slate-100 shrink-0">
+            <div class="relative">
+                <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                <input id="customersBrowserSearch" type="text" placeholder="Ad, telefon veya bölge ara…"
+                       class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+            </div>
+        </div>
+        <div id="customersBrowserList" class="overflow-y-auto flex-1 divide-y divide-slate-100 min-h-[200px]">
+            <div class="p-8 text-center text-slate-400 text-sm">Yükleniyor…</div>
+        </div>
+    </div>
+</div>
+
+<div id="customersBrowserDetailModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[135] flex items-center justify-center p-4">
+    <div class="w-full max-w-xl bg-white rounded-3xl shadow-2xl border border-slate-100 overflow-hidden max-h-[90vh] flex flex-col">
+        <div class="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50">
+            <h3 class="font-bold text-slate-900">Müşteri Kartı</h3>
+            <button type="button" id="closeCustomersBrowserDetailBtn" class="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-white">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+        </div>
+        <div class="p-5 space-y-4 overflow-y-auto flex-1">
+            <div>
+                <p class="text-xs font-bold text-slate-400 uppercase">Ad / Firma</p>
+                <p id="cbName" class="text-base font-bold text-slate-900">-</p>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <p class="text-xs font-bold text-slate-400 uppercase">Telefon</p>
+                    <p id="cbPhone" class="text-sm font-medium text-slate-700">-</p>
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-slate-400 uppercase">Bölge</p>
+                    <p id="cbRegion" class="text-sm font-medium text-slate-700">-</p>
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-slate-400 uppercase">Sözleşme</p>
+                    <p id="cbContract" class="text-sm font-medium text-slate-700">-</p>
+                </div>
+                <div>
+                    <p class="text-xs font-bold text-slate-400 uppercase">Konum</p>
+                    <a id="cbLocation" href="#" target="_blank" class="text-sm font-semibold text-blue-600 hover:underline hidden">Haritada aç</a>
+                    <p id="cbLocationEmpty" class="text-sm text-slate-400">-</p>
+                </div>
+            </div>
+            <div>
+                <p class="text-xs font-bold text-slate-400 uppercase mb-2">Ürünler</p>
+                <div id="cbProducts" class="flex flex-wrap gap-1.5"><span class="text-sm text-slate-400">-</span></div>
+            </div>
+            <div>
+                <div class="flex items-center justify-between gap-2 mb-2">
+                    <p class="text-xs font-bold text-slate-400 uppercase">Servis geçmişi</p>
+                    <span id="cbServiceCounts" class="text-[10px] font-semibold text-slate-400"></span>
+                </div>
+                <div id="cbServices" class="space-y-2 max-h-48 overflow-y-auto">
+                    <p class="text-sm text-slate-400">Yükleniyor…</p>
+                </div>
+            </div>
+            <div class="flex gap-2 pt-2 shrink-0">
+                {% if user_perms.contact_customers %}
+                <a id="cbEditLink" href="#" target="_blank" class="flex-1 text-center py-2.5 bg-slate-100 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-200">Düzenle</a>
+                {% endif %}
+                {% if user_perms.services_manage %}
+                <a id="cbServiceLink" href="#" class="flex-1 text-center py-2.5 bg-brand-600 text-white rounded-xl text-sm font-semibold hover:bg-brand-700">Servis aç</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="/static/js/customers-browser.js"></script>

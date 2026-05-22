@@ -1,0 +1,45 @@
+from django.urls import path
+from django.views.generic import RedirectView
+
+from analytics.views import ai_chat_view
+from tools.system_views import ToolsAISettingsView, ToolsAIPanelView, ToolsSystemBackupView
+from tools.views import ToolsHubView, WhatsappBaglanView
+from tools.whatsapp_connection_views import (
+    whatsapp_bridge_auto_start_api,
+    whatsapp_bridge_ui_log_api,
+    whatsapp_connections_api,
+    whatsapp_connection_detail_api,
+    whatsapp_connection_status_api,
+    whatsapp_connection_connect_api,
+    whatsapp_connection_disconnect_api,
+)
+from tools.whatsapp_send_views import whatsapp_ready_connections_api, whatsapp_send_api
+from tools.whatsapp_template_views import (
+    whatsapp_scenario_meta_api,
+    whatsapp_scenario_template_detail_api,
+    whatsapp_scenario_templates_api,
+)
+
+urlpatterns = [
+    path('', ToolsHubView.as_view(), name='tools_hub'),
+    path('whatsapp-baglan/', WhatsappBaglanView.as_view(), name='tools_whatsapp_baglan'),
+    path('whatsapp-mesaj-gonderici/', RedirectView.as_view(url='/tools/whatsapp-baglan/', permanent=False)),
+    path('toplu-whatsapp-mesaj/', RedirectView.as_view(url='/tools/whatsapp-baglan/', permanent=False)),
+    path('google-maps-firma-bulma/', RedirectView.as_view(url='/contact/firma-kazi/', permanent=False)),
+    path('whatsapp/kopru/baslat/', whatsapp_bridge_auto_start_api, name='tools_whatsapp_bridge_auto_start'),
+    path('whatsapp/kopru/gunluk/', whatsapp_bridge_ui_log_api, name='tools_whatsapp_bridge_ui_log'),
+    path('whatsapp/baglantilar/', whatsapp_connections_api, name='tools_whatsapp_connections'),
+    path('whatsapp/baglantilar/<int:pk>/', whatsapp_connection_detail_api, name='tools_whatsapp_connection_detail'),
+    path('whatsapp/baglantilar/<int:pk>/status/', whatsapp_connection_status_api, name='tools_whatsapp_connection_status'),
+    path('whatsapp/baglantilar/<int:pk>/connect/', whatsapp_connection_connect_api, name='tools_whatsapp_connection_connect'),
+    path('whatsapp/baglantilar/<int:pk>/disconnect/', whatsapp_connection_disconnect_api, name='tools_whatsapp_connection_disconnect'),
+    path('whatsapp/baglantilar/hazir/', whatsapp_ready_connections_api, name='tools_whatsapp_ready_connections'),
+    path('whatsapp/gonder/', whatsapp_send_api, name='tools_whatsapp_send'),
+    path('whatsapp/senaryolar/meta/', whatsapp_scenario_meta_api, name='tools_whatsapp_scenario_meta'),
+    path('whatsapp/senaryolar/', whatsapp_scenario_templates_api, name='tools_whatsapp_scenario_templates'),
+    path('whatsapp/senaryolar/<int:pk>/', whatsapp_scenario_template_detail_api, name='tools_whatsapp_scenario_template_detail'),
+    path('ai/ayarlar/', ToolsAISettingsView.as_view(), name='tools_ai_settings'),
+    path('ai/panel/', ToolsAIPanelView.as_view(), name='tools_ai_panel'),
+    path('yedekler/', ToolsSystemBackupView.as_view(), name='tools_system_backup'),
+    path('api/ai-chat/chat/', ai_chat_view, name='ai_chat'),
+]

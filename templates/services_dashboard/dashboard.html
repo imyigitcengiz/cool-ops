@@ -1,0 +1,447 @@
+{% extends 'services_dashboard/base.html' %}
+{% load option_colors %}
+
+{% block title %}Servis Raporu | {{ site_settings.site_name }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <section class="bg-gradient-to-br from-slate-900 via-brand-900 to-sky-900 rounded-3xl p-6 md:p-8 text-white shadow-xl shadow-slate-300/40 overflow-hidden relative">
+        <div class="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top_right,_#38bdf8_0,_transparent_45%)]"></div>
+        <div class="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
+            <div>
+                <p class="text-xs font-bold uppercase tracking-[0.2em] text-sky-200/90">Operasyon Raporu</p>
+                <h2 class="text-2xl md:text-3xl font-bold mt-2">Servis Durum Özeti</h2>
+                <p class="text-slate-300 text-sm mt-2 max-w-2xl">
+                    Aktif, beklemede, kapalı ve iptal servislerin güncel dağılımı ile son 12 aylık kayıt bant analizi.
+                </p>
+                <p class="text-[11px] text-slate-400 mt-3">
+                    Rapor: {{ report_generated_at|date:"d.m.Y H:i" }} · Toplam {{ total_services }} kayıt
+                </p>
+            </div>
+            <div class="flex flex-wrap gap-2 shrink-0">
+                {% if user_perms.services_manage %}
+                <a href="{% url 'service_create' %}" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-sm font-semibold backdrop-blur">
+                    + Yeni Servis
+                </a>
+                {% endif %}
+                <a href="{% url 'services' %}" class="px-4 py-2.5 rounded-xl bg-white text-brand-800 text-sm font-bold hover:bg-sky-50">
+                    Servis Listesi
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+        <a href="{% url 'services' %}" class="group bg-white rounded-2xl border border-emerald-100 p-5 shadow-sm hover:shadow-md hover:border-emerald-200 transition-all">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-wide text-emerald-600">Aktif Servis</p>
+                    <p class="text-4xl font-black text-slate-900 mt-2">{{ service_counts.active }}</p>
+                    <p class="text-xs text-slate-500 mt-1">Toplamın %{{ service_counts.active_pct }} payı</p>
+                </div>
+                <span class="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                    <i data-lucide="activity" class="w-5 h-5"></i>
+                </span>
+            </div>
+        </a>
+        <a href="{% url 'services' %}?show_pending=1" class="group bg-white rounded-2xl border border-amber-100 p-5 shadow-sm hover:shadow-md hover:border-amber-200 transition-all">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-wide text-amber-600">Beklemede</p>
+                    <p class="text-4xl font-black text-slate-900 mt-2">{{ service_counts.pending }}</p>
+                    <p class="text-xs text-slate-500 mt-1">Açık iş yükü: {{ service_counts.open }} kayıt</p>
+                </div>
+                <span class="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                    <i data-lucide="clock" class="w-5 h-5"></i>
+                </span>
+            </div>
+        </a>
+        <a href="{% url 'services' %}?show_hidden=1" class="group bg-white rounded-2xl border border-blue-100 p-5 shadow-sm hover:shadow-md hover:border-blue-200 transition-all">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-wide text-blue-600">Kapalı Servis</p>
+                    <p class="text-4xl font-black text-slate-900 mt-2">{{ service_counts.closed }}</p>
+                    <p class="text-xs text-slate-500 mt-1">Tamamlanan / ücretli · %{{ completion_rate }} kapanma</p>
+                </div>
+                <span class="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                    <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+                </span>
+            </div>
+        </a>
+        <a href="{% url 'services' %}?show_hidden=1" class="group bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md hover:border-slate-300 transition-all">
+            <div class="flex items-start justify-between gap-3">
+                <div>
+                    <p class="text-xs font-bold uppercase tracking-wide text-slate-600">İptal Servis</p>
+                    <p class="text-4xl font-black text-slate-900 mt-2">{{ service_counts.cancelled }}</p>
+                    <p class="text-xs text-slate-500 mt-1">İptal oranı %{{ cancellation_rate }}</p>
+                </div>
+                <span class="w-11 h-11 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center group-hover:scale-105 transition-transform">
+                    <i data-lucide="ban" class="w-5 h-5"></i>
+                </span>
+            </div>
+        </a>
+    </section>
+
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+            <p class="text-[11px] font-bold uppercase text-slate-500">Toplam Kayıt</p>
+            <p class="text-2xl font-bold text-slate-900 mt-1">{{ total_services }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+            <p class="text-[11px] font-bold uppercase text-slate-500">Müşteri</p>
+            <p class="text-2xl font-bold text-slate-900 mt-1">{{ total_customers }}</p>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+            <p class="text-[11px] font-bold uppercase text-slate-500">Bu Ay Yeni</p>
+            <p class="text-2xl font-bold text-brand-700 mt-1">{{ month_new }}</p>
+            <p class="text-[11px] mt-1 {% if month_delta >= 0 %}text-emerald-600{% else %}text-red-600{% endif %} font-semibold">
+                {% if month_delta >= 0 %}+{% endif %}{{ month_delta }} geçen aya göre
+            </p>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm">
+            <p class="text-[11px] font-bold uppercase text-slate-500">Garanti Aktif</p>
+            <p class="text-2xl font-bold text-emerald-700 mt-1">{{ warranty_active_count }}</p>
+        </div>
+    </section>
+
+    <section class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-5 md:p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            <div>
+                <h3 class="font-bold text-slate-900 text-lg">Aylık Servis Bant Analizi</h3>
+                <p class="text-sm text-slate-500 mt-1">Son 12 ay — o ay açılan kayıtların güncel durum dağılımı</p>
+            </div>
+            <div class="flex flex-wrap gap-3 text-xs font-semibold">
+                <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-emerald-500"></span>Aktif</span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-amber-500"></span>Beklemede</span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-blue-500"></span>Kapalı</span>
+                <span class="inline-flex items-center gap-1.5"><span class="w-3 h-3 rounded-sm bg-slate-400"></span>İptal</span>
+            </div>
+        </div>
+        <div class="p-5 md:p-6">
+            <div class="h-[320px]">
+                <canvas id="monthlyBandChart"></canvas>
+            </div>
+        </div>
+        <div class="overflow-x-auto border-t border-slate-100">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50 text-left">
+                    <tr>
+                        <th class="px-5 py-3 font-bold text-slate-600">Ay</th>
+                        <th class="px-5 py-3 font-bold text-slate-600 text-right">Yeni</th>
+                        <th class="px-5 py-3 font-bold text-emerald-700 text-right">Aktif</th>
+                        <th class="px-5 py-3 font-bold text-amber-700 text-right">Beklemede</th>
+                        <th class="px-5 py-3 font-bold text-blue-700 text-right">Kapalı</th>
+                        <th class="px-5 py-3 font-bold text-slate-600 text-right">İptal</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for row in monthly_rows %}
+                    <tr class="hover:bg-slate-50/80">
+                        <td class="px-5 py-3 font-semibold text-slate-900">{{ row.label }}</td>
+                        <td class="px-5 py-3 text-right font-bold text-slate-900">{{ row.total }}</td>
+                        <td class="px-5 py-3 text-right text-emerald-700">{{ row.active }}</td>
+                        <td class="px-5 py-3 text-right text-amber-700">{{ row.pending }}</td>
+                        <td class="px-5 py-3 text-right text-blue-700">{{ row.closed }}</td>
+                        <td class="px-5 py-3 text-right text-slate-600">{{ row.cancelled }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="px-5 py-8 text-center text-slate-400">Henüz veri yok.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+
+    <section class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        <div class="xl:col-span-2 bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="p-5 border-b border-slate-100">
+                <h3 class="font-bold text-slate-900">Durum Kırılımı</h3>
+                <p class="text-sm text-slate-500 mt-1">Tüm servis kayıtları — durum bazlı dağılım</p>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th class="px-5 py-3 text-left font-bold text-slate-600">Durum</th>
+                            <th class="px-5 py-3 text-left font-bold text-slate-600">Grup</th>
+                            <th class="px-5 py-3 text-right font-bold text-slate-600">Adet</th>
+                            <th class="px-5 py-3 text-left font-bold text-slate-600 w-40">Oran</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100">
+                        {% for row in status_breakdown %}
+                        <tr class="hover:bg-slate-50/80">
+                            <td class="px-5 py-3">
+                                <span class="inline-flex items-center gap-2 font-semibold text-slate-900">
+                                    <span class="w-2.5 h-2.5 rounded-full" style="background-color: {{ row.color }};"></span>
+                                    {{ row.name }}
+                                </span>
+                            </td>
+                            <td class="px-5 py-3">
+                                <span class="px-2 py-0.5 rounded-lg text-[11px] font-bold
+                                    {% if row.bucket == 'active' %}bg-emerald-50 text-emerald-700
+                                    {% elif row.bucket == 'pending' %}bg-amber-50 text-amber-700
+                                    {% elif row.bucket == 'closed' %}bg-blue-50 text-blue-700
+                                    {% else %}bg-slate-100 text-slate-600{% endif %}">
+                                    {{ row.bucket_label }}
+                                </span>
+                            </td>
+                            <td class="px-5 py-3 text-right font-bold text-slate-900">{{ row.total }}</td>
+                            <td class="px-5 py-3">
+                                <div class="flex items-center gap-2">
+                                    <div class="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
+                                        <div class="h-full rounded-full" style="width: {{ row.pct }}%; background-color: {{ row.color }};"></div>
+                                    </div>
+                                    <span class="text-xs font-bold text-slate-500 w-10 text-right">%{{ row.pct }}</span>
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="4" class="px-5 py-8 text-center text-slate-400">Durum verisi yok.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="space-y-6">
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-5">
+                <h3 class="font-bold text-slate-900 mb-1">Ürün Dağılımı</h3>
+                <p class="text-xs text-slate-500 mb-4">En çok servis gören ürünler</p>
+                <div class="h-[220px]">
+                    <canvas id="productChart"></canvas>
+                </div>
+            </div>
+            {% if priority_breakdown %}
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-5">
+                <h3 class="font-bold text-slate-900 mb-4">Öncelik Dağılımı</h3>
+                <div class="space-y-3">
+                    {% for p in priority_breakdown %}
+                    <div>
+                        <div class="flex items-center justify-between text-sm mb-1">
+                            <span class="font-semibold text-slate-800">{{ p.name }}</span>
+                            <span class="font-bold text-slate-600">{{ p.total }}</span>
+                        </div>
+                        <div class="h-2 rounded-full bg-slate-100 overflow-hidden">
+                            <div class="h-full rounded-full" style="width: {{ p.pct }}%; background-color: {{ p.color }};"></div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+
+    <section class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+            <div>
+                <h3 class="font-bold text-slate-900">Son Servis Kayıtları</h3>
+                <p class="text-xs text-slate-500 mt-1">Hızlı durum güncelleme</p>
+            </div>
+            <a href="{% url 'services' %}" class="text-sm text-brand-600 font-bold hover:underline">Tümünü Gör</a>
+        </div>
+        <div class="divide-y divide-slate-100">
+            {% for s in recent_services %}
+            <div class="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:bg-slate-50 transition-colors">
+                <div>
+                    <p class="font-semibold text-slate-900">{{ s.customer.name }}</p>
+                    <p class="text-xs text-slate-500 mt-0.5">
+                        {% for p in s.products.all %}{{ p.name }}{% if not forloop.last %}, {% endif %}{% empty %}-{% endfor %}
+                    </p>
+                    <p class="text-[11px] text-slate-400 mt-1">{{ s.created_at|date:"d.m.Y H:i" }}</p>
+                </div>
+                <div class="flex items-center gap-2 shrink-0">
+                    <div class="relative inline-block quick-update-wrap" data-service-id="{{ s.id }}" data-field="status">
+                        <button type="button"
+                                class="quick-update-trigger px-2 py-1 rounded-lg text-xs font-bold border"
+                                style="background-color: {{ s.status.color_hex|option_badge_bg }}; color: {{ s.status.color_hex|option_badge_text }}; border-color: {{ s.status.color_hex|option_badge_border }};">
+                            {{ s.status.name }}
+                        </button>
+                        <div class="quick-update-menu hidden absolute right-0 z-30 mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-lg p-1">
+                            {% for opt in statuses %}
+                            <button type="button" class="quick-update-option w-full text-left px-2 py-1.5 rounded-lg text-xs font-semibold hover:bg-slate-50" data-value="{{ opt.id }}">{{ opt.name }}</button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="relative inline-block quick-update-wrap" data-service-id="{{ s.id }}" data-field="priority">
+                        <button type="button"
+                                class="quick-update-trigger px-2 py-1 rounded-lg text-xs font-bold border"
+                                style="background-color: {{ s.priority.color_hex|option_badge_bg }}; color: {{ s.priority.color_hex|option_badge_text }}; border-color: {{ s.priority.color_hex|option_badge_border }};">
+                            {{ s.priority.name }}
+                        </button>
+                        <div class="quick-update-menu hidden absolute right-0 z-30 mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-lg p-1">
+                            {% for opt in priorities %}
+                            <button type="button" class="quick-update-option w-full text-left px-2 py-1.5 rounded-lg text-xs font-semibold hover:bg-slate-50" data-value="{{ opt.id }}">{{ opt.name }}</button>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <p class="p-8 text-center text-slate-400">Henüz kayıt yok.</p>
+            {% endfor %}
+        </div>
+    </section>
+</div>
+
+{{ monthly_chart|json_script:"monthlyChartData" }}
+{{ product_chart|json_script:"productChartData" }}
+
+<script>
+    const monthlyData = JSON.parse(document.getElementById('monthlyChartData').textContent);
+    const productData = JSON.parse(document.getElementById('productChartData').textContent);
+
+    new Chart(document.getElementById('monthlyBandChart'), {
+        type: 'bar',
+        data: {
+            labels: monthlyData.labels,
+            datasets: [
+                {
+                    label: 'Aktif',
+                    data: monthlyData.active,
+                    backgroundColor: '#16a34a',
+                    borderRadius: 4,
+                    stack: 'band',
+                },
+                {
+                    label: 'Beklemede',
+                    data: monthlyData.pending,
+                    backgroundColor: '#d97706',
+                    borderRadius: 4,
+                    stack: 'band',
+                },
+                {
+                    label: 'Kapalı',
+                    data: monthlyData.closed,
+                    backgroundColor: '#2563eb',
+                    borderRadius: 4,
+                    stack: 'band',
+                },
+                {
+                    label: 'İptal',
+                    data: monthlyData.cancelled,
+                    backgroundColor: '#94a3b8',
+                    borderRadius: 4,
+                    stack: 'band',
+                },
+            ],
+        },
+        options: {
+            maintainAspectRatio: false,
+            responsive: true,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        footer(items) {
+                            const idx = items[0]?.dataIndex;
+                            if (idx == null) return '';
+                            return `Toplam: ${monthlyData.total[idx]}`;
+                        },
+                    },
+                },
+            },
+            scales: {
+                x: {
+                    stacked: true,
+                    grid: { display: false },
+                    ticks: { font: { size: 11, weight: '600' } },
+                },
+                y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    ticks: { precision: 0, stepSize: 1 },
+                    title: { display: true, text: 'Kayıt adedi' },
+                },
+            },
+        },
+    });
+
+    new Chart(document.getElementById('productChart'), {
+        type: 'doughnut',
+        data: {
+            labels: productData.labels,
+            datasets: [{
+                data: productData.counts,
+                backgroundColor: productData.colors.length ? productData.colors : ['#0284c7', '#6366f1', '#8b5cf6', '#ec4899', '#f97316', '#22c55e'],
+                borderWidth: 0,
+            }],
+        },
+        options: {
+            maintainAspectRatio: false,
+            cutout: '62%',
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 11 } } } },
+        },
+    });
+
+    function getCsrfToken() {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; csrftoken=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+        return '';
+    }
+
+    function closeAllQuickMenus() {
+        document.querySelectorAll('.quick-update-menu').forEach((m) => m.classList.add('hidden'));
+    }
+
+    async function quickUpdateService(serviceId, field, value) {
+        const formData = new FormData();
+        formData.append('service_id', String(serviceId));
+        formData.append('field', field);
+        formData.append('value', String(value));
+        const res = await fetch("{% url 'service_quick_update' %}", {
+            method: 'POST',
+            headers: { 'X-CSRFToken': getCsrfToken() },
+            body: formData,
+        });
+        return res.json();
+    }
+
+    document.querySelectorAll('.quick-update-wrap').forEach((wrap) => {
+        const trigger = wrap.querySelector('.quick-update-trigger');
+        const menu = wrap.querySelector('.quick-update-menu');
+        const serviceId = wrap.dataset.serviceId;
+        const field = wrap.dataset.field;
+
+        trigger?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isHidden = menu.classList.contains('hidden');
+            closeAllQuickMenus();
+            if (isHidden) menu.classList.remove('hidden');
+        });
+
+        menu?.querySelectorAll('.quick-update-option').forEach((btn) => {
+            btn.addEventListener('click', async () => {
+                try {
+                    const data = await quickUpdateService(serviceId, field, btn.dataset.value);
+                    if (!data.ok) {
+                        alert(data.error || 'Güncelleme başarısız.');
+                        return;
+                    }
+                    if (field === 'status' && data.deferred && data.whatsapp_prompt && window.showDeferredServiceStatusChange) {
+                        window.showDeferredServiceStatusChange(data.whatsapp_prompt, {
+                            onApplied: () => location.reload(),
+                            onCancel: () => {},
+                        });
+                        return;
+                    }
+                    if (field === 'status' && window.handleServiceWhatsappStatusResponse) {
+                        window.handleServiceWhatsappStatusResponse(data, () => location.reload());
+                        return;
+                    }
+                    location.reload();
+                } catch (err) {
+                    alert('Hızlı güncelleme sırasında hata oluştu.');
+                } finally {
+                    menu.classList.add('hidden');
+                }
+            });
+        });
+    });
+    document.addEventListener('click', () => closeAllQuickMenus());
+    if (window.lucide) lucide.createIcons();
+</script>
+{% endblock %}

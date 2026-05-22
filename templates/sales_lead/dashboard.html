@@ -1,0 +1,132 @@
+{% extends 'sales_lead/base.html' %}
+
+{% block title %}Özet Panel{% endblock %}
+
+{% block header_title %}
+<h1 class="text-lg font-bold text-slate-900">Satış Özet Paneli</h1>
+<p class="text-sm text-slate-500">Satış performansı ve son kayıtlar</p>
+{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <p class="text-xs font-bold text-slate-500 uppercase">Toplam Satış</p>
+        <p class="text-3xl font-bold text-slate-900 mt-2">{{ total_sales }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <p class="text-xs font-bold text-slate-500 uppercase">Bu Ay Satış</p>
+        <p class="text-3xl font-bold text-brand-600 mt-2">{{ month_sales }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <p class="text-xs font-bold text-slate-500 uppercase">Bu Ay Ciro</p>
+        <p class="text-3xl font-bold text-emerald-600 mt-2">{{ month_amount|floatformat:0 }} ₺</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <p class="text-xs font-bold text-slate-500 uppercase">Bekleyen</p>
+        <p class="text-3xl font-bold text-amber-600 mt-2">{{ pending_sales }}</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+        <h2 class="font-bold text-slate-900 mb-4">Son 30 Gün Satış Trendi</h2>
+        <canvas id="trendChart" height="120"></canvas>
+    </div>
+    <div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm">
+        <h2 class="font-bold text-slate-900 mb-4">Ürün Bazlı Satış</h2>
+        <canvas id="productChart" height="120"></canvas>
+    </div>
+</div>
+
+{% if rep_stats %}
+<div class="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm mb-8">
+    <h2 class="font-bold text-slate-900 mb-4">Satış Temsilcisi Performansı</h2>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50">
+                <tr>
+                    <th class="px-4 py-3 text-left font-bold text-slate-700">Temsilci</th>
+                    <th class="px-4 py-3 text-left font-bold text-slate-700">Satış Adedi</th>
+                    <th class="px-4 py-3 text-left font-bold text-slate-700">Toplam Tutar</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for rep in rep_stats %}
+                <tr>
+                    <td class="px-4 py-3">{{ rep.assigned_to__first_name }} {{ rep.assigned_to__last_name|default:rep.assigned_to__username }}</td>
+                    <td class="px-4 py-3">{{ rep.total }}</td>
+                    <td class="px-4 py-3">{{ rep.amount|default:0|floatformat:0 }} ₺</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+        <h2 class="font-bold text-slate-900">Son Satış Kayıtları</h2>
+        <a href="{% url 'sales_lead_list' %}" class="text-sm font-semibold text-brand-600 hover:text-brand-700">Tümünü gör</a>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm text-left">
+            <thead class="bg-slate-50">
+                <tr>
+                    <th class="px-4 py-3 font-bold text-slate-700">Ad Soyad</th>
+                    <th class="px-4 py-3 font-bold text-slate-700">Proje</th>
+                    <th class="px-4 py-3 font-bold text-slate-700">Tarih</th>
+                    <th class="px-4 py-3 font-bold text-slate-700 text-right">Toplam</th>
+                    <th class="px-4 py-3 font-bold text-slate-700 text-right">Kalan</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for sale in recent_sales %}
+                <tr class="hover:bg-slate-50">
+                    <td class="px-4 py-3 font-semibold">{{ sale.customer.name }}</td>
+                    <td class="px-4 py-3 text-slate-600">{{ sale.project_display }}</td>
+                    <td class="px-4 py-3">{{ sale.sale_date|date:"d.m.Y" }}</td>
+                    <td class="px-4 py-3 text-right">{% if sale.sale_amount %}{{ sale.sale_amount|floatformat:2 }} ₺{% else %}-{% endif %}</td>
+                    <td class="px-4 py-3 text-right font-semibold">{{ sale.remaining_balance|floatformat:2 }} ₺</td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="5" class="px-4 py-10 text-center text-slate-400">Henüz satış kaydı yok.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+        labels: {{ trend_labels|safe }},
+        datasets: [{
+            label: 'Satış',
+            data: {{ trend_counts|safe }},
+            borderColor: '#d97706',
+            backgroundColor: 'rgba(217, 119, 6, 0.1)',
+            fill: true,
+            tension: 0.3,
+        }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+});
+new Chart(document.getElementById('productChart'), {
+    type: 'bar',
+    data: {
+        labels: {{ product_labels|safe }},
+        datasets: [{
+            label: 'Satış',
+            data: {{ product_counts|safe }},
+            backgroundColor: '#f59e0b',
+            borderRadius: 8,
+        }]
+    },
+    options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+});
+</script>
+{% endblock %}

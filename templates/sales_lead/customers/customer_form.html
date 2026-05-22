@@ -1,0 +1,54 @@
+{% extends 'sales_lead/base.html' %}
+
+{% block title %}{% if object %}Müşteri Düzenle{% else %}Yeni Müşteri{% endif %}{% endblock %}
+
+{% block header_title %}
+<h1 class="text-lg font-bold text-slate-900">{% if object %}Müşteri Düzenle{% else %}Yeni Müşteri{% endif %}</h1>
+<p class="text-sm text-slate-500">Yeni müşteri eklemek için tercihen <a href="{% url 'sales_lead_create' %}" class="text-brand-600 font-semibold underline">satış kaydı</a> oluşturun.</p>
+{% endblock %}
+
+{% block content %}
+<form method="post" class="max-w-2xl bg-white p-8 rounded-3xl border border-slate-200 shadow-sm space-y-6">
+    {% csrf_token %}
+    {% for field in form %}
+    <div class="space-y-2">
+        <label class="text-sm font-semibold text-slate-700">{{ field.label }}</label>
+        {% if field.name == 'products' %}
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+            {% for checkbox in field %}
+            <label class="flex items-center gap-2 p-2 hover:bg-white rounded-lg cursor-pointer">
+                {{ checkbox.tag }}
+                <span class="text-sm text-slate-600">{{ checkbox.choice_label }}</span>
+            </label>
+            {% endfor %}
+        </div>
+        {% else %}
+        {{ field }}
+        {% endif %}
+        {% if field.errors %}<p class="text-red-500 text-xs">{{ field.errors.0 }}</p>{% endif %}
+    </div>
+    {% endfor %}
+    <div class="flex gap-4 pt-4">
+        <button type="submit" class="flex-1 bg-brand-600 hover:bg-brand-700 text-white py-3 rounded-2xl font-bold">Kaydet</button>
+        <a href="{% url 'customers' %}" class="flex-1 bg-slate-100 text-slate-600 py-3 rounded-2xl font-bold text-center">İptal</a>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const phoneInput = document.querySelector('input[name="phone"]');
+    if (phoneInput && window.intlTelInput) {
+        const iti = window.intlTelInput(phoneInput, {
+            initialCountry: 'tr',
+            separateDialCode: true,
+            utilsScript: 'https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.10/build/js/utils.js',
+        });
+        phoneInput.closest('form').addEventListener('submit', function () {
+            if (iti.isValidNumber()) phoneInput.value = iti.getNumber();
+        });
+    }
+});
+</script>
+{% endblock %}
