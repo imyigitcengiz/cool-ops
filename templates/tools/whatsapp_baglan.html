@@ -11,6 +11,16 @@
         <p class="text-slate-600 mt-1">Her hat için bir bağlantı ekleyin, QR kodu tarayın. Bir kez bağlandıktan sonra uygulama yeniden açılsa bile oturum korunur.</p>
     </div>
 
+    <div id="bridgeDeployHint" class="{% if whatsapp_bridge_can_spawn %}hidden{% endif %} mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-sm text-amber-950">
+        <p class="font-bold">Sunucu / Docker kurulumu</p>
+        <p class="mt-2">WhatsApp köprüsü panel konteynerinden <strong>ayrı</strong> bir servistir (Node + Chromium). Panel konteynerinde otomatik başlatılmaz.</p>
+        <ul class="mt-2 list-disc list-inside space-y-1 text-amber-900">
+            <li>Önerilen: kök <code class="text-xs bg-amber-100 px-1 rounded">compose.yaml</code> ile <code class="text-xs bg-amber-100 px-1 rounded">whatsapp-bridge</code> servisini açın.</li>
+            <li>Ortam: <code class="text-xs bg-amber-100 px-1 rounded">WHATSAPP_BRIDGE_URL={{ whatsapp_bridge_url }}</code></li>
+            <li>Detay: depodaki <code class="text-xs bg-amber-100 px-1 rounded">DEPLOY.md</code></li>
+        </ul>
+    </div>
+
     <!-- Köprü durumu -->
     <div id="bridgeBar" class="mb-6 flex flex-wrap items-center gap-3 p-4 rounded-2xl bg-white border border-slate-200 shadow-sm">
         <span id="bridgeDot" class="w-2.5 h-2.5 rounded-full bg-slate-300 shrink-0"></span>
@@ -94,18 +104,29 @@
         return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
-    function setBridgeUi(offline, detail) {
+    const BRIDGE_CAN_SPAWN = {{ whatsapp_bridge_can_spawn|yesno:"true,false" }};
+
+    function setBridgeUi(offline, detail, canSpawn) {
         const dot = document.getElementById('bridgeDot');
         const label = document.getElementById('bridgeLabel');
         const btn = document.getElementById('startBridgeBtn');
+        const hint = document.getElementById('bridgeDeployHint');
+        const spawnOk = canSpawn !== undefined ? canSpawn : BRIDGE_CAN_SPAWN;
         if (offline) {
             dot.className = 'w-2.5 h-2.5 rounded-full bg-red-500 shrink-0';
             label.textContent = detail || 'Köprü kapalı';
-            btn.classList.remove('hidden');
+            if (spawnOk) {
+                btn.classList.remove('hidden');
+                hint?.classList.add('hidden');
+            } else {
+                btn.classList.add('hidden');
+                hint?.classList.remove('hidden');
+            }
         } else {
             dot.className = 'w-2.5 h-2.5 rounded-full bg-green-500 shrink-0';
             label.textContent = 'Köprü çalışıyor';
             btn.classList.add('hidden');
+            hint?.classList.add('hidden');
         }
     }
 
@@ -216,7 +237,7 @@
         const res = await fetch(LIST_URL);
         const data = await res.json();
         if (!data.ok) throw new Error(data.error || 'Liste alınamadı');
-        setBridgeUi(!!data.bridge_offline, data.bridge_probe?.detail);
+        setBridgeUi(!!data.bridge_offline, data.bridge_probe?.detail, data.bridge_probe?.can_spawn);
         renderList(data.connections || []);
         (data.connections || []).forEach(c => {
             if (c.status === 'qr' || c.status === 'connecting' || c.initializing) {
@@ -937,7 +958,7 @@
     (async () => {
         try {
             const data = await fetchList();
-            if (data.bridge_offline) {
+            if (data.bridge_offline && data.bridge_probe?.can_spawn) {
                 await startBridge();
                 await fetchList();
             }

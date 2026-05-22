@@ -1,16 +1,17 @@
-# Coolify → Docker Compose (kaynak: bu dosya veya kök compose.yaml)
+# GY Panel — panel + WhatsApp köprüsü (Coolify, 1Panel, Railway, ham Docker)
 services:
   app:
     build:
-      context: ../..
+      context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    expose:
-      - "8000"
+    ports:
+      - "8000:8000"
     environment:
       PORT: "8000"
       WHATSAPP_BRIDGE_URL: http://whatsapp-bridge:3939
       DJANGO_WHATSAPP_BRIDGE_CAN_SPAWN: "0"
+      DJANGO_WHATSAPP_BRIDGE_AUTO_START: "0"
     volumes:
       - gy_data:/data
     depends_on:
@@ -19,7 +20,7 @@ services:
 
   whatsapp-bridge:
     build:
-      context: ../..
+      context: .
       dockerfile: deploy/whatsapp-bridge/Dockerfile
     restart: unless-stopped
     expose:

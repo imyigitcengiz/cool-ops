@@ -82,6 +82,12 @@ WHATSAPP_BRIDGE_AUTO_START = os.environ.get(
     'DJANGO_WHATSAPP_BRIDGE_AUTO_START',
     '0',
 ).lower() in ('1', 'true', 'yes')
+# Yerel Node köprüsünü Django sürecinden başlatma (Docker/production: 0)
+_can_spawn_env = os.environ.get('DJANGO_WHATSAPP_BRIDGE_CAN_SPAWN', '').strip()
+if _can_spawn_env:
+    WHATSAPP_BRIDGE_CAN_SPAWN = _can_spawn_env.lower() in ('1', 'true', 'yes')
+else:
+    WHATSAPP_BRIDGE_CAN_SPAWN = not bool(os.environ.get('DATA_DIR', '').strip())
 WHATSAPP_BRIDGE_RUN_AS_ADMIN = os.environ.get(
     'DJANGO_WHATSAPP_BRIDGE_RUN_AS_ADMIN', '0',
 ).lower() in ('1', 'true', 'yes')

@@ -58,9 +58,11 @@ class WhatsappBaglanView(TemplateView):
     def get_context_data(self, **kwargs):
         import sys
         from django.conf import settings as django_settings
+        from tools.whatsapp_bridge_runner import bridge_spawn_allowed
+
         context = super().get_context_data(**kwargs)
         context['whatsapp_bridge_url'] = getattr(django_settings, 'WHATSAPP_BRIDGE_URL', 'http://127.0.0.1:3939')
-        context['whatsapp_bridge_auto_start'] = getattr(django_settings, 'WHATSAPP_BRIDGE_AUTO_START', True)
+        context['whatsapp_bridge_can_spawn'] = bridge_spawn_allowed()
         context['whatsapp_bridge_is_windows'] = sys.platform == 'win32'
         return context
 

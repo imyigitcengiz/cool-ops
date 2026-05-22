@@ -1,14 +1,19 @@
-# GY Dashboard
+# GY Panel (CRM / servis dashboard)
 
-Django CRM / servis paneli.
+Django tabanlı CRM ve servis paneli — müşteri başına ayrı sunucuda kurulur.
 
-## Coolify (üretim)
+## Üretim
 
-Kurulum: **[deploy/coolify/README.md](deploy/coolify/README.md)**
+**[DEPLOY.md](DEPLOY.md)** — Docker Compose, Coolify, 1Panel, ortam değişkenleri, WhatsApp köprüsü.
 
-- Dockerfile (kök)
-- Kalıcı volume: `/data`
-- Ortam örneği: `deploy/coolify/.env.example`
+```bash
+docker compose up -d --build
+```
+
+- Kalıcı veri: volume `/data`
+- WhatsApp: `whatsapp-bridge` servisi (panel ile birlikte `compose.yaml`)
+
+Coolify notları: [deploy/coolify/README.md](deploy/coolify/README.md)
 
 ## Yerel geliştirme
 
@@ -20,4 +25,5 @@ python manage.py migrate
 python manage.py runserver
 ```
 
-WhatsApp köprüsü (isteğe bağlı): `tools/whatsapp_bridge` → `npm install && npm start`
+WhatsApp (yerel): `tools/whatsapp_bridge` → `npm install && npm start`  
+veya `DJANGO_WHATSAPP_BRIDGE_AUTO_START=1` ile runserver otomatik dener.

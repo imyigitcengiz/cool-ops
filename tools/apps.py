@@ -31,11 +31,17 @@ class ToolsConfig(AppConfig):
             return
         from django.conf import settings
 
-        if not getattr(settings, 'WHATSAPP_BRIDGE_AUTO_START', True):
+        if not getattr(settings, 'WHATSAPP_BRIDGE_AUTO_START', False):
             return
         try:
-            from tools.whatsapp_bridge_runner import bridge_reachable, try_spawn_bridge_process
+            from tools.whatsapp_bridge_runner import (
+                bridge_reachable,
+                bridge_spawn_allowed,
+                try_spawn_bridge_process,
+            )
 
+            if not bridge_spawn_allowed():
+                return
             if not bridge_reachable(timeout=0.5):
                 try_spawn_bridge_process()
         except Exception:

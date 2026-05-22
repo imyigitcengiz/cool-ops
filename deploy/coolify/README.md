@@ -69,7 +69,33 @@ Alternatif: JSON.gz (aynı sayfada).
 | 400 DisallowedHost | `DJANGO_ALLOWED_HOSTS` |
 | CSRF | `DJANGO_CSRF_TRUSTED_ORIGINS` https URL |
 | DB sıfırlanıyor | Volume `/data` |
-| WhatsApp | Ayrı servis; `WHATSAPP_BRIDGE_URL` |
+| WhatsApp “başlatılıyor” | Sadece panel konteyneri yetmez; köprü servisi gerekir (aşağı) |
+
+## 6. WhatsApp köprüsü (zorunlu — mesaj / QR için)
+
+Panel imajında Node yoktur. İki yol:
+
+### A) Docker Compose (önerilen)
+
+Coolify’da **Docker Compose** kaynağı: repo kökündeki `compose.yaml` veya `deploy/coolify/compose.yaml`.
+
+- `app` + `whatsapp-bridge` birlikte ayağa kalkar
+- App ortamı: `WHATSAPP_BRIDGE_URL=http://whatsapp-bridge:3939`
+- Köprü oturumu: volume `whatsapp_session`
+
+### B) İki ayrı Coolify uygulaması
+
+1. **Panel** — kök `Dockerfile`, port 8000, volume `/data`
+2. **Köprü** — `deploy/whatsapp-bridge/Dockerfile`, port 3939 (dışarı açmayın)
+
+Aynı Coolify projesinde internal hostname ile panelde:
+
+```env
+WHATSAPP_BRIDGE_URL=http://<köprü-container-hostname>:3939
+DJANGO_WHATSAPP_BRIDGE_CAN_SPAWN=0
+```
+
+Köprü logları: `docker logs` — Chromium/QR hataları burada görünür.
 
 ## Yerel Docker test (isteğe bağlı)
 

@@ -10,6 +10,10 @@ const app = express();
 app.use(cors());
 app.use(express.json({ limit: '1mb' }));
 
+app.get('/health', (_req, res) => {
+  res.json({ ok: true, service: 'gy-whatsapp-bridge' });
+});
+
 /* WhatsApp Bağlan sayfasında gösterilecek dosya günlüğü — bridge_ui.log */
 (function attachUiLogMirror() {
   const logPath = path.join(__dirname, 'bridge_ui.log');
@@ -160,22 +164,28 @@ async function ensureClient(id) {
   session.state.status = 'connecting';
   console.log(`[${id}] WhatsApp istemcisi başlatılıyor…`);
 
+  const puppeteerOpts = {
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+      '--no-first-run',
+      '--no-zygote',
+    ],
+  };
+  const chromePath = (process.env.PUPPETEER_EXECUTABLE_PATH || '').trim();
+  if (chromePath) {
+    puppeteerOpts.executablePath = chromePath;
+  }
+
   const waClient = new Client({
     authStrategy: new LocalAuth({
       clientId: String(id),
       dataPath: path.join(__dirname, 'session'),
     }),
-    puppeteer: {
-      headless: true,
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-gpu',
-        '--no-first-run',
-        '--no-zygote',
-      ],
-    },
+    puppeteer: puppeteerOpts,
   });
 
   session.client = waClient;

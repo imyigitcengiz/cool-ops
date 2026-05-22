@@ -48,14 +48,55 @@ def _append_spawn_log(message: str) -> None:
         pass
 
 
+def _is_local_bridge_url() -> bool:
+    host = (urlparse(_bridge_base_url()).hostname or '').lower()
+    return host in ('127.0.0.1', 'localhost', '::1')
+
+
+def bridge_spawn_allowed() -> bool:
+    """Yerel Node süreci Django tarafından başlatılabilir mi (geliştirme / Windows)."""
+    if not getattr(settings, 'WHATSAPP_BRIDGE_CAN_SPAWN', True):
+        return False
+    return _is_local_bridge_url()
+
+
+def _offline_detail_local() -> str:
+    if bridge_spawn_allowed():
+        return 'Köprü kapalı. "Köprüyü başlat" ile açın veya birkaç saniye bekleyin.'
+    return (
+        'Köprü bu sunucuda otomatik başlatılmıyor. '
+        'whatsapp-bridge servisini çalıştırın ve WHATSAPP_BRIDGE_URL ayarlayın '
+        '(DEPLOY.md).'
+    )
+
+
+def _offline_detail_remote(base: str, err: str | None = None) -> str:
+    msg = f'Köprüye ulaşılamıyor ({base}).'
+    if err:
+        short = err.replace('\n', ' ')[:160]
+        msg += f' Hata: {short}'
+    msg += ' whatsapp-bridge konteynerinin/sürecinin çalıştığını doğrulayın.'
+    return msg
+
+
 def probe_bridge(timeout: float = 0.6) -> dict:
     """Köprü durumu: none | legacy | modern | blocked."""
     base = _bridge_base_url()
     port = _bridge_port()
-    out = {'state': 'none', 'legacy': False, 'modern': False, 'detail': ''}
+    local = _is_local_bridge_url()
+    can_spawn = bridge_spawn_allowed()
+    out = {
+        'state': 'none',
+        'legacy': False,
+        'modern': False,
+        'detail': '',
+        'can_spawn': can_spawn,
+        'bridge_url': base,
+        'is_local': local,
+    }
 
-    if not _port_is_listening(port):
-        out['detail'] = 'Köprü çalışmıyor — başlatılıyor…'
+    if local and not _port_is_listening(port):
+        out['detail'] = _offline_detail_local()
         return out
 
     try:
@@ -63,8 +104,10 @@ def probe_bridge(timeout: float = 0.6) -> dict:
         if r_modern.ok:
             out.update(state='modern', modern=True, detail='Köprü çalışıyor.')
             return out
-    except requests.RequestException:
-        pass
+    except requests.RequestException as exc:
+        if not local:
+            out['detail'] = _offline_detail_remote(base, str(exc))
+            return out
 
     try:
         r_legacy = requests.get(f'{base}/api/status', timeout=timeout)
@@ -72,26 +115,31 @@ def probe_bridge(timeout: float = 0.6) -> dict:
             out.update(
                 state='legacy',
                 legacy=True,
-                detail='Eski köprü sürümü algılandı; yeniden başlatılıyor…',
+                detail='Eski köprü sürümü algılandı; yeniden başlatın.',
             )
             return out
     except requests.RequestException:
         pass
 
-    out.update(
-        state='blocked',
-        detail=f'Port {port} dolu ama köprü yanıt vermiyor — süreç kapatılıp yeniden açılacak.',
-    )
+    if local:
+        if _port_is_listening(port):
+            out.update(
+                state='blocked',
+                detail=(
+                    f'Port {port} dolu ama köprü yanıt vermiyor — '
+                    'süreç kapatılıp yeniden açılacak.'
+                ),
+            )
+        else:
+            out['detail'] = _offline_detail_local()
+        return out
+
+    out['detail'] = _offline_detail_remote(base)
     return out
 
 
 def bridge_reachable(timeout: float = 0.8) -> bool:
     return probe_bridge(timeout).get('modern') is True
-
-
-def _is_local_bridge_url() -> bool:
-    host = (urlparse(_bridge_base_url()).hostname or '').lower()
-    return host in ('127.0.0.1', 'localhost', '::1')
 
 
 def _resolve_node_executable() -> str | None:
@@ -240,15 +288,25 @@ def _spawn_windows(node_exe: str, bridge_dir: Path, bat_path: Path, *, as_admin:
 def try_spawn_bridge_process(*, force: bool = False, as_admin: bool | None = None) -> dict:
     global _LAST_SPAWN_MONO
 
+    probe = probe_bridge()
+
+    if not bridge_spawn_allowed():
+        return {
+            'spawned': False,
+            'reason': 'spawn_disabled',
+            'message': probe.get('detail') or _offline_detail_local(),
+            'probe': probe,
+        }
+
     now = time.monotonic()
     if not force and now - _LAST_SPAWN_MONO < _DEBOUNCE_SEC:
         return {
             'spawned': False,
             'reason': 'recent',
             'message': 'Az önce başlatma denendi; birkaç saniye bekleyin.',
+            'probe': probe,
         }
 
-    probe = probe_bridge()
     if probe['modern']:
         return {'spawned': False, 'reason': 'already_running', 'message': None, 'probe': probe}
 
@@ -257,14 +315,6 @@ def try_spawn_bridge_process(*, force: bool = False, as_admin: bool | None = Non
             'spawned': False,
             'reason': 'not_localhost',
             'message': 'WHATSAPP_BRIDGE_URL yerel adres değil; otomatik başlatılamıyor.',
-            'probe': probe,
-        }
-
-    if not getattr(settings, 'WHATSAPP_BRIDGE_AUTO_START', True):
-        return {
-            'spawned': False,
-            'reason': 'disabled',
-            'message': 'Otomatik köprü başlatma ayarlarda kapalı.',
             'probe': probe,
         }
 
@@ -307,7 +357,6 @@ def try_spawn_bridge_process(*, force: bool = False, as_admin: bool | None = Non
             time.sleep(1.0)
 
     if as_admin is None:
-        # İlk otomatik başlatma normal kullanıcı; "Tekrar dene" (force) yönetici dener.
         as_admin = bool(force and getattr(settings, 'WHATSAPP_BRIDGE_RUN_AS_ADMIN', False))
 
     _LAST_SPAWN_MONO = now
