@@ -19,7 +19,6 @@ media/
 .env
 .env.*
 !.env.example
-deploy/1panel/.env.example
 
 # IDE / OS
 .idea/

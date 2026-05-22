@@ -80,7 +80,7 @@ else:
 WHATSAPP_BRIDGE_URL = os.environ.get('WHATSAPP_BRIDGE_URL', 'http://127.0.0.1:3939').strip()
 WHATSAPP_BRIDGE_AUTO_START = os.environ.get(
     'DJANGO_WHATSAPP_BRIDGE_AUTO_START',
-    '1' if DEBUG else '0',
+    '0',
 ).lower() in ('1', 'true', 'yes')
 WHATSAPP_BRIDGE_RUN_AS_ADMIN = os.environ.get(
     'DJANGO_WHATSAPP_BRIDGE_RUN_AS_ADMIN', '0',

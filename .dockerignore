@@ -16,13 +16,10 @@ logs
 .env
 .env.*
 !.env.example
-deploy/1panel/.env.example
 tools/whatsapp_bridge/node_modules
 tools/whatsapp_bridge/.wwebjs_cache
 tools/whatsapp_bridge/.wwebjs_auth
 tools/whatsapp_bridge/session
 *.md
+!README.md
 !deploy/coolify/README.md
-!deploy/docker/README.md
-gy-dashboard-py-image.tar
-.env.docker

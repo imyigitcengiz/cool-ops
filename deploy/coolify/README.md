@@ -1,57 +1,81 @@
 # Coolify kurulumu
 
-## Kaynak
+Tek üretim yolu: **GitHub + Dockerfile + `/data` volume**.
 
-- Repo: `https://github.com/imyigitcengiz/gy-dashboard-py.git`
-- Build: **Dockerfile** (repo kökünde)
-- Port: **8000** (veya Coolify’ın verdiği `PORT` — entrypoint otomatik kullanır)
+## 1. Coolify uygulaması
 
-## Persistent storage (zorunlu)
+| Ayar | Değer |
+|------|--------|
+| Kaynak | `https://github.com/imyigitcengiz/gy-dashboard-py` |
+| Branch | `main` |
+| Build | **Dockerfile** (kök) |
+| Port (container) | `8000` |
+| Health check | `/giris/` (Dockerfile’da tanımlı) |
 
-| Container path | İçerik |
-|----------------|--------|
-| `/data` | `db.sqlite3` + `media/` |
+## 2. Kalıcı depolama (zorunlu)
 
-Environment:
+**Persistent Storage** ekleyin:
 
-```
-DATA_DIR=/data
-DJANGO_DB_PATH=/data/db.sqlite3
-DJANGO_MEDIA_ROOT=/data/media
-```
+- **Mount path:** `/data`
+- İçerik: `db.sqlite3`, `media/`
 
-## Ortam değişkenleri
+Volume yoksa her deploy’da veritabanı sıfırlanır.
 
-`deploy/coolify/.env.example` dosyasındaki değerleri Coolify UI → Environment’a ekleyin.
+## 3. Ortam değişkenleri
 
-Domain örneği:
+`deploy/coolify/.env.example` dosyasını Coolify **Environment** alanına kopyalayın.
 
-```
-DJANGO_ALLOWED_HOSTS=crm.sizin.com
-DJANGO_CSRF_TRUSTED_ORIGINS=https://crm.sizin.com
+Minimum:
+
+```env
+DJANGO_SECRET_KEY=...
+DJANGO_ALLOWED_HOSTS=panel.sizin.com
+DJANGO_CSRF_TRUSTED_ORIGINS=https://panel.sizin.com
 DJANGO_SECURE_SSL=1
+DJANGO_ENSURE_SUPERADMIN=1
+```
+
+İlk girişten sonra `DJANGO_ENSURE_SUPERADMIN=0` yapıp redeploy edin.
+
+`DATA_DIR`, `DJANGO_DB_PATH`, `DJANGO_MEDIA_ROOT` Dockerfile’da hazır; Coolify’da tekrar yazmanız gerekmez.
+
+## 4. Domain
+
+- Domain ekleyin, HTTPS açın
+- `ALLOWED_HOSTS` ve `CSRF_TRUSTED_ORIGINS` tam domain ile eşleşmeli
+
+## 5. Deploy
+
+Logda beklenen:
+
+```text
+[gy-dashboard] migrate + collectstatic...
+[gy-dashboard] daphne 0.0.0.0:8000
 ```
 
 ## Veri taşıma
 
-1. Lokal: `/tools/yedekler/` → `.json.gz` indir  
-2. Sunucu ayağa kalkınca aynı sayfadan import  
-3. `media/` klasörünü `/data/media` volume’e kopyalayın  
-
-## Medya sıkıştırma
-
-Yüklenen dosyalar sunucuda türüne göre işlenir: resimler yeniden boyutlandırılır (JPEG/WebP), video ve ses `ffmpeg` ile sıkıştırılır (Docker imajında kurulu). Arşiv ve belgeler olduğu gibi saklanır.
+1. Eski sistem: `/tools/yedekler/` → `.json.gz`
+2. Yeni panel: aynı sayfadan import (otomatik `migrate` + veri)
+3. Eski `media/` → sunucuda volume: `docker cp ./media/. <container>:/data/media/`
 
 ## Sorun giderme
 
 | Belirti | Çözüm |
 |---------|--------|
-| Container hemen kapanıyor | Loglara bakın; `PORT` ve `0.0.0.0` bind — Dockerfile/entrypoint kullanın |
-| 400 Bad Request (DisallowedHost) | `DJANGO_ALLOWED_HOSTS` domain ekleyin |
-| CSRF hatası | `DJANGO_CSRF_TRUSTED_ORIGINS` https URL |
-| Statik dosya yok | `collectstatic` entrypoint’te çalışır; redeploy |
-| DB sıfırlanıyor | `/data` volume bağlı mı kontrol edin |
+| Container kapanıyor | Logs; `PORT` ve entrypoint `0.0.0.0` |
+| 400 DisallowedHost | `DJANGO_ALLOWED_HOSTS` |
+| CSRF | `DJANGO_CSRF_TRUSTED_ORIGINS` https URL |
+| DB sıfırlanıyor | Volume `/data` |
+| WhatsApp | Ayrı servis; `WHATSAPP_BRIDGE_URL` |
 
-## WhatsApp köprüsü
+## Yerel Docker test (isteğe bağlı)
 
-Ayrı Node servisi olarak çalıştırın; `WHATSAPP_BRIDGE_URL` o servisin iç URL’si olsun.
+```bash
+docker build -t gy-dashboard .
+docker run --rm -p 8000:8000 -v gy_data:/data \
+  -e DJANGO_SECRET_KEY=test -e DJANGO_ALLOWED_HOSTS=localhost \
+  -e DJANGO_CSRF_TRUSTED_ORIGINS=http://localhost:8000 \
+  -e DJANGO_ENSURE_SUPERADMIN=1 \
+  gy-dashboard
+```

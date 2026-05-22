@@ -1,0 +1,16 @@
+# İsteğe bağlı: Coolify → Docker Compose kaynağı (Application + Dockerfile yerine)
+services:
+  gy-dashboard:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      PORT: "8000"
+    volumes:
+      - gy_data:/data
+
+volumes:
+  gy_data:

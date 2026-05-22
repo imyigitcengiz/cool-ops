@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Coolify: ön planda Daphne — container hemen kapanmasın diye exec kullanılır.
 set -euo pipefail
 
 cd /app
@@ -13,7 +12,7 @@ export DJANGO_MEDIA_ROOT="${DJANGO_MEDIA_ROOT:-$DATA_DIR/media}"
 export DJANGO_SERVE_MEDIA="${DJANGO_SERVE_MEDIA:-1}"
 
 HOST="${DAPHNE_HOST:-0.0.0.0}"
-PORT="${PORT:-${DAPHNE_PORT:-8000}}"
+PORT="${PORT:-8000}"
 
 echo "[gy-dashboard] migrate + collectstatic..."
 python manage.py migrate --noinput
