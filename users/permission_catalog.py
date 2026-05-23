@@ -166,6 +166,7 @@ ROUTE_PERMISSIONS = [
     ('/tools/whatsapp', 'tools.whatsapp'),
     ('/tools/', 'access.tools'),
     ('/admin/', None),
+    ('/media/', None),
     ('/', 'access.home'),
 ]
 

@@ -1,5 +1,7 @@
 from django.db import models
 
+from common.storage_paths import site_logo_upload_to
+
 from .color_utils import DEFAULT_HEX, normalize_hex
 
 
@@ -16,7 +18,7 @@ class SiteSettings(models.Model):
     ]
 
     site_name = models.CharField(max_length=255, default="GÖLGEDE YAŞAM")
-    logo = models.ImageField(upload_to='site/', null=True, blank=True)
+    logo = models.ImageField(upload_to=site_logo_upload_to, null=True, blank=True)
     company_phone = models.CharField(max_length=50, blank=True, null=True, verbose_name="Firma Telefonu")
     company_address = models.TextField(blank=True, null=True, verbose_name="Firma Adresi")
     bulk_print_default_sort = models.CharField(

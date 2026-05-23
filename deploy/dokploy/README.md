@@ -100,5 +100,6 @@ Push = Dokploy yeniden build/deploy (ayrı `sync.sh` gerekmez).
 | CSRF | `DJANGO_CSRF_TRUSTED_ORIGINS` — sslip için `http://tam-host` |
 | WhatsApp kapalı | `whatsapp-bridge` log; `WHATSAPP_BRIDGE_URL` servis adı |
 | Veri sıfırlandı | Volume silinmiş; `gy_data` koru |
+| Logo / medya görünmüyor | `DJANGO_MEDIA_ROOT=/data/media`, volume `gy_data` → `/data`. Logo yeniden yükle (`/media/site/logo.jpg`). Eski Türkçe dosya adlı URL'ler geçersiz olabilir. |
 
 Genel deploy: [DEPLOY.md](../../DEPLOY.md)

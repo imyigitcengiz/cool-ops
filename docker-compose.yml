@@ -12,6 +12,8 @@ services:
       - "8000:8000"
     environment:
       PORT: "8000"
+      DJANGO_MEDIA_ROOT: /data/media
+      DJANGO_SERVE_MEDIA: "1"
       WHATSAPP_BRIDGE_URL: http://whatsapp-bridge:3939
       DJANGO_WHATSAPP_BRIDGE_CAN_SPAWN: "0"
       DJANGO_WHATSAPP_BRIDGE_AUTO_START: "0"

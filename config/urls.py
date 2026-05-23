@@ -1,10 +1,11 @@
 import os
 
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
 from analytics.views import HomeView
+from common.media_views import serve_media_file
 from common.views import healthz
 
 urlpatterns = [
@@ -23,5 +24,9 @@ urlpatterns = [
 ]
 
 _serve_media = os.environ.get('DJANGO_SERVE_MEDIA', '1').lower() not in ('0', 'false', 'no')
-if settings.DEBUG or _serve_media:
+if _serve_media:
+    urlpatterns += [
+        re_path(r'^media/(?P<path>.*)$', serve_media_file, name='serve_media'),
+    ]
+elif settings.DEBUG:
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
