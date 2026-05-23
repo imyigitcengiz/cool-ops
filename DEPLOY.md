@@ -1,4 +1,4 @@
-# GY Panel — üretim kurulumu
+# KobiOps — üretim kurulumu
 
 Bu ürün **müşteri başına ayrı kurulum** içindir (her müşteri kendi VPS / panelinde). Tek kod tabanı; Coolify, 1Panel, Portainer, Railway veya `docker compose` ile dağıtılabilir.
 
@@ -14,8 +14,8 @@ Panel konteynerinde Node/Puppeteer **yoktur**. Köprü ayrı servistir.
 ## Hızlı başlangıç (önerilen)
 
 ```bash
-git clone https://github.com/imyigitcengiz/gy-dashboard-py.git
-cd gy-dashboard-py
+git clone https://github.com/imyigitcengiz/kobi-ops.git
+cd kobi-ops
 cp deploy/coolify/.env.example .env
 # .env içinde DJANGO_SECRET_KEY, DJANGO_ALLOWED_HOSTS, DJANGO_CSRF_TRUSTED_ORIGINS doldurun
 

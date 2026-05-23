@@ -1,4 +1,4 @@
-# GY Panel — panel + WhatsApp köprüsü (Coolify, 1Panel, Railway, ham Docker)
+# KobiOps — panel + WhatsApp köprüsü (Coolify, 1Panel, Railway, ham Docker)
 services:
   app:
     build:

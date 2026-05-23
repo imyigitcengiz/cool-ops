@@ -6,7 +6,7 @@ Tek üretim yolu: **GitHub + Dockerfile + `/data` volume**.
 
 | Ayar | Değer |
 |------|--------|
-| Kaynak | `https://github.com/imyigitcengiz/gy-dashboard-py` |
+| Kaynak | `https://github.com/imyigitcengiz/kobi-ops` |
 | Branch | `main` |
 | Build | **Dockerfile** (kök) |
 | Port (container) | `8000` |
