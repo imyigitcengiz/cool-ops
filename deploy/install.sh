@@ -60,6 +60,17 @@ is_ipv4() {
   [[ "$1" =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}$ ]]
 }
 
+is_http_only_domain() {
+  case "$1" in
+    *.sslip.io|*.traefik.me) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
+timestamp_iso() {
+  date -u +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date '+%Y-%m-%d %H:%M:%S'
+}
+
 if [[ -f .env && "$FORCE" -ne 1 ]]; then
   echo ".env zaten var. Üzerine yazmak için: ./deploy/install.sh --force"
   echo "Sadece yeniden build: docker compose up -d --build"
@@ -89,8 +100,7 @@ if [[ -n "$DOMAIN" ]]; then
   DOMAIN="${DOMAIN%%:*}"
   if ! is_ipv4 "$DOMAIN"; then
     HOSTS="${HOSTS},${DOMAIN}"
-    # sslip.io / traefik.me: sadece HTTP (Dokploy uyarısı)
-    if [[ "$DOMAIN" == *.sslip.io ]] || [[ "$DOMAIN" == *.traefik.me ]]; then
+    if is_http_only_domain "$DOMAIN"; then
       CSRF="${CSRF},http://${DOMAIN}"
       SECURE_SSL=0
     else
@@ -104,7 +114,7 @@ if [[ -n "$DOMAIN" ]]; then
 fi
 
 cat > .env <<EOF
-# Otomatik üretildi: $(date -Is)
+# Otomatik üretildi: $(timestamp_iso)
 DJANGO_SECRET_KEY=${SECRET}
 DJANGO_ALLOWED_HOSTS=${HOSTS}
 DJANGO_CSRF_TRUSTED_ORIGINS=${CSRF}
@@ -132,7 +142,7 @@ docker compose up -d --build
 echo ""
 echo "=== Hazır ==="
 if [[ -n "$DOMAIN" ]] && ! is_ipv4 "$DOMAIN"; then
-  if [[ "$DOMAIN" == *.sslip.io ]] || [[ "$DOMAIN" == *.traefik.me ]]; then
+  if is_http_only_domain "$DOMAIN"; then
     echo "  Panel: http://${DOMAIN}/giris/"
   else
     echo "  Panel: https://${DOMAIN}/giris/"
