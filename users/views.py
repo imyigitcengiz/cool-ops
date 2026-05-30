@@ -1,10 +1,11 @@
 from django.contrib import messages
-from django.contrib.auth import login
-from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView as AuthLoginView, LogoutView as AuthLogoutView
 from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.generic import TemplateView
+
+from common.login_throttle import clear_login_attempts, is_login_blocked, register_failed_login
 from .forms import UserLoginForm, UserPasswordChangeForm, UserProfileForm
 from .utils import get_or_create_user_profile
 
@@ -14,21 +15,43 @@ class UserLoginView(AuthLoginView):
     authentication_form = UserLoginForm
     redirect_authenticated_user = True
 
+    def dispatch(self, request, *args, **kwargs):
+        if request.method == 'POST' and is_login_blocked(request):
+            messages.error(
+                request,
+                'Çok fazla başarısız giriş denemesi. Lütfen 15 dakika sonra tekrar deneyin.',
+            )
+            return redirect('login')
+        return super().dispatch(request, *args, **kwargs)
+
     def get_success_url(self):
         redirect_to = self.request.POST.get('next') or self.request.GET.get('next')
-        if redirect_to:
+        if redirect_to and url_has_allowed_host_and_scheme(
+            redirect_to,
+            allowed_hosts={self.request.get_host()},
+            require_https=self.request.is_secure(),
+        ):
             return redirect_to
-        user = self.request.user
-        if user.is_superuser:
+        if self.request.user.is_superuser:
             return reverse('admin_dashboard')
         return reverse('home')
+
+    def form_invalid(self, form):
+        register_failed_login(self.request)
+        return super().form_invalid(form)
+
     def form_valid(self, form):
+        clear_login_attempts(self.request, form.cleaned_data.get('username', ''))
         messages.success(self.request, f'Hoş geldiniz, {form.get_user().display_name}.')
         return super().form_valid(form)
 
 
+from django.contrib.auth.mixins import LoginRequiredMixin
+
+
 class UserLogoutView(AuthLogoutView):
     next_page = reverse_lazy('landing')
+
     def dispatch(self, request, *args, **kwargs):
         response = super().dispatch(request, *args, **kwargs)
         if request.method == 'POST':

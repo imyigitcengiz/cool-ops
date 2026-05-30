@@ -170,5 +170,5 @@ ROUTE_PERMISSIONS = [
     ('/panel/', 'access.home'),
 ]
 
-LOGIN_EXEMPT_PREFIXES = ('/giris/', '/static/', '/media/', '/healthz/')
+LOGIN_EXEMPT_PREFIXES = ('/giris/', '/static/', '/healthz/')
 SUPERUSER_ONLY_PREFIXES = ('/yonetim/',)

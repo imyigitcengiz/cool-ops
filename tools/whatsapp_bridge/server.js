@@ -1,5 +1,4 @@
 const express = require('express');
-const cors = require('cors');
 const fs = require('fs');
 const path = require('path');
 const qrcode = require('qrcode');
@@ -8,12 +7,40 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const PORT = process.env.WHATSAPP_BRIDGE_PORT || 3939;
 /** Docker / Coolify: 0.0.0.0 — yerel geliştirme varsayılanı 127.0.0.1 */
 const BIND_HOST = process.env.WHATSAPP_BRIDGE_BIND || '127.0.0.1';
+const SECRETS_DIR = process.env.KOBIOPS_SECRETS_DIR || '/run/kobiops-secrets';
 const app = express();
-app.use(cors());
+
+function readBridgeToken() {
+  const env = (process.env.WHATSAPP_BRIDGE_TOKEN || '').trim();
+  if (env) return env;
+  try {
+    const tokenPath = path.join(SECRETS_DIR, 'whatsapp_bridge_token');
+    return fs.readFileSync(tokenPath, 'utf8').trim();
+  } catch (_) {
+    return '';
+  }
+}
+
 app.use(express.json({ limit: '1mb' }));
 
 app.get('/health', (_req, res) => {
   res.json({ ok: true, service: 'gy-whatsapp-bridge' });
+});
+
+app.use((req, res, next) => {
+  if (req.path === '/health') return next();
+  const expected = readBridgeToken();
+  if (!expected) {
+    if (BIND_HOST !== '127.0.0.1' && BIND_HOST !== '::1') {
+      return res.status(503).json({ ok: false, error: 'Bridge token not configured yet.' });
+    }
+    return next();
+  }
+  const auth = req.headers.authorization || '';
+  if (auth !== `Bearer ${expected}`) {
+    return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  }
+  next();
 });
 
 /* WhatsApp Bağlan sayfasında gösterilecek dosya günlüğü — bridge_ui.log */

@@ -75,8 +75,9 @@ if _lan_ip and _lan_ip not in ALLOWED_HOSTS:
 if DEBUG:
     ALLOWED_HOSTS.append('*')
 
-# Dokploy test domainleri (sslip.io) her redeploy'da değişir — tek tek yazmaya gerek kalmasın
-if os.environ.get('DJANGO_ALLOW_SSLIP_HOSTS', '1').lower() in ('1', 'true', 'yes'):
+# Dokploy test domainleri (sslip.io) — üretimde kapalı; geliştirmede açılabilir
+_sslip_default = '0' if os.environ.get('DATA_DIR', '').strip() else '1'
+if os.environ.get('DJANGO_ALLOW_SSLIP_HOSTS', _sslip_default).lower() in ('1', 'true', 'yes'):
     for _wild in ('.sslip.io', '.traefik.me'):
         if _wild not in ALLOWED_HOSTS:
             ALLOWED_HOSTS.append(_wild)
@@ -132,6 +133,17 @@ WHATSAPP_BRIDGE_AUTO_INSTALL_NODE = os.environ.get(
 ).lower() in ('1', 'true', 'yes')
 # İsteğe bağlı: node.exe tam yolu (boşsa Program Files\nodejs aranır; Cursor IDE node'u atlanır)
 WHATSAPP_BRIDGE_NODE = os.environ.get('WHATSAPP_BRIDGE_NODE', '').strip()
+
+from common.bridge_token import read_bridge_token  # noqa: E402
+
+WHATSAPP_BRIDGE_TOKEN = read_bridge_token()
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'kobiops-default',
+    }
+}
 
 
 # Application definition
@@ -271,7 +283,7 @@ LOGOUT_REDIRECT_URL = 'landing'
 
 _use_secure_ssl = os.environ.get('DJANGO_SECURE_SSL', '').lower() in ('1', 'true', 'yes')
 # sslip.io / traefik.me: HTTPS yok; SECURE_SSL=1 → http→https redirect → Traefik 404
-if os.environ.get('DJANGO_ALLOW_SSLIP_HOSTS', '1').lower() in ('1', 'true', 'yes'):
+if os.environ.get('DJANGO_ALLOW_SSLIP_HOSTS', _sslip_default).lower() in ('1', 'true', 'yes'):
     if '.sslip.io' in ALLOWED_HOSTS or '.traefik.me' in ALLOWED_HOSTS:
         _use_secure_ssl = False
     elif _panel_fqdn and is_http_only_panel_host(_panel_fqdn):

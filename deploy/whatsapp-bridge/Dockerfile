@@ -18,10 +18,12 @@ COPY tools/whatsapp_bridge/package.json tools/whatsapp_bridge/package-lock.json 
 RUN npm ci --omit=dev
 
 COPY tools/whatsapp_bridge/server.js ./
+COPY deploy/whatsapp-bridge/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
 
 EXPOSE 3939
 
 HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
     CMD node -e "require('http').get('http://127.0.0.1:'+(process.env.WHATSAPP_BRIDGE_PORT||3939)+'/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"
 
-CMD ["node", "server.js"]
+ENTRYPOINT ["/docker-entrypoint.sh"]

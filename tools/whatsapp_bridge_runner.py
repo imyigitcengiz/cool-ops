@@ -16,6 +16,8 @@ from urllib.parse import urlparse
 import requests
 from django.conf import settings
 
+from common.bridge_token import bridge_auth_headers
+
 _LAST_SPAWN_MONO = 0.0
 _DEBOUNCE_SEC = 8.0
 _DEPS_INSTALL_LOCK = threading.Lock()
@@ -101,8 +103,10 @@ def probe_bridge(timeout: float = 0.6) -> dict:
         out['detail'] = _offline_detail_local()
         return out
 
+    headers = bridge_auth_headers()
+
     try:
-        r_modern = requests.get(f'{base}/api/connections', timeout=timeout)
+        r_modern = requests.get(f'{base}/api/connections', timeout=timeout, headers=headers)
         if r_modern.ok:
             out.update(state='modern', modern=True, detail='Köprü çalışıyor.')
             return out
@@ -112,7 +116,7 @@ def probe_bridge(timeout: float = 0.6) -> dict:
             return out
 
     try:
-        r_legacy = requests.get(f'{base}/api/status', timeout=timeout)
+        r_legacy = requests.get(f'{base}/api/status', timeout=timeout, headers=headers)
         if r_legacy.ok:
             out.update(
                 state='legacy',

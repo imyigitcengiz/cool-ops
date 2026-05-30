@@ -163,8 +163,34 @@ if [[ -n "${DJANGO_ALLOWED_HOSTS:-}" ]]; then
   fi
 fi
 
-# İlk kurulum: admin oluştur (panel .env yazmadan)
-export DJANGO_ENSURE_SUPERADMIN="${DJANGO_ENSURE_SUPERADMIN:-1}"
+# sslip / traefik.me test domainleri — üretimde kapalı (DJANGO_ALLOW_SSLIP_HOSTS=0)
+export DJANGO_ALLOW_SSLIP_HOSTS="${DJANGO_ALLOW_SSLIP_HOSTS:-0}"
+
+# İlk kurulum: süper admin yalnızca yoksa oluşturulur (şifre sıfırlama için DJANGO_ENSURE_SUPERADMIN=1)
+export DJANGO_ENSURE_SUPERADMIN="${DJANGO_ENSURE_SUPERADMIN:-0}"
+
+# WhatsApp köprü Bearer token (paylaşımlı volume: kobiops_secrets)
+_secrets_dir="${KOBIOPS_SECRETS_DIR:-/run/kobiops-secrets}"
+export KOBIOPS_SECRETS_DIR="$_secrets_dir"
+mkdir -p "$_secrets_dir" 2>/dev/null || true
+_bridge_token_file="${_secrets_dir}/whatsapp_bridge_token"
+if [[ -z "${WHATSAPP_BRIDGE_TOKEN:-}" ]]; then
+  if [[ -f "$_bridge_token_file" ]]; then
+    WHATSAPP_BRIDGE_TOKEN="$(tr -d '\r\n' < "$_bridge_token_file")"
+    export WHATSAPP_BRIDGE_TOKEN
+  else
+    WHATSAPP_BRIDGE_TOKEN="$(_gen_secret)"
+    export WHATSAPP_BRIDGE_TOKEN
+    if mkdir -p "$_secrets_dir" 2>/dev/null; then
+      printf '%s' "$WHATSAPP_BRIDGE_TOKEN" > "$_bridge_token_file"
+      chmod 600 "$_bridge_token_file" 2>/dev/null || true
+      chmod 700 "$_secrets_dir" 2>/dev/null || true
+      echo "[gy-dashboard] WHATSAPP_BRIDGE_TOKEN otomatik üretildi → ${_bridge_token_file}"
+    else
+      echo "[gy-dashboard] UYARI: köprü token kalıcı kaydedilemedi (${_secrets_dir})."
+    fi
+  fi
+fi
 
 # WhatsApp köprü varsayılanları (compose servis adı: whatsapp_bridge)
 export WHATSAPP_BRIDGE_URL="${WHATSAPP_BRIDGE_URL:-http://whatsapp_bridge:3939}"

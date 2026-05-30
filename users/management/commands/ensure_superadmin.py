@@ -1,3 +1,7 @@
+import os
+import secrets
+from pathlib import Path
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
 from django.core.management.base import BaseCommand
@@ -8,16 +12,19 @@ User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = 'Süper admin hesabını (admin/admin) oluşturur veya günceller.'
+    help = 'İlk kurulumda süper admin oluşturur (rastgele şifre). Mevcut hesapların şifresini değiştirmez.'
 
     def add_arguments(self, parser):
         parser.add_argument(
             '--reset-password',
             action='store_true',
-            help='admin kullanıcısının şifresini admin olarak sıfırlar',
+            help='admin kullanıcısının şifresini yeni rastgele değerle sıfırlar',
         )
 
     def handle(self, *args, **options):
+        if User.objects.filter(is_superuser=True).exists() and not options['reset_password']:
+            return
+
         admin_role = Role.objects.filter(slug='admin').first()
         user, created = User.objects.get_or_create(
             username='admin',
@@ -39,9 +46,29 @@ class Command(BaseCommand):
                 user.role = admin_role
 
         if created or options['reset_password']:
-            user.password = make_password('admin')
-            self.stdout.write(self.style.WARNING('Şifre: admin'))
+            password = secrets.token_urlsafe(12)
+            user.password = make_password(password)
+            data_dir = Path(os.environ.get('DATA_DIR', '/data'))
+            pwd_file = data_dir / '.initial_admin_password'
+            try:
+                data_dir.mkdir(parents=True, exist_ok=True)
+                pwd_file.write_text(
+                    f'username: admin\npassword: {password}\n',
+                    encoding='utf-8',
+                )
+                os.chmod(pwd_file, 0o600)
+                pwd_hint = str(pwd_file)
+            except OSError:
+                pwd_hint = '(dosyaya yazılamadı)'
+
+            self.stdout.write(
+                self.style.WARNING(
+                    f'İlk giriş — kullanıcı: admin, şifre: {password} (kayıt: {pwd_hint})'
+                )
+            )
 
         user.save()
-        action = 'oluşturuldu' if created else 'güncellendi'
-        self.stdout.write(self.style.SUCCESS(f'Süper admin {action} (kullanıcı: admin)'))
+        if created:
+            self.stdout.write(self.style.SUCCESS('Süper admin oluşturuldu (kullanıcı: admin)'))
+        elif options['reset_password']:
+            self.stdout.write(self.style.SUCCESS('Süper admin şifresi sıfırlandı (kullanıcı: admin)'))

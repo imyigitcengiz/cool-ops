@@ -42,6 +42,8 @@ python manage.py sync_permissions 2>/dev/null || true
 python manage.py ensure_chat 2>/dev/null || true
 
 if [ "${DJANGO_ENSURE_SUPERADMIN:-0}" = "1" ]; then
+  python manage.py ensure_superadmin --reset-password 2>/dev/null || true
+else
   python manage.py ensure_superadmin 2>/dev/null || true
 fi
 

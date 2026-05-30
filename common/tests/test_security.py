@@ -112,3 +112,20 @@ class BridgeSpawnGuardTests(TestCase):
         )
         self.assertEqual(res.status_code, 403)
         self.assertEqual(res.json().get('reason'), 'spawn_disabled')
+
+
+class MediaAuthTests(TestCase):
+    def setUp(self):
+        self.client = Client()
+
+    def test_media_requires_login(self):
+        res = self.client.get('/media/site/test.png')
+        self.assertEqual(res.status_code, 302)
+        self.assertIn('/giris/', res.url)
+
+    def test_media_accessible_when_logged_in(self):
+        role = Role.objects.create(slug='media-role', name='Media', is_system=False)
+        User.objects.create_user(username='mediauser', password='test-pass-123', role=role)
+        self.client.login(username='mediauser', password='test-pass-123')
+        res = self.client.get('/media/site/nonexistent.png')
+        self.assertEqual(res.status_code, 404)

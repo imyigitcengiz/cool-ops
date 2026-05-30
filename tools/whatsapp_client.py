@@ -1,6 +1,8 @@
 import requests
 from django.conf import settings
 
+from common.bridge_token import bridge_auth_headers
+
 
 class WhatsappBridgeError(Exception):
     pass
@@ -16,8 +18,9 @@ def _base_url():
 
 def _request(method, path, *, json=None, timeout=8):
     url = f'{_base_url()}{path}'
+    headers = bridge_auth_headers()
     try:
-        response = requests.request(method, url, json=json, timeout=timeout)
+        response = requests.request(method, url, json=json, timeout=timeout, headers=headers)
     except requests.RequestException as exc:
         raise WhatsappBridgeOffline(
             'WhatsApp köprüsü çalışmıyor. Birkaç saniye bekleyin veya Tools → WhatsApp’ta köprüyü başlatın.'
