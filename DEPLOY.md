@@ -7,7 +7,7 @@ Her müşteri kendi VPS / panelinde bağımsız kurulum. **Coolify, Dokploy, 1Pa
 Panelde 3 adım — `.env` ve Persistent Storage UI **gerekmez**:
 
 1. GitHub: `imyigitcengiz/kobi-ops`
-2. **Docker Compose** build pack (`compose.yaml` veya `docker-compose.yml`) — **Dockerfile tek başına değil**
+2. **Docker Compose** build pack (`docker-compose.yaml` — Coolify varsayılan) — **Dockerfile tek başına değil**
 3. Domain → servis **`app`**, port **8000**, HTTPS → Deploy
 
 Named volume `kobiops_gy_data` compose ile otomatik oluşur; veri rebuild'lerde kalır.
@@ -86,7 +86,7 @@ Coolify ekstra: Persistent Storage → `/data`. Rebuild'de volume **silinmesin**
 
 Bu hata = `/data` mount edilmemiş. Coolify'da **Build Pack Dockerfile ise** volume bağlanmaz.
 
-→ Build Pack'i **Docker Compose** yapın, compose path: `compose.yaml` veya `docker-compose.yml`, redeploy.
+→ Build Pack'i **Docker Compose** yapın, compose path: `docker-compose.yaml` (veya boş bırakın), redeploy.
 
 Logda beklenen: `Kalıcı veri kontrolü OK (migrate öncesi).`
 

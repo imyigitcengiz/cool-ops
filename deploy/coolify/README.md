@@ -7,13 +7,13 @@ Coolify'da **Dockerfile** build pack ile kurarsanız volume bağlanmaz ve uygula
 | Ayar | Doğru değer |
 |------|-------------|
 | Build Pack | **Docker Compose** |
-| Compose path | `docker-compose.yml` |
+| Compose path | `docker-compose.yaml` (Coolify varsayılan) veya `docker-compose.yml` |
 | Persistent Storage UI | **Gerekmez** — `gy_data` named volume compose'ta |
 
 ## 3 adımda deploy
 
 1. **New Resource** → GitHub → `imyigitcengiz/kobi-ops`
-2. Build Pack: **Docker Compose** → path: `docker-compose.yml`
+2. Build Pack: **Docker Compose** → path: `docker-compose.yaml` (boş bırakılırsa Coolify bunu arar)
 3. **Domains** → servis **`app`**, port **8000**, HTTPS → **Deploy**
 
 `.env` yazmanız gerekmez. İlk giriş: **admin** / **admin**.
