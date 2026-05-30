@@ -4,11 +4,24 @@ from agency.models import (
     AgencyCampaign,
     AgencyClient,
     AgencyDeal,
+    AgencyDeliverable,
     AgencyFinanceEntry,
     AgencyFirm,
     AgencyFreelancer,
     AgencyProject,
+    AgencyProjectAssignment,
 )
+
+
+@admin.register(AgencyDeliverable)
+class AgencyDeliverableAdmin(admin.ModelAdmin):
+    list_display = ('title', 'project', 'due_date', 'is_done')
+    list_filter = ('is_done',)
+
+
+@admin.register(AgencyProjectAssignment)
+class AgencyProjectAssignmentAdmin(admin.ModelAdmin):
+    list_display = ('project', 'freelancer', 'role_label', 'hours_budget')
 
 
 @admin.register(AgencyClient)

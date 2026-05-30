@@ -22,7 +22,8 @@ from tools.phone_utils import is_whatsapp_eligible, is_turkish_landline, whatsap
 
 
 class ToolsHubView(TemplateView):
-    template_name = 'tools/index.html'
+    def get(self, request, *args, **kwargs):
+        return redirect('capabilities_hub')
 
 
 class FirmalarView(TemplateView):

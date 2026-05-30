@@ -26,7 +26,6 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('core_settings', '0032_normalize_installation_vertical'),
-        ('agency', '0002_import_legacy_analytics_projects'),
     ]
 
     operations = [

@@ -9,7 +9,7 @@
     <div class="space-y-3">
         {% for item in items %}
         <article class="rounded-2xl border border-slate-700 bg-slate-800/50 p-4">
-            <h4 class="font-bold text-white">{{ item.name }}</h4>
+            <a href="{% url 'agency_client_detail' pk=item.pk %}" class="font-bold text-white hover:text-violet-300">{{ item.name }}</a>
             <p class="text-xs text-violet-300 mt-1">{{ item.get_contract_type_display }}</p>
             {% if item.contact_name %}<p class="text-sm text-slate-400">{{ item.contact_name }}</p>{% endif %}
             <details class="mt-2"><summary class="text-xs text-slate-500 cursor-pointer">Düzenle</summary>
@@ -22,6 +22,12 @@
                 <select name="contract_type" class="w-full p-2 rounded-lg bg-slate-900 border border-slate-600">
                     {% for v,l in contract_choices %}<option value="{{ v }}" {% if item.contract_type == v %}selected{% endif %}>{{ l }}</option>{% endfor %}
                 </select>
+                <input name="industry" value="{{ item.industry }}" placeholder="Sektör" class="w-full p-2 rounded-lg bg-slate-900 border border-slate-600">
+                <input name="website" value="{{ item.website }}" placeholder="Web sitesi" class="w-full p-2 rounded-lg bg-slate-900 border border-slate-600">
+                <div class="grid grid-cols-2 gap-2">
+                    <input name="contract_start" type="date" value="{{ item.contract_start|date:'Y-m-d' }}" class="p-2 rounded-lg bg-slate-900 border border-slate-600">
+                    <input name="contract_end" type="date" value="{{ item.contract_end|date:'Y-m-d' }}" class="p-2 rounded-lg bg-slate-900 border border-slate-600">
+                </div>
                 <button type="submit" class="text-xs font-bold text-violet-400">Kaydet</button>
             </form>
             <form method="post" class="mt-1" onsubmit="return confirm('Sil?');">{% csrf_token %}
@@ -41,6 +47,8 @@
         <select name="contract_type" class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-600">
             {% for v,l in contract_choices %}<option value="{{ v }}">{{ l }}</option>{% endfor %}
         </select>
+        <input name="industry" placeholder="Sektör" class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-600">
+        <input name="website" placeholder="Web sitesi" class="w-full p-2.5 rounded-xl bg-slate-900 border border-slate-600">
         <button type="submit" class="w-full py-3 bg-violet-600 rounded-xl font-bold">Ekle</button>
     </form>
 </div>

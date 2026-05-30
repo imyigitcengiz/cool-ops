@@ -164,7 +164,6 @@ INSTALLED_APPS = [
     'services',
     'core_settings',
     'analytics',
-    'agency',
     'tools',
     'sales_leads',
     'common',

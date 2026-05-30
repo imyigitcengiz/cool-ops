@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ gy.app_name }} — Operasyon paneli</title>
-    <meta name="description" content="KOBİ, ajans ve diğer sektör profilleri için modüler uygulama setleri — tek panelde.">
+    <meta name="description" content="KOBİ ve saha servis ekipleri için modüler operasyon paneli — tek kurulumda.">
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
@@ -96,40 +96,10 @@
             </div>
         </section>
 
-        <section id="sektorler" class="max-w-6xl mx-auto px-6 py-14 border-t border-white/5">
-            <div class="mb-8">
-                <h2 class="text-2xl md:text-3xl font-bold text-white">Kurulum profilleri</h2>
-                <p class="mt-2 text-slate-400 max-w-2xl">İki kurulum profili: KOBİ (saha servis) ve Ajans (retainer/proje). Her profil kendi uygulama setini getirir.</p>
-            </div>
-            <div class="flex flex-wrap gap-2 mb-8">
-                {% for v in landing_verticals %}
-                <a href="?v={{ v.slug }}#uygulamalar"
-                   class="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition-colors {% if landing_selected_vertical == v.slug %}bg-brand-600 text-white{% else %}bg-white/5 text-slate-300 hover:bg-white/10 border border-white/10{% endif %}">
-                    <i data-lucide="{{ v.icon }}" class="w-4 h-4"></i>{{ v.name }}
-                </a>
-                {% endfor %}
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {% for v in landing_verticals %}
-                <article class="rounded-2xl border border-white/10 bg-white/[0.03] p-5 {% if landing_selected_vertical == v.slug %}ring-2 ring-brand-500/50{% endif %}">
-                    <div class="flex items-center gap-3 mb-2">
-                        <span class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center text-brand-300">
-                            <i data-lucide="{{ v.icon }}" class="w-5 h-5"></i>
-                        </span>
-                        <h3 class="font-bold text-white">{{ v.name }}</h3>
-                    </div>
-                    <p class="text-sm text-slate-400">{{ v.tagline }}</p>
-                </article>
-                {% endfor %}
-            </div>
-        </section>
-
-        <section id="uygulamalar" class="max-w-6xl mx-auto px-6 pb-20">
+        <section id="uygulamalar" class="max-w-6xl mx-auto px-6 py-14 border-t border-white/5">
             <div class="mb-10">
-                <h2 class="text-2xl md:text-3xl font-bold text-white">
-                    {% for v in landing_verticals %}{% if v.slug == landing_selected_vertical %}{{ v.name }}{% endif %}{% endfor %} uygulamaları
-                </h2>
-                <p class="mt-2 text-slate-400 max-w-2xl">Profile özel uygulama kartları — monolitik ERP modülleri değil.</p>
+                <h2 class="text-2xl md:text-3xl font-bold text-white">Modüller</h2>
+                <p class="mt-2 text-slate-400 max-w-2xl">Rehber, yardım masası, muhasebe ve iletişim — ihtiyacınıza göre açıp kapatabilirsiniz.</p>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {% for app in landing_apps %}
@@ -144,6 +114,25 @@
                 <p class="text-slate-500 col-span-full">Bu profil için uygulama listesi yakında.</p>
                 {% endfor %}
             </div>
+            {% if landing_integrations %}
+            <div class="mt-14">
+                <h3 class="text-lg font-bold text-amber-400 flex items-center gap-2 mb-2">
+                    <i data-lucide="zap" class="w-5 h-5"></i> Entegrasyonlar
+                </h3>
+                <p class="text-sm text-slate-500 mb-6">WhatsApp, firma kazıma ve medya kütüphanesi.</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {% for cap in landing_integrations %}
+                    <article class="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-5">
+                        <div class="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-300 flex items-center justify-center mb-3">
+                            <i data-lucide="{{ cap.icon }}" class="w-5 h-5"></i>
+                        </div>
+                        <h4 class="font-bold text-white text-sm">{{ cap.name }}</h4>
+                        <p class="mt-1 text-xs text-slate-400">{{ cap.summary }}</p>
+                    </article>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
         </section>
 
         <section class="border-t border-white/5 bg-white/[0.02]">

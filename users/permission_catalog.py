@@ -14,8 +14,6 @@ PERMISSIONS = [
      'Rehber özeti, müşteri, firma ve ilgili sayfalara erişim.'),
     ('access.outreach', 'İletişim Merkezi modülü', 'İletişim', PERMISSION_KIND_ACCESS, 48,
      'Kampanya gönderimi ve mesaj kayıtları (/iletisim/).'),
-    ('access.agency', 'Ajans modülleri', 'Ajans', PERMISSION_KIND_ACCESS, 49,
-     'Retainer, müşteri, pipeline ve ajans finans (/ajans/).'),
     ('access.tools', 'Tools modülü', 'Tools', PERMISSION_KIND_ACCESS, 50,
      'Tools ana sayfasına erişim.'),
     ('access.settings', 'Site genel ayarları', 'Ayarlar', PERMISSION_KIND_ACCESS, 60,
@@ -124,15 +122,6 @@ DEFAULT_ROLES = {
             'sales.manage', 'sales.reports', 'sales.export',
         ],
     },
-    'agency_manager': {
-        'name': 'Ajans Yöneticisi',
-        'description': 'Yalnızca ajans modülleri — KOBİ rehber/muhasebe yok.',
-        'is_system': True,
-        'permissions': [
-            'access.home', 'access.agency',
-            'tools.whatsapp', 'tools.media',
-        ],
-    },
 }
 
 ROUTE_PERMISSIONS = [
@@ -172,6 +161,8 @@ ROUTE_PERMISSIONS = [
     ('/muhasebe/maas-avans/', 'contact.payroll'),
     ('/muhasebe/personel/', ('contact.personnel', 'contact.payroll')),
     ('/muhasebe/', 'access.accounting'),
+    ('/contact/firma-bul/', 'contact.firms'),
+    ('/contact/firma-kazi/', 'contact.firms'),
     ('/contact/personel/', 'contact.personnel'),
     ('/contact/ekip/', 'contact.teams'),
     ('/contact/cozum-agi/', 'contact.firms'),
@@ -196,11 +187,7 @@ ROUTE_PERMISSIONS = [
     ('/tools/', 'access.tools'),
     ('/admin/', None),
     ('/media/', None),
-    ('/panel/kurulum/', 'access.settings'),
-    ('/panel/uygulama/', 'access.home'),
     ('/panel/moduller/', 'access.home'),
-    ('/panel/ajans/', 'access.agency'),
-    ('/ajans/', 'access.agency'),
     ('/panel/', 'access.home'),
 ]
 

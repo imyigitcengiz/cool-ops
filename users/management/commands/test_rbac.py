@@ -79,9 +79,9 @@ class Command(BaseCommand):
     help = 'Rol bazlı erişim senaryolarını test eder (RBAC matrisi).'
 
     def handle(self, *args, **options):
-        from common.module_runtime import apply_vertical_preset
+        from common.module_runtime import reset_enabled_modules_to_defaults
 
-        apply_vertical_preset('kobi')
+        reset_enabled_modules_to_defaults()
 
         passed = 0
         failed = 0

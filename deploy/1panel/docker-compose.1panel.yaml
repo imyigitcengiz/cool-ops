@@ -1,0 +1,15 @@
+# 1Panel: OpenResty/nginx zaten 80/443 kullanır — uygulama localhost'ta dinler.
+# Kullanım (SSH):
+#   export COMPOSE_FILE=docker-compose.yaml:deploy/1panel/docker-compose.1panel.yaml
+#   docker compose up -d --build
+#
+# 1Panel Compose UI: Ortam değişkeni COMPOSE_FILE aynı değer olmalı
+# veya bu dosyadaki ports satırını ana compose'ta elle uygulayın.
+name: kobi-ops
+
+services:
+  app:
+    ports:
+      - "127.0.0.1:${KOBIOPS_HTTP_PORT:-8080}:80"
+    environment:
+      KOBIOPS_COMPOSE_STACK: "1"

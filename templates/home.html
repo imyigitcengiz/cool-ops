@@ -63,10 +63,18 @@
             {% endif %}
             <div class="mb-10">
                 <h2 class="text-2xl font-bold text-slate-900">Hoş geldiniz, {{ user_profile_card.display_name }}</h2>
-                <p class="text-slate-600 mt-2">Kurulum profilinize özel uygulamalara hızlı erişin.</p>
+                <p class="text-slate-600 mt-2">Kurulu modüllere ve entegrasyonlara hızlı erişin.</p>
             </div>
 
-            {% include 'common/panel_vertical_bar.html' %}
+            {% if can_manage_modules %}
+            <div class="mb-8">
+                <a href="{% url 'module_hub' %}" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-violet-600 text-white text-sm font-bold hover:bg-violet-700 shadow-sm">
+                    <i data-lucide="layout-grid" class="w-4 h-4"></i> Modül Merkezi
+                </a>
+            </div>
+            {% endif %}
+
+            {% include 'common/panel_capabilities.html' %}
             {% include 'common/panel_profile_apps.html' %}
 
             {% if user_access.settings %}
@@ -81,15 +89,15 @@
                     {% if can_manage_modules %}
                     <a href="{% url 'module_hub' %}" class="group block bg-white rounded-3xl border border-violet-200 shadow-sm hover:shadow-lg p-6">
                         <div class="w-12 h-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mb-4"><i data-lucide="layout-grid" class="w-6 h-6"></i></div>
-                        <h4 class="text-lg font-bold text-slate-900">Uygulama Merkezi</h4>
-                        <p class="text-sm text-slate-500 mt-2">Profil uygulamalarını aç/kapa.</p>
+                        <h4 class="text-lg font-bold text-slate-900">Modül Merkezi</h4>
+                        <p class="text-sm text-slate-500 mt-2">Modülleri aç/kapa.</p>
                     </a>
                     {% endif %}
                 </div>
             </section>
             {% endif %}
 
-            {% if not profile_panel_apps and not user_access.settings %}
+            {% if not panel_modules and not user_access.settings %}
             <div class="p-6 rounded-2xl bg-amber-50 border border-amber-100 text-amber-800 text-sm">
                 Açık uygulama yok veya rol izniniz tanımlı değil. Yöneticinizle iletişime geçin.
             </div>

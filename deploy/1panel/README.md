@@ -19,9 +19,16 @@ Domain yoksa: `./deploy/install.sh` → `http://SUNUCU_IP:8000/giris/`
 ## 1Panel arayüzü ile
 
 1. **Konteyner** → **Compose** → **Oluştur**
-2. **Kaynak:** `/opt/kobi-ops`
+2. **Kaynak:** `/opt/kobi-ops` (klonladığınız dizin — mutlak yol)
 3. **Compose dosyası:** `docker-compose.yaml`
-4. **Başlat** — `.env` zorunlu değil (bootstrap otomatik)
+4. **Ortam değişkeni** (1Panel stack ayarlarında):
+   ```
+   COMPOSE_FILE=docker-compose.yaml:deploy/1panel/docker-compose.1panel.yaml
+   ```
+   > 1Panel zaten **80** portunu kullanır. Varsayılan compose host'ta `80:80` açmaya çalışır ve **başarısız olur** — container listesi boş kalır.
+5. **Başlat / Deploy** — ilk build 5–15 dk sürebilir
+
+Container'lar **Konteyner → Compose** altında stack adı `kobi-ops` ile görünür; tek tek **Konteyner** listesinde hemen çıkmayabilir.
 
 İsteğe bağlı `.env`: `cp .env.example .env`
 
@@ -29,7 +36,7 @@ Domain yoksa: `./deploy/install.sh` → `http://SUNUCU_IP:8000/giris/`
 
 1Panel **Web sitesi** / OpenResty:
 
-- Domain → proxy `http://127.0.0.1:8000`
+- Domain → proxy `http://127.0.0.1:8080` (yukarıdaki 1Panel overlay ile)
 - WebSocket açık (ekip sohbeti)
 
 Domain ekledikten sonra redeploy veya `./deploy/install.sh panel.sizin-domain.com --force`
@@ -60,7 +67,10 @@ docker compose up -d --build
 
 | Belirti | Çözüm |
 |---------|--------|
-| 502 | `docker compose logs app` |
+| Container görünmüyor | **Compose** sekmesine bakın (stack `kobi-ops`). SSH: `cd /opt/kobi-ops && docker compose ps -a` |
+| Compose hemen düşüyor | Muhtemelen **port 80 çakışması** — `COMPOSE_FILE=...1panel.yaml` kullanın veya `docker compose logs` |
+| Build hatası | `docker compose logs app --tail 100` — RAM ≥ 2 GB |
+| 502 | Reverse proxy hedefi `127.0.0.1:8080` mi? `docker compose ps` |
 | CSRF | `./deploy/install.sh domain --force` |
 | WhatsApp | `docker compose logs whatsapp_bridge` |
 | Veri kaybı | Volume korundu mu? |

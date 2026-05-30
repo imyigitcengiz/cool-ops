@@ -1,12 +1,12 @@
 """Ortak şablon bağlamı."""
 
 from common import module_labels as ml
+from common.capability_routing import resolve_capabilities_hub_url
 from common.module_runtime import (
+    build_module_sidebar,
     build_modules_nav_flags,
     build_particles_nav_short,
-    build_profile_sidebar,
     get_enabled_module_slugs,
-    get_primary_vertical_slug,
 )
 
 
@@ -49,16 +49,16 @@ def module_install_context(request):
             'modules_installed': {},
             'modules_nav': {},
             'particles_nav': {},
-            'primary_vertical_slug': 'kobi',
-            'profile_sidebar': {'groups': [], 'integrations': []},
+            'profile_sidebar': {'groups': [], 'capabilities': [], 'integrations': []},
+            'capabilities_hub_url': None,
         }
     installed = {slug: slug in get_enabled_module_slugs() for slug in _all_module_slugs()}
     return {
         'modules_installed': installed,
         'modules_nav': build_modules_nav_flags(user),
         'particles_nav': build_particles_nav_short(user),
-        'primary_vertical_slug': get_primary_vertical_slug(),
-        'profile_sidebar': build_profile_sidebar(user, request),
+        'profile_sidebar': build_module_sidebar(user, request),
+        'capabilities_hub_url': resolve_capabilities_hub_url(),
     }
 
 

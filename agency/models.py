@@ -18,6 +18,10 @@ class AgencyClient(models.Model):
         ),
         default='retainer',
     )
+    industry = models.CharField('Sektör', max_length=120, blank=True)
+    website = models.URLField(blank=True)
+    contract_start = models.DateField('Sözleşme başlangıç', null=True, blank=True)
+    contract_end = models.DateField('Sözleşme bitiş', null=True, blank=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -112,9 +116,34 @@ class AgencyProject(models.Model):
         null=True,
         blank=True,
     )
+    scope_summary = models.TextField(
+        'Aylık scope özeti',
+        blank=True,
+        help_text='Bu ay teslim edilecek işlerin özeti.',
+    )
+    revision_rounds_included = models.PositiveSmallIntegerField(
+        'Dahil revizyon turu',
+        default=2,
+    )
+    monthly_hours_cap = models.DecimalField(
+        'Aylık saat kotası',
+        max_digits=8,
+        decimal_places=1,
+        null=True,
+        blank=True,
+        help_text='Opsiyonel — retainer kapsamındaki max saat.',
+    )
     start_date = models.DateField(null=True, blank=True)
     end_date = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True)
+    source_deal = models.ForeignKey(
+        'AgencyDeal',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='projects_spawned',
+        verbose_name='Kaynak pipeline',
+    )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -133,6 +162,76 @@ class AgencyProject(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def annual_contract_value(self) -> Decimal | None:
+        if self.monthly_retainer:
+            return self.monthly_retainer * 12
+        return None
+
+
+class AgencyDeliverable(models.Model):
+    """Retainer ayı deliverable / teslim kalemi."""
+
+    project = models.ForeignKey(
+        AgencyProject,
+        on_delete=models.CASCADE,
+        related_name='deliverables',
+    )
+    title = models.CharField(max_length=255)
+    due_date = models.DateField(null=True, blank=True)
+    is_done = models.BooleanField(default=False)
+    sort_order = models.PositiveSmallIntegerField(default=0)
+    notes = models.CharField(max_length=500, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['sort_order', 'id']
+        verbose_name = 'Deliverable'
+        verbose_name_plural = 'Deliverablelar'
+
+    def __str__(self):
+        return self.title
+
+
+class AgencyProjectAssignment(models.Model):
+    """Freelancer ↔ proje ataması."""
+
+    project = models.ForeignKey(
+        AgencyProject,
+        on_delete=models.CASCADE,
+        related_name='assignments',
+    )
+    freelancer = models.ForeignKey(
+        'AgencyFreelancer',
+        on_delete=models.CASCADE,
+        related_name='assignments',
+    )
+    role_label = models.CharField('Rol', max_length=120, blank=True)
+    hours_budget = models.DecimalField(
+        'Bütçelenen saat',
+        max_digits=8,
+        decimal_places=1,
+        null=True,
+        blank=True,
+    )
+    hourly_rate_override = models.DecimalField(
+        'Özel saat ücreti',
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+    )
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ['freelancer__name']
+        verbose_name = 'Proje ataması'
+        verbose_name_plural = 'Proje atamaları'
+        unique_together = [('project', 'freelancer')]
+
+    def __str__(self):
+        return f'{self.freelancer} @ {self.project}'
+
 
 class AgencyDeal(models.Model):
     class Stage(models.TextChoices):
@@ -150,9 +249,21 @@ class AgencyDeal(models.Model):
         related_name='deals',
     )
     amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    probability = models.PositiveSmallIntegerField(
+        'Kazanma olasılığı %',
+        default=30,
+        help_text='0–100',
+    )
     stage = models.CharField(max_length=20, choices=Stage.choices, default=Stage.LEAD, db_index=True)
     expected_close = models.DateField(null=True, blank=True)
     notes = models.TextField(blank=True)
+    converted_project = models.OneToOneField(
+        AgencyProject,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='pipeline_origin',
+    )
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

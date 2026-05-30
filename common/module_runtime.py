@@ -1,38 +1,59 @@
-"""Kurulum profili uygulamaları + backend platform çözümlemesi."""
+"""Kurulum modül listesi — module_catalog tabanlı."""
 
 from __future__ import annotations
 
 from django.urls import NoReverseMatch, reverse
 
 from common.module_catalog import (
-    DEFAULT_PRIMARY_VERTICAL,
+    MODULE_KIND_APP,
+    MODULE_KIND_INTEGRATION,
     MODULE_GATE_EXEMPT_PREFIXES,
     MODULE_STATUS_ACTIVE,
     MODULE_STATUS_BETA,
     MODULE_STATUS_ROADMAP,
     MODULES,
-    installation_verticals,
+    default_enabled_module_slugs,
     module_by_slug,
-    normalize_installation_vertical,
     route_prefix_to_module_slug,
-    vertical_by_slug,
 )
-from common.module_particles import (
-    LEGACY_MODULE_ALIASES,
-    particle_by_slug,
-    particle_route_prefixes,
-)
-from common.profile_apps import (
-    ALL_PROFILE_ITEMS,
-    APP_CATEGORY_LABELS,
-    LEGACY_TO_PROFILE,
-    collapse_platform_to_profile_slugs,
-    expand_profile_slugs_to_platform,
-    profile_app_by_slug,
-    profile_apps_for_vertical,
-    profile_integrations_for_vertical,
-    vertical_profile_preset,
-)
+from common.module_particles import LEGACY_MODULE_ALIASES, particle_by_slug
+
+# Eski profil / yetenek slug → modül slug
+LEGACY_PROFILE_TO_MODULE: dict[str, str | None] = {
+    'app.kobi.customers': 'contact',
+    'app.kobi.service_desk': 'services',
+    'app.kobi.finance': 'accounting',
+    'app.kobi.campaigns': 'outreach',
+    'cap.whatsapp.send': 'integration_whatsapp_bridge',
+    'cap.whatsapp.api': 'integration_whatsapp_api',
+    'cap.data.harvest': 'integration_data_harvest',
+    'cap.media.library': 'integration_media',
+    'int.whatsapp.send': 'integration_whatsapp_bridge',
+    'int.whatsapp.api': 'integration_whatsapp_api',
+    'int.data.harvest': 'integration_data_harvest',
+    'int.media.library': 'integration_media',
+    'contact': 'contact',
+    'services': 'services',
+    'accounting': 'accounting',
+    'outreach': 'outreach',
+    'tools': None,
+    'agency_suite': None,
+    'agency_retainer': None,
+    'agency_clients': None,
+    'agency_freelancers': None,
+    'agency_firms': None,
+    'agency_pipeline': None,
+    'agency_finance': None,
+    'agency_campaigns': None,
+}
+
+APP_SECTION_LABELS: dict[str, tuple[str, str]] = {
+    'contact': ('Rehber & İlişkiler', 'book-user'),
+    'services': ('Operasyon', 'headphones'),
+    'accounting': ('Finans', 'calculator'),
+    'outreach': ('İletişim', 'messages-square'),
+    'other': ('Uygulamalar', 'layout-grid'),
+}
 
 
 def _path_matches(path: str, prefix: str) -> bool:
@@ -44,67 +65,71 @@ def _site_settings():
     return SiteSettings.objects.first()
 
 
-def get_primary_vertical_slug() -> str:
-    settings = _site_settings()
-    if settings and settings.primary_vertical_slug:
-        slug = settings.primary_vertical_slug.strip()
-        if vertical_by_slug(slug):
-            return normalize_installation_vertical(slug)
-    return DEFAULT_PRIMARY_VERTICAL
+def _known_module_slugs() -> set[str]:
+    return {
+        m['slug'] for m in MODULES
+        if not m['slug'].startswith('agency_')
+    }
+
+
+def _default_enabled_slugs() -> list[str]:
+    return [s for s in default_enabled_module_slugs() if not s.startswith('agency_')]
 
 
 def _normalize_stored_slugs(raw: list | tuple | None) -> list[str]:
-    vertical = get_primary_vertical_slug()
+    known = _known_module_slugs()
+    default = _default_enabled_slugs()
     if not raw:
-        return list(vertical_profile_preset(vertical))
+        return default
 
-    known_profile = {i['slug'] for i in ALL_PROFILE_ITEMS}
     out: list[str] = []
-
     for slug in raw:
-        if slug in LEGACY_MODULE_ALIASES:
-            for alias in LEGACY_MODULE_ALIASES[slug]:
-                mapped = LEGACY_TO_PROFILE.get(alias)
-                if mapped and mapped not in out:
-                    out.append(mapped)
+        if slug.startswith('agency_') or slug.startswith('p.agency') or slug.startswith('app.agency'):
             continue
-        if slug in LEGACY_TO_PROFILE and slug not in known_profile:
-            mapped = LEGACY_TO_PROFILE[slug]
-            if mapped not in out:
+        if slug.startswith('p.'):
+            continue
+        if slug in LEGACY_PROFILE_TO_MODULE:
+            mapped = LEGACY_PROFILE_TO_MODULE[slug]
+            if mapped and mapped in known and mapped not in out:
                 out.append(mapped)
             continue
-        if slug in known_profile and slug not in out:
+        if slug.startswith('app.') or slug.startswith('cap.') or slug.startswith('int.'):
+            mapped = LEGACY_PROFILE_TO_MODULE.get(slug)
+            if mapped and mapped not in out:
+                out.append(mapped)
+            continue
+        if slug in LEGACY_MODULE_ALIASES:
+            for alias in LEGACY_MODULE_ALIASES[slug]:
+                if alias in known and alias not in out:
+                    out.append(alias)
+            continue
+        if slug in known and slug not in out:
             out.append(slug)
 
-    if not out or not any(s.startswith('app.') or s.startswith('int.') for s in out):
-        out = collapse_platform_to_profile_slugs(list(raw), vertical)
-
-    preset = vertical_profile_preset(vertical)
-    return out or list(preset)
+    return out or default
 
 
-def get_enabled_profile_slugs() -> list[str]:
+def get_enabled_module_slugs() -> list[str]:
     settings = _site_settings()
     if settings and settings.enabled_module_slugs:
         return _normalize_stored_slugs(settings.enabled_module_slugs)
     return _normalize_stored_slugs(None)
 
 
-def get_enabled_catalog_slugs() -> list[str]:
-    return expand_profile_slugs_to_platform(get_enabled_profile_slugs())
-
-
-def get_enabled_module_slugs() -> list[str]:
-    known = {m['slug'] for m in MODULES}
-    return [s for s in get_enabled_catalog_slugs() if s in known]
-
-
 def get_enabled_particle_slugs() -> list[str]:
-    return [s for s in get_enabled_catalog_slugs() if s.startswith('p.')]
-
-
-def is_profile_app_enabled(slug: str) -> bool:
-    return slug in get_enabled_profile_slugs()
+    slugs: set[str] = set()
+    settings = _site_settings()
+    if settings and settings.enabled_module_slugs:
+        for slug in settings.enabled_module_slugs:
+            if slug.startswith('p.') and not slug.startswith('p.agency'):
+                slugs.add(slug)
+    for mod_slug in get_enabled_module_slugs():
+        mod = module_by_slug(mod_slug)
+        if mod:
+            for p in mod.get('particle_slugs', ()):
+                if not p.startswith('p.agency'):
+                    slugs.add(p)
+    return list(slugs)
 
 
 def is_module_enabled(slug: str) -> bool:
@@ -131,30 +156,19 @@ def resolve_path_module_slug(path: str) -> str | None:
     if any(_path_matches(path, p) for p in MODULE_GATE_EXEMPT_PREFIXES):
         return None
     for prefix, slug in route_prefix_to_module_slug():
+        if slug.startswith('agency_'):
+            continue
         if _path_matches(path, prefix):
             return slug
     return None
 
 
 def resolve_path_particle_slug(path: str) -> str | None:
+    from common.module_particles import particle_route_prefixes
     for prefix, slug in particle_route_prefixes():
         if _path_matches(path, prefix):
             return slug
     return None
-
-
-def user_can_access_profile_app(user, app: dict) -> bool:
-    if not user.is_authenticated:
-        return False
-    if user.is_superuser:
-        return True
-    required_any = app.get('requires_any_perm')
-    if required_any:
-        return user.has_any_perm_codename(*required_any)
-    perm = app.get('access_perm')
-    if not perm:
-        return False
-    return user.has_perm_codename(perm)
 
 
 def user_can_access_module(user, module: dict) -> bool:
@@ -171,17 +185,6 @@ def user_can_access_module(user, module: dict) -> bool:
     return user.has_perm_codename(perm)
 
 
-def profile_app_available_for_nav(user, slug: str) -> bool:
-    if not is_profile_app_enabled(slug):
-        return False
-    app = profile_app_by_slug(slug)
-    if not app:
-        return False
-    if app.get('vertical') and app['vertical'] != get_primary_vertical_slug():
-        return False
-    return user_can_access_profile_app(user, app)
-
-
 def module_available_for_nav(user, slug: str) -> bool:
     if not is_module_enabled(slug):
         return False
@@ -192,12 +195,7 @@ def module_available_for_nav(user, slug: str) -> bool:
 
 
 def build_modules_nav_flags(user) -> dict[str, bool]:
-    flags = {m['slug']: module_available_for_nav(user, m['slug']) for m in MODULES}
-    for item in ALL_PROFILE_ITEMS:
-        for mod_slug in item.get('platform_modules', ()):
-            int_key = mod_slug
-            flags[int_key] = module_available_for_nav(user, mod_slug)
-    return flags
+    return {m['slug']: module_available_for_nav(user, m['slug']) for m in MODULES}
 
 
 def build_particles_nav_short(user) -> dict[str, bool]:
@@ -210,7 +208,6 @@ def build_particles_nav_short(user) -> dict[str, bool]:
         'p.accounting.payroll': 'accounting_payroll',
         'p.accounting.finance': 'accounting_finance',
         'p.accounting.sales': 'accounting_sales',
-        'p.agency.retainer': 'agency_retainer',
         'p.outreach.campaigns': 'outreach_campaigns',
     }
     return {
@@ -228,189 +225,166 @@ def _hub_url(url_name: str | None) -> str | None:
         return None
 
 
-def profile_app_mini_hub_url(slug: str) -> str | None:
-    try:
-        return reverse('profile_app_hub', kwargs={'app_slug': slug})
-    except NoReverseMatch:
-        return None
-
-
-_PLATFORM_MODULE_PATH_PREFIXES: dict[str, tuple[str, ...]] = {
-    'services': ('/services-dashboard/',),
-    'contact': ('/contact/', '/crm/', '/ortak/'),
-    'accounting': ('/muhasebe/', '/sales-lead/'),
-    'outreach': ('/iletisim/',),
-    'agency_suite': ('/ajans/', '/panel/ajans/'),
-    'agency_retainer': ('/ajans/',),
-    'agency_clients': ('/ajans/musteriler/',),
-    'agency_freelancers': ('/ajans/freelancer/',),
-    'agency_firms': ('/ajans/firmalar/',),
-    'agency_pipeline': ('/ajans/pipeline/',),
-    'agency_finance': ('/ajans/finans/',),
-    'agency_campaigns': ('/ajans/kampanya/',),
-    'integration_whatsapp_bridge': ('/tools/whatsapp',),
-    'integration_whatsapp_api': ('/tools/whatsapp',),
-    'integration_media': ('/tools/media',),
-}
-
-
-def _app_is_active(app: dict, path: str, url_name: str | None, app_slug_kw: str | None) -> bool:
-    if app_slug_kw and app['slug'] == app_slug_kw:
+def _module_is_active(mod: dict, path: str, url_name: str | None) -> bool:
+    if url_name and url_name == mod.get('hub_url_name'):
         return True
-    if url_name and url_name == app.get('hub_url_name'):
-        return True
-    for mod in app.get('platform_modules', ()):
-        for prefix in _PLATFORM_MODULE_PATH_PREFIXES.get(mod, ()):
-            if path.startswith(prefix):
-                return True
+    for prefix in mod.get('route_prefixes', ()):
+        if path.startswith(prefix):
+            return True
     return False
 
 
-def build_profile_sidebar(user, request) -> dict:
-    """Sol menü — yalnızca aktif profile ait uygulamalar."""
-    vertical = get_primary_vertical_slug()
+def build_module_sidebar(user, request) -> dict:
+    """Sol menü — kurulu modüller."""
     path = getattr(request, 'path', '') or ''
     match = getattr(request, 'resolver_match', None)
     url_name = match.url_name if match else None
-    app_slug_kw = match.kwargs.get('app_slug') if match and match.kwargs else None
 
     groups: dict[str, dict] = {}
-    for app in profile_apps_for_vertical(vertical):
-        if not profile_app_available_for_nav(user, app['slug']):
+    integrations: list[dict] = []
+
+    for mod in MODULES:
+        if mod['status'] not in (MODULE_STATUS_ACTIVE, MODULE_STATUS_BETA):
             continue
-        cat = app.get('category', 'operasyon')
-        cat_label = APP_CATEGORY_LABELS.get(cat, (cat, 'puzzle'))
-        mini = profile_app_mini_hub_url(app['slug'])
-        hub = _hub_url(app.get('hub_url_name'))
-        groups.setdefault(cat, {
-            'slug': cat,
-            'name': cat_label[0],
-            'icon': cat_label[1],
+        if mod['slug'] == 'settings':
+            continue
+        if not module_available_for_nav(user, mod['slug']):
+            continue
+
+        entry = {
+            'slug': mod['slug'],
+            'name': mod['name'],
+            'icon': mod.get('icon', 'puzzle'),
+            'url': _hub_url(mod.get('hub_url_name')),
+            'platform_modules': (mod['slug'],),
+            'active': _module_is_active(mod, path, url_name),
+        }
+        if not entry['url']:
+            continue
+
+        if mod['kind'] == MODULE_KIND_INTEGRATION:
+            integrations.append(entry)
+            continue
+
+        section = mod.get('panel_section') or 'other'
+        label = APP_SECTION_LABELS.get(section, APP_SECTION_LABELS['other'])
+        groups.setdefault(section, {
+            'slug': section,
+            'name': label[0],
+            'icon': label[1],
             'items': [],
         })
-        groups[cat]['items'].append({
-            'slug': app['slug'],
-            'name': app['name'],
-            'icon': app.get('icon', 'puzzle'),
-            'url': mini or hub,
-            'platform_modules': tuple(app.get('platform_modules', ())),
-            'active': _app_is_active(app, path, url_name, app_slug_kw),
-        })
-
-    integrations = []
-    for item in profile_integrations_for_vertical(vertical):
-        if not profile_app_available_for_nav(user, item['slug']):
-            continue
-        mini = profile_app_mini_hub_url(item['slug'])
-        hub = _hub_url(item.get('hub_url_name'))
-        integrations.append({
-            'slug': item['slug'],
-            'name': item['name'],
-            'icon': item.get('icon', 'plug'),
-            'url': mini or hub,
-            'platform_modules': tuple(item.get('platform_modules', ())),
-            'active': _app_is_active(item, path, url_name, app_slug_kw),
-        })
+        groups[section]['items'].append(entry)
 
     ordered_groups = []
-    for cat_slug, (cat_name, cat_icon) in APP_CATEGORY_LABELS.items():
-        if cat_slug == 'entegrasyon':
-            continue
-        g = groups.get(cat_slug)
+    for section in ('contact', 'services', 'accounting', 'outreach', 'other'):
+        g = groups.get(section)
         if g and g['items']:
             g['items'].sort(key=lambda i: i['name'])
             ordered_groups.append(g)
 
+    integrations.sort(key=lambda i: i['name'])
     return {
         'groups': ordered_groups,
         'integrations': integrations,
+        'capabilities': integrations,
     }
 
 
-def build_profile_app_record(user, app: dict) -> dict:
-    slug = app['slug']
-    installed = is_profile_app_enabled(slug)
-    cat = APP_CATEGORY_LABELS.get(app.get('category', ''), ('', 'puzzle'))
-    record = dict(app)
+def build_module_record(user, mod: dict) -> dict:
+    slug = mod['slug']
+    installed = is_module_enabled(slug)
+    hub = _hub_url(mod.get('hub_url_name'))
+    record = dict(mod)
     record['installed'] = installed
-    record['category_name'] = cat[0]
-    record['category_icon'] = cat[1]
-    record['hub_url'] = _hub_url(app.get('hub_url_name')) if installed else None
-    record['mini_hub_url'] = profile_app_mini_hub_url(slug) if installed else None
-    record['open_url'] = record['mini_hub_url'] or record['hub_url']
-    record['user_has_access'] = user_can_access_profile_app(user, app) if installed else False
-    record['can_open'] = bool(record['open_url'] and record['user_has_access'])
-    record['can_toggle'] = True
+    record['hub_url'] = hub if installed else None
+    record['open_url'] = hub
+    record['user_has_access'] = user_can_access_module(user, mod) if installed else False
+    record['can_open'] = bool(hub and installed and user_can_access_module(user, mod))
+    record['can_toggle'] = mod.get('can_disable', True)
     return record
 
 
-def build_profile_hub_context(user, *, query: str = '') -> dict:
-    vertical = get_primary_vertical_slug()
-    vinfo = vertical_by_slug(vertical)
+def build_module_hub_context(user, *, query: str = '') -> dict:
     q = (query or '').strip().lower()
+    apps: list[dict] = []
+    integrations: list[dict] = []
 
-    apps = []
-    for app in profile_apps_for_vertical(vertical):
-        if q and q not in f"{app['name']} {app['summary']}".lower():
+    for mod in MODULES:
+        if mod['status'] not in (MODULE_STATUS_ACTIVE, MODULE_STATUS_BETA):
             continue
-        apps.append(build_profile_app_record(user, app))
-
-    integrations = []
-    for item in profile_integrations_for_vertical(vertical):
-        if q and q not in f"{item['name']} {item['summary']}".lower():
+        if mod['slug'] == 'settings':
             continue
-        integrations.append(build_profile_app_record(user, item))
+        if mod['slug'].startswith('agency_'):
+            continue
+        if q and q not in f"{mod['name']} {mod['summary']}".lower():
+            continue
+        rec = build_module_record(user, mod)
+        if mod['kind'] == MODULE_KIND_INTEGRATION:
+            integrations.append(rec)
+        elif mod['kind'] == MODULE_KIND_APP:
+            apps.append(rec)
 
     apps.sort(key=lambda a: (a.get('sort', 99), a['name']))
-    integrations.sort(key=lambda a: a.get('sort', 99))
+    integrations.sort(key=lambda a: (a.get('sort', 99), a['name']))
 
     groups: dict[str, list] = {}
-    for a in apps:
-        groups.setdefault(a['category'], []).append(a)
+    for app in apps:
+        section = app.get('panel_section') or 'other'
+        groups.setdefault(section, []).append(app)
 
-    profile_app_groups = []
-    for cat_slug, (cat_name, cat_icon) in APP_CATEGORY_LABELS.items():
-        if cat_slug == 'entegrasyon':
-            continue
-        items = groups.get(cat_slug, [])
+    module_app_groups = []
+    for section in ('contact', 'services', 'accounting', 'outreach', 'other'):
+        items = groups.get(section, [])
         if items:
-            profile_app_groups.append({
-                'slug': cat_slug,
-                'name': cat_name,
-                'icon': cat_icon,
+            label = APP_SECTION_LABELS.get(section, APP_SECTION_LABELS['other'])
+            module_app_groups.append({
+                'slug': section,
+                'name': label[0],
+                'icon': label[1],
                 'items': items,
             })
 
     roadmap = [
         dict(m) for m in MODULES
-        if m['status'] == MODULE_STATUS_ROADMAP
-        and vertical in m.get('verticals', ())
+        if m['status'] == MODULE_STATUS_ROADMAP and not m['slug'].startswith('agency_')
     ]
 
-    enabled_profile = get_enabled_profile_slugs()
     return {
-        'module_primary_vertical': vertical,
-        'panel_vertical': vinfo,
-        'module_verticals': installation_verticals(),
-        'profile_app_groups': profile_app_groups,
-        'profile_integrations': integrations,
-        'profile_apps_flat': apps + integrations,
+        'module_app_groups': module_app_groups,
+        'module_integrations': integrations,
         'module_catalog_roadmap': roadmap,
         'module_installed_count': sum(1 for a in apps + integrations if a['installed']),
         'module_roadmap_count': len(roadmap),
         'module_search_query': query,
-        'vertical_preset_slugs': vertical_profile_preset(vertical),
-        'enabled_profile_slugs': enabled_profile,
+        'enabled_module_slugs': get_enabled_module_slugs(),
     }
 
 
-def build_profile_panel_apps(user) -> list[dict]:
-    """Ana panel — yalnızca kurulum profili uygulamaları."""
-    vertical = get_primary_vertical_slug()
-    items = profile_apps_for_vertical(vertical) + profile_integrations_for_vertical(vertical)
+def build_panel_modules(user) -> list[dict]:
     records = []
-    for app in items:
-        rec = build_profile_app_record(user, app)
+    for mod in MODULES:
+        if mod['kind'] != MODULE_KIND_APP or mod['slug'] == 'settings':
+            continue
+        if mod['status'] not in (MODULE_STATUS_ACTIVE, MODULE_STATUS_BETA):
+            continue
+        if mod['slug'].startswith('agency_'):
+            continue
+        rec = build_module_record(user, mod)
+        if rec['installed'] and rec['can_open']:
+            records.append(rec)
+    records.sort(key=lambda a: (a.get('sort', 99), a['name']))
+    return records
+
+
+def build_panel_integrations(user) -> list[dict]:
+    records = []
+    for mod in MODULES:
+        if mod['kind'] != MODULE_KIND_INTEGRATION:
+            continue
+        if mod['status'] not in (MODULE_STATUS_ACTIVE, MODULE_STATUS_BETA):
+            continue
+        rec = build_module_record(user, mod)
         if rec['installed'] and rec['can_open']:
             records.append(rec)
     records.sort(key=lambda a: (a.get('sort', 99), a['name']))
@@ -418,82 +392,31 @@ def build_profile_panel_apps(user) -> list[dict]:
 
 
 def panel_section_visible(section_key: str) -> bool:
-    """Geriye dönük — profil uygulaması eşlemesi."""
-    vertical = get_primary_vertical_slug()
     mapping = {
-        'contact': {
-            'kobi': 'app.kobi.customers',
-            'agency': 'app.agency.clients',
-        },
-        'services': {
-            'kobi': 'app.kobi.service_desk',
-        },
-        'accounting': {
-            'kobi': 'app.kobi.finance',
-            'agency': 'app.agency.finance',
-        },
-        'outreach': {
-            'kobi': 'app.kobi.campaigns',
-            'agency': 'app.agency.campaigns',
-        },
-        'agency': {
-            'agency': 'app.agency.retainer_studio',
-        },
+        'contact': 'contact',
+        'services': 'services',
+        'accounting': 'accounting',
+        'outreach': 'outreach',
     }
-    app_slug = mapping.get(section_key, {}).get(vertical)
-    if not app_slug:
-        return False
-    return is_profile_app_enabled(app_slug)
+    slug = mapping.get(section_key)
+    return is_module_enabled(slug) if slug else False
 
 
-def apply_vertical_preset(vertical_slug: str) -> list[str]:
-    vertical_slug = normalize_installation_vertical(vertical_slug)
-    slugs = list(vertical_profile_preset(vertical_slug))
+def reset_enabled_modules_to_defaults() -> list[str]:
+    slugs = _default_enabled_slugs()
     settings = _site_settings()
     if not settings:
         from core_settings.models import SiteSettings
         settings = SiteSettings.objects.create()
-    settings.primary_vertical_slug = vertical_slug
+    settings.primary_vertical_slug = 'kobi'
     settings.enabled_module_slugs = slugs
     settings.save(update_fields=['primary_vertical_slug', 'enabled_module_slugs'])
     return slugs
 
 
-def is_profile_setup_complete() -> bool:
-    settings = _site_settings()
-    if not settings:
-        return False
-    return bool(settings.profile_setup_completed_at)
-
-
-def mark_profile_setup_complete() -> None:
-    settings = _site_settings()
-    if not settings:
-        from core_settings.models import SiteSettings
-        settings = SiteSettings.objects.create()
-    from django.utils import timezone
-    settings.profile_setup_completed_at = timezone.now()
-    settings.save(update_fields=['profile_setup_completed_at'])
-
-
-def user_can_manage_profile_setup(user) -> bool:
-    if not user or not user.is_authenticated:
-        return False
-    return user.is_superuser or user.has_perm_codename('access.settings')
-
-
-def vertical_preset_modules(vertical_slug: str) -> tuple[str, ...]:
-    return vertical_profile_preset(vertical_slug)
-
-
 # Geriye dönük isimler
-def build_module_hub_context(user, *, vertical_filter: str | None = None, query: str = '') -> dict:
-    return build_profile_hub_context(user, query=query)
+build_profile_sidebar = build_module_sidebar
 
 
-def recommended_modules_for_vertical(vertical_slug: str) -> list[dict]:
-    return profile_apps_for_vertical(vertical_slug)
-
-
-def recommended_particles_for_vertical(vertical_slug: str) -> list[dict]:
-    return []
+def get_primary_vertical_slug() -> str:
+    return 'kobi'

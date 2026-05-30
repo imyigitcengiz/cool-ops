@@ -103,17 +103,6 @@ PARTICLES: tuple[dict, ...] = (
         'sort': 70,
     },
     {
-        'slug': 'p.agency.retainer',
-        'name': 'Retainer proje panosu',
-        'summary': 'Aylık retainer ve proje durumu — ajans çalışma alanı.',
-        'category': 'ajans',
-        'parent_module': 'agency_retainer',
-        'route_prefixes': ('/ajans/',),
-        'vertical_tags': ('agency',),
-        'default_enabled': False,
-        'sort': 15,
-    },
-    {
         'slug': 'p.outreach.campaigns',
         'name': 'Kampanya & toplu mesaj',
         'summary': 'WhatsApp kampanyaları ve mesaj geçmişi.',
@@ -131,22 +120,13 @@ VERTICAL_CATALOG_PRESETS: dict[str, dict[str, tuple[str, ...]]] = {
     'kobi': {
         'modules': (
             'contact', 'services', 'accounting', 'outreach',
+            'integration_data_harvest',
             'integration_whatsapp_bridge', 'integration_whatsapp_api', 'integration_media',
         ),
         'particles': (
             'p.contact.customers', 'p.contact.firms', 'p.contact.teams',
             'p.accounting.personnel', 'p.accounting.payroll',
             'p.accounting.finance', 'p.accounting.sales', 'p.outreach.campaigns',
-        ),
-    },
-    'agency': {
-        'modules': (
-            'agency_retainer', 'agency_clients', 'agency_freelancers', 'agency_firms',
-            'agency_pipeline', 'agency_finance', 'agency_campaigns',
-            'integration_whatsapp_bridge', 'integration_whatsapp_api', 'integration_media',
-        ),
-        'particles': (
-            'p.agency.retainer',
         ),
     },
     'retail': {
@@ -214,8 +194,8 @@ def default_enabled_particle_slugs() -> list[str]:
 
 
 def vertical_preset_all_slugs(vertical_slug: str) -> tuple[str, ...]:
-    from common.profile_apps import expand_profile_slugs_to_platform, vertical_profile_preset
-    return tuple(expand_profile_slugs_to_platform(list(vertical_profile_preset(vertical_slug))))
+    preset = VERTICAL_CATALOG_PRESETS.get(vertical_slug, VERTICAL_CATALOG_PRESETS['kobi'])
+    return preset['modules'] + preset['particles']
 
 
 def particle_route_prefixes() -> list[tuple[str, str]]:

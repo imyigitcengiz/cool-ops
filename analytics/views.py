@@ -33,30 +33,31 @@ class PublicLandingView(TemplateView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
-        from common.landing_content import DEFAULT_LANDING_VERTICAL, LANDING_VERTICAL_COPY
-        from common.module_catalog import installation_verticals
-        from common.profile_apps import profile_apps_for_vertical, profile_integrations_for_vertical
+        from common.landing_content import LANDING_VERTICAL_COPY
+        from common.module_catalog import (
+            MODULE_KIND_APP,
+            MODULE_KIND_INTEGRATION,
+            MODULE_STATUS_ACTIVE,
+            MODULES,
+        )
 
         context = super().get_context_data(**kwargs)
-        verticals = installation_verticals()
-        selected = self.request.GET.get('v', DEFAULT_LANDING_VERTICAL)
-        if not any(v['slug'] == selected for v in verticals):
-            selected = DEFAULT_LANDING_VERTICAL
-
-        apps_by_vertical = {}
-        for v in verticals:
-            slug = v['slug']
-            apps = profile_apps_for_vertical(slug) + profile_integrations_for_vertical(slug)
-            apps.sort(key=lambda a: (a.get('sort', 99), a['name']))
-            apps_by_vertical[slug] = apps
-
-        context['landing_verticals'] = verticals
-        context['landing_selected_vertical'] = selected
-        context['landing_vertical_copy'] = LANDING_VERTICAL_COPY.get(
-            selected, LANDING_VERTICAL_COPY[DEFAULT_LANDING_VERTICAL],
-        )
-        context['landing_apps_by_vertical'] = apps_by_vertical
-        context['landing_apps'] = apps_by_vertical.get(selected, [])
+        apps = [
+            m for m in MODULES
+            if m['kind'] == MODULE_KIND_APP
+            and m['status'] == MODULE_STATUS_ACTIVE
+            and m['slug'] != 'settings'
+            and not m['slug'].startswith('agency_')
+        ]
+        integrations = [
+            m for m in MODULES
+            if m['kind'] == MODULE_KIND_INTEGRATION and m['status'] == MODULE_STATUS_ACTIVE
+        ]
+        apps.sort(key=lambda a: (a.get('sort', 99), a['name']))
+        integrations.sort(key=lambda a: (a.get('sort', 99), a['name']))
+        context['landing_vertical_copy'] = LANDING_VERTICAL_COPY['kobi']
+        context['landing_apps'] = apps
+        context['landing_integrations'] = integrations
         return context
 
 
@@ -65,52 +66,27 @@ class HomeView(TemplateView):
 
     template_name = 'home.html'
 
-    def dispatch(self, request, *args, **kwargs):
-        if request.user.is_authenticated:
-            from common.module_runtime import is_profile_setup_complete, user_can_manage_profile_setup
-            if user_can_manage_profile_setup(request.user) and not is_profile_setup_complete():
-                return redirect('profile_setup')
-        return super().dispatch(request, *args, **kwargs)
-
     def get_context_data(self, **kwargs):
         from common.permissions import can_access_accounting
         from core_settings.accounting_summary import build_accounting_panel_context
         from analytics.panel_summary import build_services_panel_context, build_outreach_panel_context
+        from common.module_runtime import (
+            build_panel_integrations,
+            build_panel_modules,
+            panel_section_visible,
+        )
 
         context = super().get_context_data(**kwargs)
         user = self.request.user
         if not user.is_authenticated:
             return context
-        if can_access_accounting(user):
-            context.update(build_accounting_panel_context(user))
-        if user.has_perm_codename('access.services'):
-            context.update(build_services_panel_context(user))
-        if user.has_perm_codename('access.outreach'):
-            context.update(build_outreach_panel_context(user))
-        from common.module_runtime import (
-            build_profile_hub_context,
-            build_profile_panel_apps,
-            get_primary_vertical_slug,
-            is_profile_app_enabled,
-            panel_section_visible,
-            profile_app_available_for_nav,
-            vertical_by_slug,
-        )
-        from agency.summary import build_agency_panel_context
 
-        vertical = get_primary_vertical_slug()
-        context.update(build_profile_hub_context(user, query=''))
-        context['panel_vertical'] = vertical_by_slug(vertical)
-        context['profile_panel_apps'] = build_profile_panel_apps(user)
+        context['panel_modules'] = build_panel_modules(user)
+        context['panel_integrations'] = build_panel_integrations(user)
         context['can_manage_modules'] = (
             user.is_superuser or user.has_perm_codename('access.settings')
         )
-        if (
-            vertical == 'agency'
-            and is_profile_app_enabled('app.agency.retainer_studio')
-            and profile_app_available_for_nav(user, 'app.agency.retainer_studio')
-        ):
-            context.update(build_agency_panel_context(user))
+
         if can_access_accounting(user) and panel_section_visible('accounting'):
             context.update(build_accounting_panel_context(user))
         if panel_section_visible('services') and user.has_perm_codename('access.services'):
@@ -121,7 +97,7 @@ class HomeView(TemplateView):
 
 
 class ModuleHubView(TemplateView):
-    """Odoo tarzı modül merkezi — sektör filtresi ve kurulum aç/kapa."""
+    """Modül merkezi — kurulum aç/kapa."""
 
     template_name = 'common/module_hub.html'
 
@@ -131,11 +107,11 @@ class ModuleHubView(TemplateView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
-        from common.module_runtime import build_profile_hub_context
+        from common.module_runtime import build_module_hub_context
 
         context = super().get_context_data(**kwargs)
         query = self.request.GET.get('q', '')
-        context.update(build_profile_hub_context(self.request.user, query=query))
+        context.update(build_module_hub_context(self.request.user, query=query))
         context['can_manage_modules'] = (
             self.request.user.is_superuser
             or self.request.user.has_perm_codename('access.settings')
@@ -143,9 +119,8 @@ class ModuleHubView(TemplateView):
         return context
 
     def post(self, request, *args, **kwargs):
-        from common.module_catalog import is_installation_vertical, vertical_by_slug
-        from common.profile_apps import profile_app_by_slug
-        from common.module_runtime import apply_vertical_preset, get_enabled_profile_slugs
+        from common.module_catalog import module_by_slug
+        from common.module_runtime import get_enabled_module_slugs
 
         if not (request.user.is_superuser or request.user.has_perm_codename('access.settings')):
             messages.error(request, 'Modül ayarları için yetkiniz yok.')
@@ -159,139 +134,52 @@ class ModuleHubView(TemplateView):
         if request.GET.get('q'):
             redirect_qs = f'?q={request.GET.get("q")}'
 
-        if 'apply_vertical_preset' in request.POST:
-            slug = request.POST.get('vertical_slug', '').strip()
-            if is_installation_vertical(slug) and vertical_by_slug(slug):
-                applied = apply_vertical_preset(slug)
-                messages.success(
-                    request,
-                    f'{vertical_by_slug(slug)["name"]} uygulama paketi kuruldu ({len(applied)} uygulama).',
-                )
+        if 'toggle_module' in request.POST:
+            slug = request.POST.get('module_slug', '').strip()
+            mod = module_by_slug(slug)
+            if not mod or mod['slug'].startswith('agency_'):
+                messages.error(request, 'Geçersiz modül.')
             else:
-                messages.error(request, 'Geçersiz profil. Yalnızca KOBİ veya Ajans seçilebilir.')
-        elif 'set_primary_vertical' in request.POST:
-            slug = request.POST.get('vertical_slug', '').strip()
-            if is_installation_vertical(slug) and vertical_by_slug(slug):
-                apply_vertical_preset(slug)
-                messages.success(
-                    request,
-                    f'Kurulum profili "{vertical_by_slug(slug)["name"]}" olarak ayarlandı.',
-                )
-            else:
-                messages.error(request, 'Geçersiz profil. Yalnızca KOBİ veya Ajans seçilebilir.')
-        elif 'toggle_profile_app' in request.POST:
-            slug = request.POST.get('app_slug', '').strip()
-            app = profile_app_by_slug(slug)
-            if not app:
-                messages.error(request, 'Geçersiz uygulama.')
-            else:
-                enabled = list(get_enabled_profile_slugs())
+                enabled = list(get_enabled_module_slugs())
                 if slug in enabled:
-                    if len(enabled) <= 1:
-                        messages.error(request, 'En az bir uygulama açık kalmalı.')
+                    if not mod.get('can_disable', True):
+                        messages.error(request, 'Bu modül kapatılamaz.')
+                    elif len([s for s in enabled if module_by_slug(s) and module_by_slug(s).get('can_disable', True)]) <= 1:
+                        messages.error(request, 'En az bir modül açık kalmalı.')
                     else:
                         enabled.remove(slug)
                         settings.enabled_module_slugs = enabled
                         settings.save(update_fields=['enabled_module_slugs'])
-                        messages.info(request, f'"{app["name"]}" kapatıldı.')
+                        messages.info(request, f'"{mod["name"]}" kapatıldı.')
                 else:
                     enabled.append(slug)
                     settings.enabled_module_slugs = enabled
                     settings.save(update_fields=['enabled_module_slugs'])
-                    messages.success(request, f'"{app["name"]}" açıldı.')
-        elif 'toggle_module' in request.POST or 'toggle_particle' in request.POST:
-            messages.info(request, 'Lütfen uygulama kartlarından aç/kapa kullanın.')
+                    messages.success(request, f'"{mod["name"]}" açıldı.')
 
         from django.urls import reverse
         return redirect(f"{reverse('module_hub')}{redirect_qs}")
 
 
-class ProfileSetupView(TemplateView):
-    """İlk kurulum — sektör profili ve uygulama paketi seçimi."""
+class CapabilitiesHubView(TemplateView):
+    """Entegrasyon merkezi."""
 
-    template_name = 'common/profile_setup.html'
-
-    def dispatch(self, request, *args, **kwargs):
-        if not request.user.is_authenticated:
-            return redirect('login')
-        from common.module_runtime import is_profile_setup_complete, user_can_manage_profile_setup
-        if not user_can_manage_profile_setup(request.user):
-            messages.info(request, 'Kurulum profili yalnızca yönetici tarafından ayarlanır.')
-            return redirect('home')
-        if is_profile_setup_complete() and request.method != 'POST':
-            return redirect('home')
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_context_data(self, **kwargs):
-        from common.module_catalog import installation_verticals
-        from common.profile_apps import profile_apps_for_vertical, profile_integrations_for_vertical
-
-        context = super().get_context_data(**kwargs)
-        verticals = []
-        preview = {}
-        for v in installation_verticals():
-            slug = v['slug']
-            apps = profile_apps_for_vertical(slug) + profile_integrations_for_vertical(slug)
-            apps.sort(key=lambda a: (a.get('sort', 99), a['name']))
-            preview[slug] = apps
-            vd = dict(v)
-            vd['app_count'] = len(apps)
-            verticals.append(vd)
-        context['setup_verticals'] = verticals
-        context['setup_apps_preview'] = preview
-        context['setup_selected'] = self.request.GET.get('v', 'kobi')
-        return context
-
-    def post(self, request, *args, **kwargs):
-        from common.module_catalog import is_installation_vertical, vertical_by_slug
-        from common.module_runtime import apply_vertical_preset, mark_profile_setup_complete
-
-        slug = (request.POST.get('vertical_slug') or 'kobi').strip()
-        if not is_installation_vertical(slug):
-            messages.error(request, 'Geçersiz kurulum profili.')
-            return redirect('profile_setup')
-        v = vertical_by_slug(slug)
-        apply_vertical_preset(slug)
-        mark_profile_setup_complete()
-        messages.success(request, f'{v["name"]} profili uygulandı. Uygulamalarınız hazır.')
-        return redirect('home')
-
-
-class ProfileAppHubView(TemplateView):
-    """Profil uygulaması mini hub — KPI + hızlı bağlantılar."""
-
-    template_name = 'common/profile_app_hub.html'
+    template_name = 'common/capabilities_hub.html'
 
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect('login')
-        from common.profile_apps import profile_app_by_slug
-        from common.module_runtime import is_profile_app_enabled, user_can_access_profile_app
-
-        app_slug = kwargs.get('app_slug', '')
-        app = profile_app_by_slug(app_slug)
-        if not app or not is_profile_app_enabled(app_slug):
-            messages.warning(request, 'Bu uygulama kurulu değil veya kapalı.')
-            return redirect('module_hub')
-        if not user_can_access_profile_app(request.user, app):
-            messages.error(request, 'Bu uygulamaya erişim yetkiniz yok.')
-            return redirect('home')
-        self.profile_app = app
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
-        from common.module_catalog import vertical_by_slug
-        from common.module_runtime import build_profile_app_record, get_primary_vertical_slug
-        from common.profile_app_hub import build_profile_app_hub_metrics, profile_app_quick_links
+        from common.capability_hub import build_capabilities_hub_context
 
         context = super().get_context_data(**kwargs)
-        app = self.profile_app
-        user = self.request.user
-        record = build_profile_app_record(user, app)
-        context['app'] = record
-        context['app_metrics'] = build_profile_app_hub_metrics(user, app)
-        context['app_quick_links'] = profile_app_quick_links(app, user)
-        context['panel_vertical'] = vertical_by_slug(get_primary_vertical_slug())
+        context.update(build_capabilities_hub_context(self.request.user))
+        context['can_manage_modules'] = (
+            self.request.user.is_superuser
+            or self.request.user.has_perm_codename('access.settings')
+        )
         return context
 
 
