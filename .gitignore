@@ -37,3 +37,7 @@ tools/whatsapp_bridge/.wwebjs_auth/
 # Geçici
 *.bak
 *.tmp
+
+# Plesk (sunucuya özel)
+deploy/plesk/plesk.env
+deploy/plesk/logs/

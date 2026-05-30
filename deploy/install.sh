@@ -139,6 +139,9 @@ echo "  ALLOWED_HOSTS: ${HOSTS}"
 echo "  CSRF: ${CSRF}"
 echo ""
 echo "Docker build + başlatılıyor (ilk sefer 5–15 dk sürebilir)..."
+if [[ -n "${COMPOSE_FILE:-}" ]]; then
+  echo "  COMPOSE_FILE=$COMPOSE_FILE"
+fi
 docker compose up -d --build
 
 echo ""
@@ -151,6 +154,9 @@ if [[ -n "$DOMAIN" ]] && ! is_ipv4 "$DOMAIN"; then
   fi
 else
   echo "  Panel: http://${IP}:8080/giris/  (reverse proxy yoksa compose'a ports: 8080:8080 ekleyin)"
+fi
+if [[ "${KOBIOPS_PLESK:-0}" == "1" ]]; then
+  echo "  Plesk: nginx proxy → 127.0.0.1:${KOBIOPS_HTTP_PORT:-8080} (deploy/plesk/nginx-proxy.conf)"
 fi
 echo "  İlk giriş: admin / admin"
 echo "  Sonra .env içinde DJANGO_ENSURE_SUPERADMIN=0 yapıp: docker compose up -d"

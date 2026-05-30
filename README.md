@@ -29,7 +29,7 @@ Django tabanlı, self-host edilebilir hafif ERP/CRM: müşteri rehberi, yardım 
 - **Personel & maaş:** `/muhasebe/personel/` — kayıt, ekip, maaş tarihi; `/muhasebe/maas-avans/` — avans mahsubu ve aylık net ödeme  
 - **RBAC:** Muhasebe, satış, servis, operasyon rolleri; `python manage.py test_rbac` ile senaryo testleri  
 - **WhatsApp:** Ayrı `whatsapp_bridge` servisi (Docker) veya yerel otomatik köprü  
-- **Deploy:** Coolify, Dokploy, 1Panel — tak-çalıştır Compose, kalıcı volume `/data`  
+- **Deploy:** Docker Compose; Coolify, Dokploy, 1Panel, **Plesk Git** ([deploy/plesk/README.md](deploy/plesk/README.md))
 
 ## Hızlı başlangıç (Docker — önerilen)
 
@@ -45,6 +45,7 @@ Detaylı üretim rehberi: **[DEPLOY.md](DEPLOY.md)**
 
 | Platform | Rehber |
 |----------|--------|
+| Plesk (Git) | [deploy/plesk/README.md](deploy/plesk/README.md) |
 | Dokploy | [deploy/dokploy/README.md](deploy/dokploy/README.md) |
 | Coolify | [deploy/coolify/README.md](deploy/coolify/README.md) |
 | 1Panel | [deploy/1panel/README.md](deploy/1panel/README.md) |
