@@ -35,20 +35,24 @@ def ensure_default_statuses():
 
 
 def apply_service_list_visibility(queryset, request):
-    """Varsayılan: yalnızca aktif servisler; beklemede ve gizliler isteğe bağlı."""
+    """Varsayılan: yalnızca aktif servisler; sekme veya eski show_* parametreleri."""
     from core_settings.models import StatusOption
 
     explicit_status = (request.GET.get('status') or '').strip()
     if explicit_status and explicit_status.isdigit():
         return queryset.filter(status_id=int(explicit_status))
 
-    show_hidden = request.GET.get('show_hidden') == '1'
-    show_pending = request.GET.get('show_pending') == '1'
-    groups = ['active']
-    if show_pending:
-        groups.append('pending')
-    if show_hidden:
-        groups.append('hidden')
+    tab = resolve_list_tab(request)
+    if tab == 'all':
+        return queryset
+    if tab == 'pending':
+        groups = ['pending']
+    elif tab == 'closed':
+        groups = ['hidden']
+    elif tab == 'open':
+        groups = ['active', 'pending']
+    else:
+        groups = ['active']
 
     status_ids = list(
         StatusOption.objects.filter(list_group__in=groups).values_list('id', flat=True)
@@ -59,3 +63,25 @@ def apply_service_list_visibility(queryset, request):
             StatusOption.objects.filter(list_group__in=groups).values_list('id', flat=True)
         )
     return queryset.filter(status_id__in=status_ids)
+
+
+def resolve_list_tab(request) -> str:
+    """Servis listesi sekmesi: active | pending | closed | open | all."""
+    tab = (request.GET.get('tab') or '').strip().lower()
+    if tab in ('active', 'pending', 'closed', 'open', 'all'):
+        return tab
+    if request.GET.get('show_hidden') == '1':
+        return 'closed'
+    if request.GET.get('show_pending') == '1':
+        return 'open'
+    return 'active'
+
+
+def service_list_tab_url(request, tab: str) -> str:
+    q = request.GET.copy()
+    for key in ('show_hidden', 'show_pending', 'tab', 'page'):
+        q.pop(key, None)
+    if tab and tab != 'active':
+        q['tab'] = tab
+    encoded = q.urlencode()
+    return f'?{encoded}' if encoded else '?'

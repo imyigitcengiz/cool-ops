@@ -23,93 +23,116 @@
     </div>
 
     <!-- Filters -->
-    <div class="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm space-y-3">
-        {% if visibility_active %}
-        <div class="flex flex-wrap items-center gap-3 text-sm">
-            <span class="text-slate-500">Liste görünümü:</span>
-            <span class="px-2.5 py-1 rounded-lg bg-green-50 text-green-700 font-semibold text-xs">Yalnızca aktif servisler</span>
-            <label class="inline-flex items-center gap-2 text-slate-600 cursor-pointer">
-                <input type="checkbox" id="togglePending" class="accent-brand-600" {% if show_pending %}checked{% endif %}>
-                Beklemedekileri göster
-            </label>
-            <label class="inline-flex items-center gap-2 text-slate-600 cursor-pointer">
-                <input type="checkbox" id="toggleHidden" class="accent-brand-600" {% if show_hidden %}checked{% endif %}>
-                Tamamlanan / iptal kayıtları göster
-            </label>
-        </div>
-        {% endif %}
-        <div class="flex flex-wrap items-center gap-2 text-sm border-t border-slate-100 pt-3">
-            <span class="text-slate-500">Görünüm:</span>
-            <button type="button" data-set-view="customer"
-                    class="px-3 py-1.5 rounded-lg text-xs font-bold {% if list_view_mode == 'customer' %}bg-brand-600 text-white{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200{% endif %}">
-                Müşteri (özet)
-            </button>
-            <button type="button" data-set-view="record"
-                    class="px-3 py-1.5 rounded-lg text-xs font-bold {% if list_view_mode == 'record' %}bg-brand-600 text-white{% else %}bg-slate-100 text-slate-600 hover:bg-slate-200{% endif %}">
-                Tüm kayıtlar
-            </button>
-            {% if list_view_mode == 'customer' %}
-            <span class="text-[11px] text-slate-400">Müşteri başına en güncel açık kayıt öne çıkar.</span>
-            {% endif %}
-        </div>
-        <form method="get" id="serviceFilterForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <input type="hidden" name="view" id="listViewModeInput" value="{{ list_view_mode }}">
-            <input type="hidden" name="show_pending" id="showPendingInput" value="{% if show_pending %}1{% else %}0{% endif %}">
-            <input type="hidden" name="show_hidden" id="showHiddenInput" value="{% if show_hidden %}1{% else %}0{% endif %}">
-            <select name="status" onchange="this.form.submit()" class="p-2 bg-slate-50 border-none rounded-xl text-sm">
-                <option value="">Durum (varsayılan: aktif)</option>
-                {% for s in statuses %}
-                <option value="{{ s.id }}" {% if request.GET.status == s.id|stringformat:"i" %}selected{% endif %}>{{ s.name }}</option>
-                {% endfor %}
-            </select>
-            <select name="priority" onchange="this.form.submit()" class="p-2 bg-slate-50 border-none rounded-xl text-sm">
-                <option value="">Tüm Öncelikler</option>
-                {% for p in priorities %}
-                <option value="{{ p.id }}" {% if request.GET.priority == p.id|stringformat:"i" %}selected{% endif %}>{{ p.name }}</option>
-                {% endfor %}
-            </select>
-            <select name="product" onchange="this.form.submit()" class="p-2 bg-slate-50 border-none rounded-xl text-sm">
-                <option value="">Tüm Ürünler</option>
-                {% for p in products %}
-                <option value="{{ p.id }}" {% if request.GET.product == p.id|stringformat:"i" %}selected{% endif %}>{{ p.name }}</option>
-                {% endfor %}
-            </select>
-            <select name="warranty" onchange="this.form.submit()" class="p-2 bg-slate-50 border-none rounded-xl text-sm">
-                <option value="">Garanti Durumu</option>
-                <option value="active" {% if request.GET.warranty == 'active' %}selected{% endif %}>Garantisi Devam Edenler</option>
-                <option value="expired" {% if request.GET.warranty == 'expired' %}selected{% endif %}>Garantisi Bitenler</option>
-            </select>
-            <select name="team" onchange="this.form.submit()" class="p-2 bg-slate-50 border-none rounded-xl text-sm">
-                <option value="">Tüm Ekipler</option>
-                {% for t in teams %}
-                <option value="{{ t.id }}" {% if request.GET.team == t.id|stringformat:"i" %}selected{% endif %}>{{ t.name }}</option>
-                {% endfor %}
-            </select>
-            <select name="personnel" onchange="this.form.submit()" class="p-2 bg-slate-50 border-none rounded-xl text-sm">
-                <option value="">Tüm Personeller</option>
-                {% for p in personnel_list %}
-                <option value="{{ p.id }}" {% if request.GET.personnel == p.id|stringformat:"i" %}selected{% endif %}>{{ p.name }}{% if p.team %} ({{ p.team.name }}){% endif %}</option>
-                {% endfor %}
-            </select>
-            <select name="region" onchange="this.form.submit()" class="p-2 bg-slate-50 border-none rounded-xl text-sm">
-                <option value="">Tüm Bölgeler</option>
-                {% for r in customer_regions %}
-                <option value="{{ r }}" {% if request.GET.region == r %}selected{% endif %}>{{ r }}</option>
-                {% endfor %}
-            </select>
-            <div class="relative col-span-1 md:col-span-6">
-                <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Müşteri veya notlarda ara..." class="w-full p-2 bg-slate-50 border-none rounded-xl text-sm">
-                <button type="submit" class="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400">
-                    <i data-lucide="search" class="w-4 h-4"></i>
+    <div class="bg-white p-4 md:p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <div class="inline-flex flex-wrap p-1 bg-slate-100 rounded-2xl gap-1" role="tablist" aria-label="Servis durumu">
+                <a href="{{ service_tab_urls.active }}"
+                   class="px-4 py-2 rounded-xl text-sm font-bold transition-colors {% if list_tab == 'active' %}bg-white text-brand-700 shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}">
+                    Aktif
+                </a>
+                <a href="{{ service_tab_urls.pending }}"
+                   class="px-4 py-2 rounded-xl text-sm font-bold transition-colors {% if list_tab == 'pending' %}bg-white text-amber-700 shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}">
+                    Beklemede
+                </a>
+                <a href="{{ service_tab_urls.closed }}"
+                   class="px-4 py-2 rounded-xl text-sm font-bold transition-colors {% if list_tab == 'closed' %}bg-white text-slate-800 shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}">
+                    Kapalı
+                </a>
+                <a href="{{ service_tab_urls.all }}"
+                   class="px-4 py-2 rounded-xl text-sm font-bold transition-colors {% if list_tab == 'all' %}bg-white text-slate-800 shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}">
+                    Tümü
+                </a>
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <div class="inline-flex p-1 bg-slate-100 rounded-xl text-xs font-bold">
+                    <button type="button" data-set-view="customer"
+                            class="px-3 py-1.5 rounded-lg {% if list_view_mode == 'customer' %}bg-white text-brand-700 shadow-sm{% else %}text-slate-600{% endif %}">
+                        Müşteri özeti
+                    </button>
+                    <button type="button" data-set-view="record"
+                            class="px-3 py-1.5 rounded-lg {% if list_view_mode == 'record' %}bg-white text-brand-700 shadow-sm{% else %}text-slate-600{% endif %}">
+                        Tüm kayıtlar
+                    </button>
+                </div>
+                <button type="button" id="serviceFilterToggle" aria-expanded="false"
+                        class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-semibold transition-colors {% if has_active_filters %}border-brand-300 bg-brand-50 text-brand-800{% else %}border-slate-200 bg-white text-slate-700 hover:bg-slate-50{% endif %}">
+                    <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+                    Filtreler{% if has_active_filters %} <span class="w-2 h-2 rounded-full bg-brand-500"></span>{% endif %}
                 </button>
+            </div>
+        </div>
+
+        <form method="get" id="serviceFilterForm" class="space-y-3">
+            <input type="hidden" name="tab" value="{{ list_tab }}">
+            <input type="hidden" name="view" id="listViewModeInput" value="{{ list_view_mode }}">
+            <div class="relative">
+                <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400"></i>
+                <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Müşteri, telefon veya not ara…"
+                       class="w-full pl-10 pr-24 py-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm focus:ring-2 focus:ring-brand-500 outline-none">
+                <button type="submit" class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-bold hover:bg-brand-700">
+                    Ara
+                </button>
+            </div>
+
+            <div id="serviceFilterDrawer" class="hidden border-t border-slate-100 pt-4 {% if has_active_filters %}!block{% endif %}"
+                 {% if has_active_filters %}data-open-default="1"{% endif %}>
+                <p class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Detaylı filtreler</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <select name="status" class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm">
+                        <option value="">Durum (tümü)</option>
+                        {% for s in statuses %}
+                        <option value="{{ s.id }}" {% if request.GET.status == s.id|stringformat:"i" %}selected{% endif %}>{{ s.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="priority" class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm">
+                        <option value="">Tüm öncelikler</option>
+                        {% for p in priorities %}
+                        <option value="{{ p.id }}" {% if request.GET.priority == p.id|stringformat:"i" %}selected{% endif %}>{{ p.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="product" class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm">
+                        <option value="">Tüm ürünler</option>
+                        {% for p in products %}
+                        <option value="{{ p.id }}" {% if request.GET.product == p.id|stringformat:"i" %}selected{% endif %}>{{ p.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="warranty" class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm">
+                        <option value="">Garanti durumu</option>
+                        <option value="active" {% if request.GET.warranty == 'active' %}selected{% endif %}>Devam eden</option>
+                        <option value="expired" {% if request.GET.warranty == 'expired' %}selected{% endif %}>Biten / ücretli</option>
+                    </select>
+                    <select name="team" class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm">
+                        <option value="">Tüm ekipler</option>
+                        {% for t in teams %}
+                        <option value="{{ t.id }}" {% if request.GET.team == t.id|stringformat:"i" %}selected{% endif %}>{{ t.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="personnel" class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm">
+                        <option value="">Tüm personeller</option>
+                        {% for p in personnel_list %}
+                        <option value="{{ p.id }}" {% if request.GET.personnel == p.id|stringformat:"i" %}selected{% endif %}>{{ p.name }}{% if p.team %} ({{ p.team.name }}){% endif %}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="region" class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm">
+                        <option value="">Tüm bölgeler</option>
+                        {% for r in customer_regions %}
+                        <option value="{{ r }}" {% if request.GET.region == r %}selected{% endif %}>{{ r }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex flex-wrap gap-2 mt-4">
+                    <button type="submit" class="px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700">Filtrele</button>
+                    <a href="{{ service_tab_urls.active }}"
+                       class="px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Temizle</a>
+                </div>
             </div>
         </form>
         {% if user_perms.services_whatsapp %}
-        <div class="pt-2 border-t border-slate-100">
+        <div class="pt-1 border-t border-slate-100">
             <a href="{% url 'service_send_whatsapp_auto' %}?{{ request.GET.urlencode }}"
                class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-700 text-white text-sm font-semibold hover:bg-emerald-800">
                 <i data-lucide="send" class="w-4 h-4"></i>
-                WA Otomatik Dağıt (Tek Tuş)
+                WhatsApp otomatik dağıt
             </a>
         </div>
         {% endif %}
@@ -360,7 +383,20 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="9" class="px-6 py-12 text-center text-slate-400">Aradığınız kriterlere uygun servis kaydı bulunmuyor.</td></tr>
+                    <tr>
+                        <td colspan="9" class="px-6 py-16 text-center">
+                            <div class="flex flex-col items-center gap-3 text-slate-500">
+                                <span class="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center">
+                                    <i data-lucide="inbox" class="w-7 h-7 text-slate-400"></i>
+                                </span>
+                                <p class="font-semibold text-slate-700">Kayıt bulunamadı</p>
+                                <p class="text-sm max-w-md">Bu sekme ve filtreler için servis yok. Sekmeyi değiştirin veya filtreleri temizleyin.</p>
+                                {% if user_perms.services_manage %}
+                                <a href="{% url 'service_create' %}" class="mt-2 px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700">Yeni servis ekle</a>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -653,18 +689,7 @@
             closeLocationQrModal();
         }
     });
-
-    function applyVisibilityToggle(name, inputId) {
-        const el = document.getElementById(name);
-        const input = document.getElementById(inputId);
-        const form = document.getElementById('serviceFilterForm');
-        if (!el || !input || !form) return;
-        el.addEventListener('change', () => {
-            input.value = el.checked ? '1' : '0';
-            form.submit();
-        });
-    }
-    applyVisibilityToggle('togglePending', 'showPendingInput');
-    applyVisibilityToggle('toggleHidden', 'showHiddenInput');
 </script>
+{% load static %}
+<script src="{% static 'js/service-list-ui.js' %}" defer></script>
 {% endblock %}

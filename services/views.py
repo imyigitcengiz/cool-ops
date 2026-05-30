@@ -30,7 +30,12 @@ from .whatsapp_status_prompt import (
     queue_whatsapp_status_prompts,
 )
 from core_settings.models import ServiceTeam, ServicePersonnel, StatusOption, PriorityOption, SiteSettings
-from core_settings.status_defaults import apply_service_list_visibility, ensure_default_statuses
+from core_settings.status_defaults import (
+    apply_service_list_visibility,
+    ensure_default_statuses,
+    resolve_list_tab,
+    service_list_tab_url,
+)
 from customers.media_utils import ingest_customer_media_uploads
 from customers.models import CustomerMedia
 from .customer_services import (
@@ -348,9 +353,18 @@ class ServiceListView(PermissionRequiredMixin, ListView):
             .distinct()
             .order_by('region')
         )
-        context['show_hidden'] = self.request.GET.get('show_hidden') == '1'
-        context['show_pending'] = self.request.GET.get('show_pending') == '1'
-        context['visibility_active'] = not self.request.GET.get('status')
+        context['show_hidden'] = resolve_list_tab(self.request) == 'closed'
+        context['show_pending'] = resolve_list_tab(self.request) in ('open', 'pending')
+        context['list_tab'] = resolve_list_tab(self.request)
+        context['service_tab_urls'] = {
+            key: service_list_tab_url(self.request, key)
+            for key in ('active', 'pending', 'closed', 'all')
+        }
+        context['has_active_filters'] = any(
+            (self.request.GET.get(k) or '').strip()
+            for k in ('status', 'priority', 'product', 'warranty', 'team', 'personnel', 'region', 'q')
+        )
+        context['visibility_active'] = not (self.request.GET.get('status') or '').strip()
         context['whatsapp_prompt_queue'] = pop_whatsapp_status_prompt_queue(self.request)
         view_mode = (self.request.GET.get('view') or 'customer').strip().lower()
         if view_mode not in ('customer', 'record'):

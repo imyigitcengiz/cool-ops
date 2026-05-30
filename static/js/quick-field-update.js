@@ -141,14 +141,18 @@
           try {
             const data = await postQuickUpdate(url, serviceId, field, btn.dataset.value);
             if (!data.ok) {
-              alert(data.error || 'Güncelleme başarısız.');
+              const msg = data.error || 'Güncelleme başarısız.';
+              if (global.GyToast) global.GyToast.error(msg);
+              else alert(msg);
               return;
             }
             applyQuickUpdateResult(serviceId, field, data, () => {
               global.location.reload();
             });
           } catch (err) {
-            alert(err?.message || 'Hızlı güncelleme sırasında hata oluştu.');
+            const msg = err?.message || 'Hızlı güncelleme sırasında hata oluştu.';
+            if (global.GyToast) global.GyToast.error(msg);
+            else alert(msg);
           } finally {
             menu.classList.add('hidden');
           }
