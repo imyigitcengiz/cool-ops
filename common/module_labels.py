@@ -1,8 +1,6 @@
 """ERP/CRM modül adları — arayüz metinleri (URL ve izin kodları değişmez)."""
 
 APP_NAME = 'CoolOPS'
-KOBI_APP = 'Kobi App'
-AGENCY_APP = 'Agency App'
 
 REHBER = 'Rehber'
 YARDIM_MASASI = 'Yardım Masası'

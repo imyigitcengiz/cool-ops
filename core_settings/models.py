@@ -65,11 +65,6 @@ class SiteSettings(models.Model):
         default='',
         verbose_name='WhatsApp Business telefon numarası ID',
     )
-    registration_enabled = models.BooleanField(
-        default=True,
-        verbose_name='Herkese açık üye kaydı',
-        help_text='Kapalıyken yalnızca yönetici kullanıcı oluşturabilir (ilk kurulum hariç).',
-    )
 
     class Meta:
         verbose_name = "Site Ayarları"

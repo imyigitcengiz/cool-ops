@@ -1,14 +1,13 @@
 from django.contrib import messages
-from django.contrib.auth import login
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import LoginView as AuthLoginView, LogoutView as AuthLogoutView
 from django.shortcuts import redirect
 from django.urls import reverse, reverse_lazy
 from django.utils.http import url_has_allowed_host_and_scheme
-from django.views.generic import FormView, TemplateView
+from django.views.generic import TemplateView
+
 from common.login_throttle import clear_login_attempts, is_login_blocked, register_failed_login
-from .forms import UserLoginForm, UserPasswordChangeForm, UserProfileForm, UserRegistrationForm
-from .registration import complete_user_registration, registration_is_open
+from .forms import UserLoginForm, UserPasswordChangeForm, UserProfileForm
 from .utils import get_or_create_user_profile
 
 
@@ -46,53 +45,6 @@ class UserLoginView(AuthLoginView):
         clear_login_attempts(self.request, form.cleaned_data.get('username', ''))
         messages.success(self.request, f'Hoş geldiniz, {form.get_user().display_name}.')
         return super().form_valid(form)
-
-
-class UserRegisterView(FormView):
-    template_name = 'users/register.html'
-    form_class = UserRegistrationForm
-
-    def dispatch(self, request, *args, **kwargs):
-        if request.user.is_authenticated:
-            return redirect('home')
-        if not registration_is_open():
-            messages.info(request, 'Üye kaydı kapalı. Yöneticinizden hesap isteyin.')
-            return redirect('login')
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_initial(self):
-        initial = super().get_initial()
-        mode = self.request.GET.get('mode')
-        if mode:
-            initial['business_mode'] = mode
-        return initial
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['initial_mode'] = self.request.GET.get('mode')
-        return kwargs
-
-    def form_valid(self, form):
-        user = form.save()
-        mode, is_first = complete_user_registration(user, form.cleaned_data['business_mode'])
-        if is_first:
-            messages.success(
-                self.request,
-                f'Hoş geldiniz! İlk kurulum tamamlandı — {user.display_name} süper admin olarak atandı.',
-            )
-        else:
-            profile_name = 'Kobi App' if mode == 'kobi' else 'Agency App'
-            messages.success(
-                self.request,
-                f'Hesabınız oluşturuldu. Panel {profile_name} düzeninde açılacak.',
-            )
-        login(self.request, user)
-        return redirect('home')
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['selected_mode'] = self.request.GET.get('mode', 'kobi')
-        return context
 
 
 class UserLogoutView(AuthLogoutView):

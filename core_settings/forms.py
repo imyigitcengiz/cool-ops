@@ -42,12 +42,11 @@ class SiteSettingsForm(forms.ModelForm):
 class GeneralSiteSettingsForm(forms.ModelForm):
     class Meta:
         model = SiteSettings
-        fields = ['site_name', 'logo', 'company_phone', 'company_address', 'registration_enabled']
+        fields = ['site_name', 'logo', 'company_phone', 'company_address']
         widgets = {
             'site_name': forms.TextInput(attrs={'class': INPUT}),
             'company_phone': forms.TextInput(attrs={'class': INPUT}),
             'company_address': forms.Textarea(attrs={'class': INPUT, 'rows': 2}),
-            'registration_enabled': forms.CheckboxInput(attrs={'class': 'w-5 h-5 accent-amber-600 rounded'}),
         }
 
 

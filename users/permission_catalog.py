@@ -122,28 +122,6 @@ DEFAULT_ROLES = {
             'sales.manage', 'sales.reports', 'sales.export',
         ],
     },
-    'kobi_app': {
-        'name': 'Kobi App üyesi',
-        'description': 'Kayıt: saha operasyonu ve servis odaklı varsayılan izinler.',
-        'is_system': True,
-        'permissions': [
-            'access.home', 'access.services', 'access.contact',
-            'services.manage', 'services.print', 'services.whatsapp',
-            'contact.customers_view', 'contact.customers', 'contact.teams', 'contact.personnel',
-            'tools.media',
-        ],
-    },
-    'agency_app': {
-        'name': 'Agency App üyesi',
-        'description': 'Kayıt: lead, outreach ve proje geliri odaklı varsayılan izinler.',
-        'is_system': True,
-        'permissions': [
-            'access.home', 'access.contact', 'access.outreach', 'access.accounting',
-            'contact.customers_view', 'contact.customers', 'contact.firms',
-            'sales.manage', 'sales.reports',
-            'tools.media',
-        ],
-    },
 }
 
 ROUTE_PERMISSIONS = [
@@ -209,5 +187,5 @@ ROUTE_PERMISSIONS = [
     ('/panel/', 'access.home'),
 ]
 
-LOGIN_EXEMPT_PREFIXES = ('/giris/', '/kayit/', '/static/', '/healthz/')
+LOGIN_EXEMPT_PREFIXES = ('/giris/', '/static/', '/healthz/')
 SUPERUSER_ONLY_PREFIXES = ('/yonetim/',)
