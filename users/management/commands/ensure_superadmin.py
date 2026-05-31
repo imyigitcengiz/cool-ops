@@ -1,5 +1,4 @@
 import os
-import secrets
 from pathlib import Path
 
 from django.contrib.auth import get_user_model
@@ -12,7 +11,7 @@ User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = 'İlk kurulumda süper admin oluşturur (rastgele şifre). Mevcut hesapların şifresini değiştirmez.'
+    help = 'İlk kurulumda süper admin oluşturur (varsayılan: admin/admin). Mevcut hesabın şifresini değiştirmez.'
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -46,7 +45,7 @@ class Command(BaseCommand):
                 user.role = admin_role
 
         if created or options['reset_password']:
-            password = secrets.token_urlsafe(12)
+            password = os.environ.get('DJANGO_SUPERADMIN_PASSWORD', '').strip() or 'admin'
             user.password = make_password(password)
             data_dir = Path(os.environ.get('DATA_DIR', '/data'))
             pwd_file = data_dir / '.initial_admin_password'
@@ -61,11 +60,18 @@ class Command(BaseCommand):
             except OSError:
                 pwd_hint = '(dosyaya yazılamadı)'
 
-            self.stdout.write(
-                self.style.WARNING(
-                    f'İlk giriş — kullanıcı: admin, şifre: {password} (kayıt: {pwd_hint})'
+            if password == 'admin':
+                self.stdout.write(
+                    self.style.WARNING(
+                        f'İlk giriş — kullanıcı: admin, şifre: admin (kayıt: {pwd_hint})'
+                    )
                 )
-            )
+            else:
+                self.stdout.write(
+                    self.style.WARNING(
+                        f'İlk giriş — kullanıcı: admin, şifre: {password} (kayıt: {pwd_hint})'
+                    )
+                )
 
         user.save()
         if created:

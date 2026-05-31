@@ -4,7 +4,7 @@
 
 | Ayar | Değer |
 |------|--------|
-| Repo | `imyigitcengiz/kobi-ops` |
+| Repo | `imyigitcengiz/cool-ops` |
 | Compose file | `docker-compose.yaml` |
 | Service domain | **`app`** servisi, container port **80** |
 

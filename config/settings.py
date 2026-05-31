@@ -141,7 +141,7 @@ WHATSAPP_BRIDGE_TOKEN = read_bridge_token()
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'kobiops-default',
+        'LOCATION': 'coolops-default',
     }
 }
 
@@ -299,12 +299,12 @@ MEDIA_FFMPEG_PATH = os.environ.get('MEDIA_FFMPEG_PATH', 'ffmpeg')
 MEDIA_FFMPEG_TIMEOUT = int(os.environ.get('MEDIA_FFMPEG_TIMEOUT', '300'))
 
 # Panel içi uygulama güncellemesi (GitHub kontrol + git pull veya deploy webhook)
-KOBIOPS_UPDATE_REPO = os.environ.get('KOBIOPS_UPDATE_REPO', 'imyigitcengiz/kobi-ops').strip()
-KOBIOPS_UPDATE_BRANCH = os.environ.get('KOBIOPS_UPDATE_BRANCH', 'main').strip()
-KOBIOPS_UPDATE_CHECK_INTERVAL = int(os.environ.get('KOBIOPS_UPDATE_CHECK_INTERVAL', '1800'))
-KOBIOPS_DEPLOY_WEBHOOK_URL = os.environ.get('KOBIOPS_DEPLOY_WEBHOOK_URL', '').strip()
-KOBIOPS_GITHUB_TOKEN = os.environ.get('KOBIOPS_GITHUB_TOKEN', '').strip()
-KOBIOPS_BUILD_COMMIT = os.environ.get('KOBIOPS_BUILD_COMMIT', '').strip()
+COOLOPS_UPDATE_REPO = os.environ.get('COOLOPS_UPDATE_REPO', 'imyigitcengiz/cool-ops').strip()
+COOLOPS_UPDATE_BRANCH = os.environ.get('COOLOPS_UPDATE_BRANCH', 'main').strip()
+COOLOPS_UPDATE_CHECK_INTERVAL = int(os.environ.get('COOLOPS_UPDATE_CHECK_INTERVAL', '1800'))
+COOLOPS_DEPLOY_WEBHOOK_URL = os.environ.get('COOLOPS_DEPLOY_WEBHOOK_URL', '').strip()
+COOLOPS_GITHUB_TOKEN = os.environ.get('COOLOPS_GITHUB_TOKEN', '').strip()
+COOLOPS_BUILD_COMMIT = os.environ.get('COOLOPS_BUILD_COMMIT', '').strip()
 
 LOGGING = {
     'version': 1,

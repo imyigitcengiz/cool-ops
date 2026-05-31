@@ -1,7 +1,7 @@
-# KobiOps — production Docker Compose (Coolify / Dokploy / 1Panel / Portainer)
+# CoolOPS — production Docker Compose (Coolify / Dokploy / 1Panel / Portainer)
 # Panel deploy: yalnızca expose (Traefik/domain). VPS için: deploy/docker-compose.vps.yaml overlay
 # Coolify: Domains → servis "app" → Generate Domain → http://xxx.sslip.io (port YAZMAYIN)
-name: kobi-ops
+name: cool-ops
 
 x-app-port: &app_port "80"
 
@@ -11,14 +11,14 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        KOBIOPS_BUILD_COMMIT: ${KOBIOPS_BUILD_COMMIT:-unknown}
+        COOLOPS_BUILD_COMMIT: ${COOLOPS_BUILD_COMMIT:-unknown}
     restart: unless-stopped
     expose:
       - *app_port
     environment:
       PORT: *app_port
       DATA_DIR: /data
-      KOBIOPS_SECRETS_DIR: /run/kobiops-secrets
+      COOLOPS_SECRETS_DIR: /run/coolops-secrets
       DJANGO_DB_PATH: /data/db.sqlite3
       DJANGO_MEDIA_ROOT: /data/media
       DJANGO_SERVE_MEDIA: "1"
@@ -32,11 +32,11 @@ services:
       DJANGO_WHATSAPP_BRIDGE_CAN_SPAWN: "0"
       DJANGO_WHATSAPP_BRIDGE_AUTO_START: "0"
       DJANGO_WHATSAPP_BRIDGE_WAIT_ON_START: "0"
-      KOBIOPS_COMPOSE_STACK: "1"
-      KOBIOPS_BUILD_COMMIT: ${KOBIOPS_BUILD_COMMIT:-unknown}
-      KOBIOPS_DEPLOY_WEBHOOK_URL: ${KOBIOPS_DEPLOY_WEBHOOK_URL:-}
-      KOBIOPS_UPDATE_REPO: ${KOBIOPS_UPDATE_REPO:-imyigitcengiz/kobi-ops}
-      KOBIOPS_UPDATE_BRANCH: ${KOBIOPS_UPDATE_BRANCH:-main}
+      COOLOPS_COMPOSE_STACK: "1"
+      COOLOPS_BUILD_COMMIT: ${COOLOPS_BUILD_COMMIT:-unknown}
+      COOLOPS_DEPLOY_WEBHOOK_URL: ${COOLOPS_DEPLOY_WEBHOOK_URL:-}
+      COOLOPS_UPDATE_REPO: ${COOLOPS_UPDATE_REPO:-imyigitcengiz/cool-ops}
+      COOLOPS_UPDATE_BRANCH: ${COOLOPS_UPDATE_BRANCH:-main}
       MEDIA_COMPRESS_ENABLED: ${MEDIA_COMPRESS_ENABLED:-1}
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-}
       DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-}
@@ -49,7 +49,7 @@ services:
         required: false
     volumes:
       - gy_data:/data
-      - kobiops_secrets:/run/kobiops-secrets
+      - coolops_secrets:/run/coolops-secrets
     labels:
       - traefik.enable=true
     security_opt:
@@ -80,11 +80,11 @@ services:
       - "3939"
     environment:
       WHATSAPP_BRIDGE_BIND: "0.0.0.0"
-      KOBIOPS_SECRETS_DIR: /run/kobiops-secrets
+      COOLOPS_SECRETS_DIR: /run/coolops-secrets
       WHATSAPP_BRIDGE_TOKEN: ${WHATSAPP_BRIDGE_TOKEN:-}
     volumes:
       - whatsapp_session:/app/session
-      - kobiops_secrets:/run/kobiops-secrets
+      - coolops_secrets:/run/coolops-secrets
     shm_size: "512mb"
     healthcheck:
       test:
@@ -105,8 +105,8 @@ services:
 
 volumes:
   gy_data:
-    name: kobiops_gy_data
+    name: coolops_gy_data
   whatsapp_session:
-    name: kobiops_whatsapp_session
-  kobiops_secrets:
-    name: kobiops_secrets
+    name: coolops_whatsapp_session
+  coolops_secrets:
+    name: coolops_secrets

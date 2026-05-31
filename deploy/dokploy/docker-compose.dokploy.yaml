@@ -8,7 +8,7 @@
 #
 # Dokploy Compose projesinde ortam değişkeni (isteğe bağlı):
 #   COMPOSE_FILE=docker-compose.yaml:deploy/dokploy/docker-compose.dokploy.yaml
-name: kobi-ops
+name: cool-ops
 
 services:
   app:
@@ -21,7 +21,7 @@ services:
       - traefik.enable=true
       - traefik.docker.network=dokploy-network
     environment:
-      KOBIOPS_COMPOSE_STACK: "1"
+      COOLOPS_COMPOSE_STACK: "1"
 
 networks:
   dokploy-network:

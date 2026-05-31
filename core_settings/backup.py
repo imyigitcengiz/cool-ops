@@ -19,7 +19,8 @@ from common.security_limits import MAX_BACKUP_UPLOAD_BYTES
 
 SQLITE_MAGIC = b'SQLite format 3\x00'
 
-BACKUP_FORMAT_V2 = 'gy-dashboard-backup-v2'
+BACKUP_FORMAT_V2 = 'cool-ops-backup-v2'
+LEGACY_BACKUP_FORMAT_V2 = 'gy-dashboard-backup-v2'
 
 
 def _applied_migrations():
@@ -71,7 +72,7 @@ def export_backup_response() -> HttpResponse:
     payload = _build_backup_payload()
     raw_json = json.dumps(payload, ensure_ascii=False, indent=2).encode('utf-8')
     ts = datetime.now().strftime('%Y%m%d-%H%M%S')
-    file_name = f'gy-dashboard-backup-{ts}.json.gz'
+    file_name = f'cool-ops-backup-{ts}.json.gz'
     response = HttpResponse(gzip.compress(raw_json), content_type='application/gzip')
     response['Content-Disposition'] = f'attachment; filename="{file_name}"'
     return response
@@ -88,7 +89,7 @@ def _parse_backup_file(path: str, *, is_gzip: bool) -> tuple[dict | None, list]:
 
     if isinstance(data, list):
         return None, data
-    if isinstance(data, dict) and data.get('format') == BACKUP_FORMAT_V2:
+    if isinstance(data, dict) and data.get('format') in (BACKUP_FORMAT_V2, LEGACY_BACKUP_FORMAT_V2):
         fixture = data.get('fixture')
         if not isinstance(fixture, list):
             raise ValueError('Yedek dosyasında fixture verisi bulunamadı.')
@@ -278,7 +279,7 @@ def export_sqlite_response() -> HttpResponse:
 
     _close_db_connections()
     ts = datetime.now().strftime('%Y%m%d-%H%M%S')
-    filename = f'gy-dashboard-{ts}.sqlite3'
+    filename = f'cool-ops-{ts}.sqlite3'
     response = FileResponse(
         open(db_path, 'rb'),
         as_attachment=True,

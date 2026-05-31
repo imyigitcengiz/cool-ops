@@ -126,7 +126,7 @@ def data_dir_looks_ephemeral(root: Path) -> bool:
 
 
 def _orchestrated_compose_stack() -> bool:
-    return os.environ.get('KOBIOPS_COMPOSE_STACK', '').strip().lower() in ('1', 'true', 'yes')
+    return os.environ.get('COOLOPS_COMPOSE_STACK', '').strip().lower() in ('1', 'true', 'yes')
 
 
 def _data_dir_usable_for_production(root: Path) -> bool:
@@ -152,7 +152,7 @@ def _persistence_error_message(root: Path) -> str:
         or os.environ.get('DOKPLOY_IS_PREVIEW')
         or os.environ.get('DOKPLOY_FQDN')
     )
-    in_1panel = bool(os.environ.get('KOBIOPS_COMPOSE_STACK') == '1' and os.environ.get('KOBIOPS_HTTP_PORT'))
+    in_1panel = bool(os.environ.get('COOLOPS_COMPOSE_STACK') == '1' and os.environ.get('COOLOPS_HTTP_PORT'))
 
     base = (
         'KRİTİK: /data kalıcı volume olarak bağlı değil — rebuild/deploy tüm kayıtları siler.\n'
@@ -267,7 +267,7 @@ def check_before_migrate() -> None:
     if require_persistent_volume() and data_dir_looks_ephemeral(root):
         if _orchestrated_compose_stack() and _data_dir_usable_for_production(root):
             logger.warning(
-                'Volume mount algısı belirsiz; KOBIOPS_COMPOSE_STACK=1 ve yazılabilir /data — devam.'
+                'Volume mount algısı belirsiz; COOLOPS_COMPOSE_STACK=1 ve yazılabilir /data — devam.'
             )
         else:
             raise DataPersistenceError(_persistence_error_message(root))

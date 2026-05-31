@@ -1,4 +1,4 @@
-# KobiOps — üretim kurulumu
+# CoolOPS — üretim kurulumu
 
 Her müşteri kendi VPS / panelinde bağımsız kurulum. **Coolify, Dokploy, 1Panel, Portainer, Easypanel, Plesk** veya `docker compose` ile dağıtılır.
 
@@ -8,11 +8,11 @@ Her müşteri kendi VPS / panelinde bağımsız kurulum. **Coolify, Dokploy, 1Pa
 
 Panelde 3 adım — `.env` ve Persistent Storage UI **gerekmez**:
 
-1. GitHub: `imyigitcengiz/kobi-ops`
+1. GitHub: `imyigitcengiz/cool-ops`
 2. **Docker Compose** build pack (`docker-compose.yaml` — Coolify varsayılan) — **Dockerfile tek başına değil**
 3. Domain → servis **`app`**, port **8080**, URL: `https://domain.com:8080` → Deploy
 
-Named volume `kobiops_gy_data` compose ile otomatik oluşur; veri rebuild'lerde kalır.
+Named volume `coolops_gy_data` compose ile otomatik oluşur; veri rebuild'lerde kalır.
 
 `deploy/bootstrap-env.sh` otomatik ayarlar:
 
@@ -34,8 +34,8 @@ Named volume `kobiops_gy_data` compose ile otomatik oluşur; veri rebuild'lerde 
 ## VPS tek komut
 
 ```bash
-git clone https://github.com/imyigitcengiz/kobi-ops.git /opt/kobi-ops
-cd /opt/kobi-ops && ./deploy/install.sh panel.firma.com
+git clone https://github.com/imyigitcengiz/cool-ops.git /opt/cool-ops
+cd /opt/cool-ops && ./deploy/install.sh panel.firma.com
 ```
 
 ## Platform rehberleri
@@ -80,7 +80,7 @@ Tüm değişkenler 4 grupta:
 
 ## Kalıcı veri
 
-Named volume **`kobiops_gy_data`** → `/data`:
+Named volume **`coolops_gy_data`** → `/data`:
 
 - `db.sqlite3`, `media/`, `backups/auto/`
 

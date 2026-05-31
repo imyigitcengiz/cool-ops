@@ -1,11 +1,11 @@
-# KobiOps — Dokploy kurulumu (tak-çalıştır)
+# CoolOPS — Dokploy kurulumu (tak-çalıştır)
 
 [Dokploy](https://dokploy.com) ile Docker Compose modunda panel + WhatsApp köprüsü birlikte çalışır.
 
 ## 3 adımda deploy
 
 1. **Project** → **Docker Compose** → **Create**
-2. **Source:** GitHub → `imyigitcengiz/kobi-ops`, branch `main`  
+2. **Source:** GitHub → `imyigitcengiz/cool-ops`, branch `main`  
    **Compose file path:** `docker-compose.yaml`
 3. **Environment** (isteğe bağlı, önerilir):
    ```env
@@ -20,7 +20,8 @@
 
 - URL (sslip.io): `http://glgede-yaam-coolops-....sslip.io/giris/` (**https değil**)
 - İlk giriş: **admin** / **admin**
-- Sonra `DJANGO_ENSURE_SUPERADMIN=0` + redeploy
+- Şifre sıfırlama (tek redeploy): `DJANGO_ENSURE_SUPERADMIN_RESET=1` → sonra `0`
+- Mevcut kurulumda şifre bilinmiyorsa: app konteynerinde `cat /data/.initial_admin_password`
 
 ## Ön koşullar
 
@@ -39,7 +40,7 @@ Overlay olmadan da çalışabilir; domain tanımlıysa ana compose yeterlidir.
 
 ## Kalıcı veri
 
-Named volume **`kobiops_gy_data`** → `/data` (SQLite + medya). Deploy sırasında volume silmeyin.
+Named volume **`coolops_gy_data`** → `/data` (SQLite + medya). Deploy sırasında volume silmeyin.
 
 ## Environment (isteğe bağlı)
 
@@ -72,6 +73,6 @@ Dokploy → **Deployments** → **Webhook** → GitHub push event.
 | CSRF | Domain ile CSRF otomatik; redeploy |
 | Port 80 meşgul | Dokploy overlay kullanın; host ports kapatın |
 | WhatsApp kapalı | `whatsapp_bridge` logs; RAM kontrol |
-| Veri sıfırlandı | `kobiops_gy_data` volume koruyun |
+| Veri sıfırlandı | `coolops_gy_data` volume koruyun |
 
 Tüm paneller: [deploy/README.md](../README.md) · Genel: [DEPLOY.md](../../DEPLOY.md)

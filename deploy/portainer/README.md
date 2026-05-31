@@ -6,7 +6,7 @@
 
 | Alan | Değer |
 |------|--------|
-| Repository | `https://github.com/imyigitcengiz/kobi-ops` |
+| Repository | `https://github.com/imyigitcengiz/cool-ops` |
 | Compose path | `docker-compose.yaml` |
 | Environment | `COMPOSE_FILE=docker-compose.yaml:deploy/portainer/docker-compose.portainer.yaml` |
 
@@ -23,6 +23,6 @@ proxy_set_header Connection "upgrade";
 
 ## Kalıcı veri
 
-Volume **`kobiops_gy_data`** silinmeden kalmalı.
+Volume **`coolops_gy_data`** silinmeden kalmalı.
 
 Genel: [deploy/README.md](../README.md) · [DEPLOY.md](../../DEPLOY.md)

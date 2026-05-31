@@ -105,9 +105,9 @@ if [[ -z "${DJANGO_SECRET_KEY:-}" ]]; then
     if mkdir -p "$_data_dir" 2>/dev/null; then
       printf '%s' "$DJANGO_SECRET_KEY" > "$_secret_file"
       chmod 600 "$_secret_file" 2>/dev/null || true
-      echo "[gy-dashboard] DJANGO_SECRET_KEY otomatik üretildi → ${_secret_file}"
+      echo "[cool-ops] DJANGO_SECRET_KEY otomatik üretildi → ${_secret_file}"
     else
-      echo "[gy-dashboard] UYARI: /data yazılamıyor — secret kalıcı kaydedilemedi."
+      echo "[cool-ops] UYARI: /data yazılamıyor — secret kalıcı kaydedilemedi."
     fi
   fi
 fi
@@ -119,10 +119,10 @@ if [[ -z "${DJANGO_ALLOWED_HOSTS:-}" ]]; then
   _fqdn="$(_detect_fqdn 2>/dev/null || true)"
   if [[ -n "$_fqdn" ]]; then
     export DJANGO_ALLOWED_HOSTS="localhost,127.0.0.1,${_ip},${_fqdn}"
-    echo "[gy-dashboard] ALLOWED_HOSTS otomatik: ${_fqdn}"
+    echo "[cool-ops] ALLOWED_HOSTS otomatik: ${_fqdn}"
   else
     export DJANGO_ALLOWED_HOSTS="localhost,127.0.0.1,${_ip}"
-    echo "[gy-dashboard] ALLOWED_HOSTS otomatik (IP): ${_ip}"
+    echo "[cool-ops] ALLOWED_HOSTS otomatik (IP): ${_ip}"
   fi
 fi
 
@@ -143,7 +143,7 @@ if [[ -z "${DJANGO_CSRF_TRUSTED_ORIGINS:-}" ]]; then
     elif [[ -z "${DJANGO_SECURE_SSL:-}" ]]; then
       export DJANGO_SECURE_SSL=0
     fi
-    echo "[gy-dashboard] CSRF otomatik: ${_url}"
+    echo "[cool-ops] CSRF otomatik: ${_url}"
   elif [[ -n "$_fqdn" ]]; then
     if _is_http_only_host "$_fqdn"; then
       _csrf="${_csrf},http://${_fqdn}"
@@ -153,7 +153,7 @@ if [[ -z "${DJANGO_CSRF_TRUSTED_ORIGINS:-}" ]]; then
       export DJANGO_SECURE_SSL="${DJANGO_SECURE_SSL:-1}"
     fi
     export DJANGO_CSRF_TRUSTED_ORIGINS="$_csrf"
-    echo "[gy-dashboard] CSRF otomatik (FQDN): ${_fqdn}"
+    echo "[cool-ops] CSRF otomatik (FQDN): ${_fqdn}"
   fi
 fi
 
@@ -167,12 +167,13 @@ fi
 # sslip / traefik.me test domainleri — üretimde kapalı (DJANGO_ALLOW_SSLIP_HOSTS=0)
 export DJANGO_ALLOW_SSLIP_HOSTS="${DJANGO_ALLOW_SSLIP_HOSTS:-0}"
 
-# İlk kurulum: süper admin yalnızca yoksa oluşturulur (şifre sıfırlama için DJANGO_ENSURE_SUPERADMIN=1)
+# İlk kurulum: süper admin yoksa oluşturulur (admin/admin). Şifre sıfırlama: DJANGO_ENSURE_SUPERADMIN_RESET=1
+# İsteğe bağlı özel şifre: DJANGO_SUPERADMIN_PASSWORD=...
 export DJANGO_ENSURE_SUPERADMIN="${DJANGO_ENSURE_SUPERADMIN:-0}"
 
-# WhatsApp köprü Bearer token (paylaşımlı volume: kobiops_secrets)
-_secrets_dir="${KOBIOPS_SECRETS_DIR:-/run/kobiops-secrets}"
-export KOBIOPS_SECRETS_DIR="$_secrets_dir"
+# WhatsApp köprü Bearer token (paylaşımlı volume: coolops_secrets)
+_secrets_dir="${COOLOPS_SECRETS_DIR:-/run/coolops-secrets}"
+export COOLOPS_SECRETS_DIR="$_secrets_dir"
 mkdir -p "$_secrets_dir" 2>/dev/null || true
 _bridge_token_file="${_secrets_dir}/whatsapp_bridge_token"
 if [[ -z "${WHATSAPP_BRIDGE_TOKEN:-}" ]]; then
@@ -186,9 +187,9 @@ if [[ -z "${WHATSAPP_BRIDGE_TOKEN:-}" ]]; then
       printf '%s' "$WHATSAPP_BRIDGE_TOKEN" > "$_bridge_token_file"
       chmod 600 "$_bridge_token_file" 2>/dev/null || true
       chmod 700 "$_secrets_dir" 2>/dev/null || true
-      echo "[gy-dashboard] WHATSAPP_BRIDGE_TOKEN otomatik üretildi → ${_bridge_token_file}"
+      echo "[cool-ops] WHATSAPP_BRIDGE_TOKEN otomatik üretildi → ${_bridge_token_file}"
     else
-      echo "[gy-dashboard] UYARI: köprü token kalıcı kaydedilemedi (${_secrets_dir})."
+      echo "[cool-ops] UYARI: köprü token kalıcı kaydedilemedi (${_secrets_dir})."
     fi
   fi
 fi
@@ -208,7 +209,7 @@ export DJANGO_DEBUG="${DJANGO_DEBUG:-0}"
 
 _app_port="${PORT:-80}"
 if _fqdn="$(_detect_fqdn 2>/dev/null || true)" && [[ -n "$_fqdn" ]]; then
-  echo "[gy-dashboard] Tarayıcı URL (port ekleme): http://${_fqdn}/"
-  echo "[gy-dashboard] Coolify domain ayarı: http://${_fqdn}:80  veya Generate Domain"
-  echo "[gy-dashboard] UYARI: sunucu-ip:8000 = Coolify paneli, uygulama değil."
+  echo "[cool-ops] Tarayıcı URL (port ekleme): http://${_fqdn}/"
+  echo "[cool-ops] Coolify domain ayarı: http://${_fqdn}:80  veya Generate Domain"
+  echo "[cool-ops] UYARI: sunucu-ip:8000 = Coolify paneli, uygulama değil."
 fi
