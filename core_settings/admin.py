@@ -12,6 +12,12 @@ from .models import (
     ServiceTeam,
     ServicePersonnel,
     PersonnelDepartment,
+    CashAccount,
+    SupplierPayable,
+    OperationalProject,
+    TimeEntry,
+    FinanceRecord,
+    EExportSettings,
 )
 
 @admin.register(SiteSettings)
@@ -30,3 +36,16 @@ admin.site.register(SolutionPartnerType)
 admin.site.register(ServiceTeam)
 admin.site.register(PersonnelDepartment)
 admin.site.register(ServicePersonnel)
+admin.site.register(CashAccount)
+admin.site.register(SupplierPayable)
+admin.site.register(OperationalProject)
+admin.site.register(TimeEntry)
+admin.site.register(EExportSettings)
+
+
+@admin.register(FinanceRecord)
+class FinanceRecordAdmin(admin.ModelAdmin):
+    list_display = ('record_date', 'record_type', 'title', 'amount', 'cash_account', 'sales_lead')
+    list_filter = ('record_type', 'category')
+    search_fields = ('title', 'notes')
+    raw_id_fields = ('sales_lead', 'operational_project', 'cash_account', 'recorded_by')

@@ -1,5 +1,13 @@
 from django.urls import path
 
+from core_settings.finance_feature_views import (
+    AccountingPayablesView,
+    AccountingCashAccountsView,
+    AccountingProjectCostingView,
+    AccountingEExportView,
+    AccountingTimesheetView,
+    AccountingProjectsView,
+)
 from core_settings.views import (
     AccountingHubView, AccountingReportsHubView, AccountingPayrollView,
     AccountingPayrollReportsView, AccountingPayrollExportView, AccountingFinanceView,
@@ -31,6 +39,12 @@ from sales_leads.quote_views import (
 urlpatterns = [
     path('', AccountingHubView.as_view(), name='accounting_hub'),
     path('kasa/', AccountingCashView.as_view(), name='accounting_cash'),
+    path('hesaplar/', AccountingCashAccountsView.as_view(), name='accounting_cash_accounts'),
+    path('borclar/', AccountingPayablesView.as_view(), name='accounting_payables'),
+    path('proje-karlilik/', AccountingProjectCostingView.as_view(), name='accounting_project_costing'),
+    path('dis-aktarim/', AccountingEExportView.as_view(), name='accounting_e_export'),
+    path('zaman/', AccountingTimesheetView.as_view(), name='accounting_timesheet'),
+    path('projeler/', AccountingProjectsView.as_view(), name='accounting_projects'),
     path('stok/', AccountingStockView.as_view(), name='accounting_stock'),
     path('alacaklar/', AccountingReceivablesView.as_view(), name='accounting_receivables'),
     path('raporlar/', AccountingReportsHubView.as_view(), name='accounting_reports'),

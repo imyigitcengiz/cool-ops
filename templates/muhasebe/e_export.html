@@ -1,0 +1,32 @@
+{% extends 'muhasebe/base.html' %}
+{% block title %}{{ gy.mh_dis_aktarim }}{% endblock %}
+{% block header %}
+<h1 class="text-lg font-bold text-slate-900">{{ gy.mh_dis_aktarim }}</h1>
+<p class="text-sm text-slate-500">Mali müşavir / Logo / Paraşüt için dönem paketi — CSV indir (canlı e-Fatura API yok).</p>
+{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+    <form method="post" class="bg-white rounded-3xl border border-slate-200 p-5 space-y-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="note">
+        <label class="text-xs font-bold uppercase text-slate-600">Mali müşavir notu</label>
+        <textarea name="advisor_note" rows="3" class="w-full acct-input px-3 py-2 border rounded-xl text-sm">{{ export_settings.advisor_note }}</textarea>
+        <button type="submit" class="px-4 py-2 bg-slate-800 text-white rounded-xl text-sm font-bold">Notu kaydet</button>
+    </form>
+
+    <div class="grid sm:grid-cols-2 gap-3">
+        <div class="rounded-2xl bg-white border px-4 py-3"><p class="text-xs text-slate-500">Gelir</p><p class="font-bold">{{ export_finance_income|floatformat:2 }} ₺</p></div>
+        <div class="rounded-2xl bg-white border px-4 py-3"><p class="text-xs text-slate-500">Gider</p><p class="font-bold">{{ export_finance_expense|floatformat:2 }} ₺</p></div>
+        <div class="rounded-2xl bg-white border px-4 py-3"><p class="text-xs text-slate-500">Maaş/avans</p><p class="font-bold">{{ export_payroll|floatformat:2 }} ₺</p></div>
+        <div class="rounded-2xl bg-white border px-4 py-3"><p class="text-xs text-slate-500">Satış ({{ export_sales_count }})</p><p class="font-bold">{{ export_sales_total|floatformat:2 }} ₺</p></div>
+    </div>
+
+    <form method="post" class="bg-violet-50 rounded-3xl border border-violet-100 p-5 flex flex-wrap gap-3 items-end">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="download">
+        <div><label class="text-xs font-bold text-violet-800">Başlangıç</label><input type="date" name="start" value="{{ export_start|date:'Y-m-d' }}" class="block mt-1 px-3 py-2 border rounded-xl text-sm"></div>
+        <div><label class="text-xs font-bold text-violet-800">Bitiş</label><input type="date" name="end" value="{{ export_end|date:'Y-m-d' }}" class="block mt-1 px-3 py-2 border rounded-xl text-sm"></div>
+        <button type="submit" class="px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-bold">CSV paketi indir</button>
+    </form>
+</div>
+{% endblock %}

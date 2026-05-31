@@ -1,0 +1,54 @@
+{% extends 'muhasebe/base.html' %}
+{% block title %}{{ gy.mh_projeler }}{% endblock %}
+{% block header %}
+<h1 class="text-lg font-bold text-slate-900">{{ gy.mh_projeler }}</h1>
+<p class="text-sm text-slate-500">Operasyon projeleri — müşteri ve satış kaydına bağlı durum takibi.</p>
+{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6">
+    <form method="post" class="bg-white rounded-3xl border p-5 grid md:grid-cols-2 gap-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create">
+        <input name="name" required placeholder="Proje adı" class="acct-input px-3 py-2 border rounded-xl text-sm md:col-span-2">
+        <select name="customer_id" class="acct-input px-3 py-2 border rounded-xl text-sm">
+            <option value="">Müşteri (opsiyonel)</option>
+            {% for c in project_customers %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+        </select>
+        <select name="sales_lead_id" class="acct-input px-3 py-2 border rounded-xl text-sm">
+            <option value="">Satış kaydı (opsiyonel)</option>
+            {% for s in project_sales_leads %}<option value="{{ s.id }}">{{ s.customer.name }} — {{ s.sale_date|date:"d.m.Y" }}</option>{% endfor %}
+        </select>
+        <select name="status" class="acct-input px-3 py-2 border rounded-xl text-sm">
+            {% for val, label in project_status_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+        </select>
+        <input name="notes" placeholder="Not" class="acct-input px-3 py-2 border rounded-xl text-sm">
+        <button type="submit" class="md:col-span-2 px-4 py-2 bg-brand-600 text-white rounded-xl text-sm font-bold w-fit">Proje ekle</button>
+    </form>
+
+    <div class="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+        {% for status_code, status_label in project_status_choices %}
+        <section class="bg-white rounded-2xl border border-slate-200 p-4 min-h-[12rem]">
+            <h2 class="text-xs font-bold uppercase text-slate-500 mb-3">{{ status_label }}</h2>
+            <div class="space-y-2">
+                {% for project in operational_projects %}
+                {% if project.status == status_code %}
+                <article class="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                    <p class="font-bold text-sm">{{ project.name }}</p>
+                    {% if project.customer %}<p class="text-xs text-slate-500">{{ project.customer.name }}</p>{% endif %}
+                    <form method="post" class="mt-2 flex gap-1">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="status">
+                        <input type="hidden" name="project_id" value="{{ project.id }}">
+                        <select name="status" class="text-xs border rounded-lg px-1 py-0.5 flex-1" onchange="this.form.submit()">
+                            {% for val, label in project_status_choices %}<option value="{{ val }}" {% if project.status == val %}selected{% endif %}>{{ label }}</option>{% endfor %}
+                        </select>
+                    </form>
+                </article>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </section>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

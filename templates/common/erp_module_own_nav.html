@@ -32,6 +32,24 @@
 <a href="{% url 'accounting_stock' %}" class="{% if url_name == 'accounting_stock' %}{{ active }}{% else %}{{ inactive }}{% endif %}">
     <i data-lucide="package" class="w-5 h-5"></i><span class="font-medium text-sm">{{ gy.mh_stok }}</span>
 </a>
+<a href="{% url 'accounting_payables' %}" class="{% if url_name == 'accounting_payables' %}{{ active }}{% else %}{{ inactive }}{% endif %}">
+    <i data-lucide="truck" class="w-5 h-5"></i><span class="font-medium text-sm">{{ gy.mh_borclar }}</span>
+</a>
+<a href="{% url 'accounting_cash_accounts' %}" class="{% if url_name == 'accounting_cash_accounts' %}{{ active }}{% else %}{{ inactive }}{% endif %}">
+    <i data-lucide="wallet" class="w-5 h-5"></i><span class="font-medium text-sm">{{ gy.mh_hesaplar }}</span>
+</a>
+<a href="{% url 'accounting_project_costing' %}" class="{% if url_name == 'accounting_project_costing' %}{{ active }}{% else %}{{ inactive }}{% endif %}">
+    <i data-lucide="pie-chart" class="w-5 h-5"></i><span class="font-medium text-sm">{{ gy.mh_proje_karlilik }}</span>
+</a>
+<a href="{% url 'accounting_projects' %}" class="{% if url_name == 'accounting_projects' %}{{ active }}{% else %}{{ inactive }}{% endif %}">
+    <i data-lucide="kanban" class="w-5 h-5"></i><span class="font-medium text-sm">{{ gy.mh_projeler }}</span>
+</a>
+<a href="{% url 'accounting_timesheet' %}" class="{% if url_name == 'accounting_timesheet' %}{{ active }}{% else %}{{ inactive }}{% endif %}">
+    <i data-lucide="clock" class="w-5 h-5"></i><span class="font-medium text-sm">{{ gy.mh_zaman }}</span>
+</a>
+<a href="{% url 'accounting_e_export' %}" class="{% if url_name == 'accounting_e_export' %}{{ active }}{% else %}{{ inactive }}{% endif %}">
+    <i data-lucide="file-badge" class="w-5 h-5"></i><span class="font-medium text-sm">{{ gy.mh_dis_aktarim }}</span>
+</a>
 {% endif %}
 {% if user_access.sales %}
 <a href="{% url 'sales_lead_dashboard' %}" class="{% if url_name == 'sales_lead_dashboard' %}{{ active }}{% else %}{{ inactive }}{% endif %}">

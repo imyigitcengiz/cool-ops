@@ -458,6 +458,7 @@ class FinanceRecord(models.Model):
         ('office', 'Ofis'),
         ('marketing', 'Pazarlama'),
         ('payroll_other', 'Personel (diğer)'),
+        ('supplier', 'Tedarikçi'),
         ('other', 'Diğer'),
     )
 
@@ -474,6 +475,30 @@ class FinanceRecord(models.Model):
     amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name='Tutar')
     record_date = models.DateField(verbose_name='Tarih')
     notes = models.CharField(max_length=255, blank=True, verbose_name='Not')
+    cash_account = models.ForeignKey(
+        'core_settings.CashAccount',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='finance_records',
+        verbose_name='Hesap',
+    )
+    sales_lead = models.ForeignKey(
+        'sales_leads.SalesLead',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='finance_records',
+        verbose_name='Satış / proje',
+    )
+    operational_project = models.ForeignKey(
+        'core_settings.OperationalProject',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='finance_records',
+        verbose_name='Operasyon projesi',
+    )
     recorded_by = models.ForeignKey(
         'users.User',
         on_delete=models.SET_NULL,
@@ -716,4 +741,179 @@ class SolutionPartner(models.Model):
         type_name = self.partner_type.name if self.partner_type else 'Türsüz'
         return f'{self.name} ({type_name})'
 
+
+class CashAccount(models.Model):
+    TYPE_CASH = 'cash'
+    TYPE_BANK = 'bank'
+    TYPE_POS = 'pos'
+    TYPE_CHOICES = (
+        (TYPE_CASH, 'Nakit kasa'),
+        (TYPE_BANK, 'Banka'),
+        (TYPE_POS, 'POS'),
+    )
+
+    name = models.CharField(max_length=80, verbose_name='Hesap adı')
+    account_type = models.CharField(
+        max_length=10,
+        choices=TYPE_CHOICES,
+        default=TYPE_CASH,
+        verbose_name='Tür',
+    )
+    opening_balance = models.DecimalField(
+        max_digits=14,
+        decimal_places=2,
+        default=0,
+        verbose_name='Açılış bakiyesi (₺)',
+    )
+    is_default = models.BooleanField(default=False, verbose_name='Varsayılan')
+    is_active = models.BooleanField(default=True, verbose_name='Aktif')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Kasa / banka hesabı'
+        verbose_name_plural = 'Kasa / banka hesapları'
+        ordering = ['-is_default', 'name']
+
+    def __str__(self):
+        return self.name
+
+
+class SupplierPayable(models.Model):
+    supplier_name = models.CharField(max_length=120, verbose_name='Tedarikçi')
+    invoice_ref = models.CharField(max_length=80, blank=True, verbose_name='Fatura / referans')
+    amount = models.DecimalField(max_digits=12, decimal_places=2, verbose_name='Tutar (₺)')
+    paid_amount = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        verbose_name='Ödenen (₺)',
+    )
+    due_date = models.DateField(null=True, blank=True, verbose_name='Vade')
+    notes = models.TextField(blank=True, verbose_name='Not')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Tedarikçi borcu'
+        verbose_name_plural = 'Tedarikçi borçları'
+        ordering = ['due_date', '-created_at']
+
+    def __str__(self):
+        return f'{self.supplier_name} — {self.amount} ₺'
+
+    @property
+    def remaining(self):
+        from decimal import Decimal
+        return (self.amount or Decimal('0')) - (self.paid_amount or Decimal('0'))
+
+
+class OperationalProject(models.Model):
+    STATUS_PLANNING = 'planning'
+    STATUS_ACTIVE = 'active'
+    STATUS_DONE = 'done'
+    STATUS_CANCELLED = 'cancelled'
+    STATUS_CHOICES = (
+        (STATUS_PLANNING, 'Planlama'),
+        (STATUS_ACTIVE, 'Aktif'),
+        (STATUS_DONE, 'Tamamlandı'),
+        (STATUS_CANCELLED, 'İptal'),
+    )
+
+    name = models.CharField(max_length=160, verbose_name='Proje adı')
+    customer = models.ForeignKey(
+        'customers.Customer',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='operational_projects',
+        verbose_name='Müşteri',
+    )
+    sales_lead = models.ForeignKey(
+        'sales_leads.SalesLead',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='operational_projects',
+        verbose_name='Satış kaydı',
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=STATUS_CHOICES,
+        default=STATUS_ACTIVE,
+        verbose_name='Durum',
+    )
+    start_date = models.DateField(null=True, blank=True, verbose_name='Başlangıç')
+    end_date = models.DateField(null=True, blank=True, verbose_name='Bitiş')
+    notes = models.TextField(blank=True, verbose_name='Not')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Operasyon projesi'
+        verbose_name_plural = 'Operasyon projeleri'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return self.name
+
+
+class TimeEntry(models.Model):
+    entry_date = models.DateField(verbose_name='Tarih')
+    hours = models.DecimalField(max_digits=6, decimal_places=2, verbose_name='Saat')
+    description = models.CharField(max_length=200, verbose_name='Açıklama')
+    billable = models.BooleanField(default=True, verbose_name='Faturalanabilir')
+    personnel = models.ForeignKey(
+        'core_settings.ServicePersonnel',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='time_entries',
+        verbose_name='Personel',
+    )
+    sales_lead = models.ForeignKey(
+        'sales_leads.SalesLead',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='time_entries',
+        verbose_name='Satış / proje',
+    )
+    operational_project = models.ForeignKey(
+        OperationalProject,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='time_entries',
+        verbose_name='Proje',
+    )
+    invoiced = models.BooleanField(default=False, verbose_name='Faturalandı')
+    created_by = models.ForeignKey(
+        'users.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='time_entries',
+        verbose_name='Kaydeden',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Zaman kaydı'
+        verbose_name_plural = 'Zaman kayıtları'
+        ordering = ['-entry_date', '-created_at']
+
+    def __str__(self):
+        return f'{self.entry_date} — {self.hours} saat'
+
+
+class EExportSettings(models.Model):
+    """Mali müşavir / dış aktarım notları — tekil."""
+
+    advisor_note = models.TextField(blank=True, verbose_name='Mali müşavir notu')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Dış aktarım ayarları'
+        verbose_name_plural = 'Dış aktarım ayarları'
+
+    def __str__(self):
+        return 'Dış aktarım ayarları'
 

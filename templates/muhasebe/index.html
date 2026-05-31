@@ -17,24 +17,22 @@
         <p class="text-xs text-slate-500 mb-4">Operasyon / ön muhasebe — resmi defter ve e-Fatura dışarıda kalır.</p>
         <div class="grid sm:grid-cols-2 gap-4 text-sm">
             <div>
-                <p class="text-[10px] font-bold uppercase text-emerald-600 mb-2">Aktif</p>
+                <p class="text-[10px] font-bold uppercase text-emerald-600 mb-2">Tam kapsam</p>
                 <ul class="space-y-1.5 text-slate-700">
                     <li class="flex items-center gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i> Personel, maaş & avans</li>
-                    <li class="flex items-center gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i> Gelir/gider + gider kategorileri</li>
-                    <li class="flex items-center gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i> Kasa, alacaklar, teklif → satış</li>
-                    <li class="flex items-center gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i> Stok (malzeme + ürün reçetesi)</li>
-                    <li class="flex items-center gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i> Raporlar, yazdırma, CSV</li>
+                    <li class="flex items-center gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i> Gelir/gider, kasa, çoklu hesap</li>
+                    <li class="flex items-center gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i> Alacaklar, tedarikçi borçları, teklif → satış</li>
+                    <li class="flex items-center gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i> Stok, proje kârlılığı, operasyon projeleri</li>
+                    <li class="flex items-center gap-2"><i data-lucide="check-circle" class="w-4 h-4 text-emerald-600"></i> Zaman kaydı, dış aktarım CSV, raporlar</li>
                 </ul>
             </div>
             <div>
-                <p class="text-[10px] font-bold uppercase text-violet-600 mb-2">Yol haritası</p>
-                <ul class="space-y-1.5 text-slate-600">
-                    <li>• Tedarikçi borçları & vade</li>
-                    <li>• e-Fatura / mali müşavir köprüsü</li>
-                    <li>• Proje maliyet & kârlılık</li>
-                    <li>• Çoklu kasa & banka mutabakatı</li>
+                <p class="text-[10px] font-bold uppercase text-slate-500 mb-2">Sınır</p>
+                <ul class="space-y-1.5 text-slate-600 text-sm">
+                    <li>Resmi e-defter / canlı GİB e-Fatura API bu sürümde yok — mali müşavir CSV aktarımı kullanın.</li>
+                    <li>Banka mutabakatı otomatik senkron değil; manuel hesap bakiyesi.</li>
                 </ul>
-                <a href="{% url 'module_hub' %}" class="inline-block mt-3 text-xs font-bold text-brand-700 hover:underline">Modül Merkezi → yol haritası</a>
+                <a href="{% url 'module_hub' %}" class="inline-block mt-3 text-xs font-bold text-brand-700 hover:underline">Modül Merkezi → parçacık yönetimi</a>
             </div>
         </div>
     </section>

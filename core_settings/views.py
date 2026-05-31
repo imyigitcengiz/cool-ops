@@ -949,23 +949,16 @@ class AccountingFinanceExportView(View):
             messages.error(request, 'Dışa aktarma için yetkiniz yok.')
             return redirect('accounting_finance')
         from common.csv_io import csv_response
+        from core_settings.csv_exchange import FINANCE_CSV_HEADER, finance_record_csv_row
 
         view = AccountingFinanceView()
         view.request = request
         ctx = view.get_context_data()
-        rows = []
-        for rec in ctx['recent_records']:
-            rows.append([
-                'gelir' if rec.record_type == FinanceRecord.TYPE_INCOME else 'gider',
-                rec.title,
-                rec.amount,
-                rec.record_date.strftime('%d.%m.%Y'),
-                rec.notes or '',
-            ])
+        rows = [finance_record_csv_row(rec) for rec in ctx['recent_records']]
         return csv_response(
             f'gelir-gider-{ctx["finance_period_str"]}.csv',
             rows,
-            header=['TÜR', 'AÇIKLAMA', 'TUTAR', 'TARİH', 'NOT'],
+            header=FINANCE_CSV_HEADER,
         )
 
 
@@ -1068,7 +1061,9 @@ class AccountingFinanceView(TemplateView):
             period = period_start(today)
         month_start, month_end = _month_bounds(period)
 
-        records = FinanceRecord.objects.select_related('recorded_by').filter(
+        records = FinanceRecord.objects.select_related(
+            'recorded_by', 'cash_account', 'sales_lead__customer', 'operational_project',
+        ).filter(
             record_date__gte=month_start,
             record_date__lte=month_end,
         )
@@ -1108,11 +1103,18 @@ class AccountingFinanceView(TemplateView):
             if not can_manage_finance(request.user):
                 messages.error(request, 'Gelir/gider kaydı için yetkiniz yok.')
                 return self._finance_redirect(request)
-            form = FinanceRecordForm(request.POST)
+            post = request.POST.copy()
+            for key in ('cash_account', 'sales_lead', 'operational_project'):
+                if not (post.get(key) or '').strip():
+                    post.pop(key, None)
+            form = FinanceRecordForm(post)
             if form.is_valid():
                 record = form.save(commit=False)
                 if request.user.is_authenticated:
                     record.recorded_by = request.user
+                if not record.cash_account_id:
+                    from core_settings.cash_accounts import ensure_default_account
+                    record.cash_account = ensure_default_account()
                 record.save()
                 messages.success(request, 'Kayıt eklendi.')
             else:

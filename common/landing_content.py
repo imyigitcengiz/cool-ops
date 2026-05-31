@@ -79,6 +79,12 @@ LANDING_MUHASEBE_FEATURES: tuple[tuple[str, str, str], ...] = (
     ('receipt', 'Gelir & gider', 'Kategori bazlı hareketler; yazdırma ve CSV'),
     ('wallet', 'Maaş & avans', 'Aylık döngü; brüt − avans = net; toplu ödeme'),
     ('package', 'Stok & reçete (BOM)', 'Malzeme stoku; satış/serviste otomatik düşüm'),
+    ('truck', 'Tedarikçi borçları', 'Vade takibi; ödeme otomatik gider kaydı'),
+    ('landmark', 'Çoklu kasa & banka', 'Nakit, banka, POS hesap bakiyeleri'),
+    ('pie-chart', 'Proje kârlılığı', 'Satış geliri − proje gideri = marj'),
+    ('kanban', 'Operasyon projeleri', 'Durum panosu, müşteri ve satış bağlantısı'),
+    ('clock', 'Zaman kaydı', 'Personel saatleri ve faturalama durumu'),
+    ('file-badge', 'Dış aktarım', 'Mali müşavir CSV paketi (Logo / Paraşüt)'),
     ('bar-chart-3', 'Raporlar', 'Maaş, satış, gelir-gider; yazdırma ve dönem filtresi'),
     ('arrow-up-down', 'Veri alışverişi', 'Maaş ve gelir-gider CSV içe/dışa aktarım'),
 )

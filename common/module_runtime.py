@@ -211,6 +211,12 @@ def build_particles_nav_short(user) -> dict[str, bool]:
         'p.accounting.cash': 'accounting_cash',
         'p.accounting.receivables': 'accounting_receivables',
         'p.accounting.stock': 'accounting_stock',
+        'p.accounting.payables': 'accounting_payables',
+        'p.accounting.multi_cash': 'accounting_cash_accounts',
+        'p.accounting.project_costing': 'accounting_project_costing',
+        'p.accounting.e_export': 'accounting_e_export',
+        'p.accounting.timesheet': 'accounting_timesheet',
+        'p.accounting.projects': 'accounting_projects',
         'p.outreach.campaigns': 'outreach_campaigns',
     }
     return {

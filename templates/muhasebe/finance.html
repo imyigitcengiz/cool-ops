@@ -94,6 +94,18 @@
                     <label class="text-xs font-bold text-slate-600 uppercase">Tarih</label>
                     {{ finance_form.record_date }}
                 </div>
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-slate-600 uppercase">Kasa / banka</label>
+                    {{ finance_form.cash_account }}
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-slate-600 uppercase">Satış kaydı</label>
+                    {{ finance_form.sales_lead }}
+                </div>
+                <div class="space-y-1.5">
+                    <label class="text-xs font-bold text-slate-600 uppercase">Operasyon projesi</label>
+                    {{ finance_form.operational_project }}
+                </div>
                 <div class="space-y-1.5 md:col-span-2">
                     <label class="text-xs font-bold text-slate-600 uppercase">Not</label>
                     {{ finance_form.notes }}
@@ -114,6 +126,7 @@
                         <th class="px-4 py-3 font-bold text-slate-700">Tarih</th>
                         <th class="px-4 py-3 font-bold text-slate-700">Tür</th>
                         <th class="px-4 py-3 font-bold text-slate-700">Açıklama</th>
+                        <th class="px-4 py-3 font-bold text-slate-700">Proje / hesap</th>
                         <th class="px-4 py-3 font-bold text-slate-700">Tutar</th>
                         <th class="px-4 py-3 font-bold text-slate-700">Not</th>
                         <th class="px-4 py-3 font-bold text-slate-700 text-right"></th>
@@ -136,6 +149,12 @@
                             <span class="block text-[10px] font-bold text-slate-400 uppercase mt-0.5">{{ rec.get_category_display }}</span>
                             {% endif %}
                         </td>
+                        <td class="px-4 py-3 text-xs text-slate-500">
+                            {% if rec.sales_lead %}<span class="block font-semibold text-slate-600">{{ rec.sales_lead.customer.name }}</span>{% endif %}
+                            {% if rec.operational_project %}<span class="block">{{ rec.operational_project.name }}</span>{% endif %}
+                            {% if rec.cash_account %}<span class="block text-slate-400">{{ rec.cash_account.name }}</span>{% endif %}
+                            {% if not rec.sales_lead and not rec.operational_project and not rec.cash_account %}—{% endif %}
+                        </td>
                         <td class="px-4 py-3 font-bold acct-kpi-value {% if rec.record_type == 'income' %}text-emerald-700{% else %}text-red-700{% endif %}">
                             {% if rec.record_type == 'income' %}+{% else %}−{% endif %} {{ rec.amount }} ₺
                         </td>
@@ -152,7 +171,7 @@
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6" class="px-4 py-10 text-center text-slate-400">Bu dönemde kayıt yok.</td></tr>
+                    <tr><td colspan="7" class="px-4 py-10 text-center text-slate-400">Bu dönemde kayıt yok.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

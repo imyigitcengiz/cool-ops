@@ -1,0 +1,67 @@
+{% extends 'muhasebe/base.html' %}
+{% block title %}{{ gy.mh_borclar }}{% endblock %}
+{% block header %}
+<h1 class="text-lg font-bold text-slate-900">{{ gy.mh_borclar }}</h1>
+<p class="text-sm text-slate-500">Tedarikçi faturaları, vade ve ödeme — ödeme otomatik gider kaydı oluşturur.</p>
+{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6">
+    <div class="grid sm:grid-cols-3 gap-3">
+        <div class="rounded-2xl bg-violet-50 border border-violet-100 px-5 py-4">
+            <p class="text-[10px] font-bold uppercase text-violet-700">Açık borç</p>
+            <p class="text-2xl font-black text-violet-900">{{ payable_total|floatformat:2 }} ₺</p>
+            <p class="text-xs text-violet-700/80">{{ payable_count }} kayıt</p>
+        </div>
+        <div class="rounded-2xl bg-red-50 border border-red-100 px-5 py-4">
+            <p class="text-[10px] font-bold uppercase text-red-700">Vadesi geçen</p>
+            <p class="text-2xl font-black text-red-900">{{ payable_overdue_total|floatformat:2 }} ₺</p>
+        </div>
+        <div class="rounded-2xl bg-white border border-slate-200 px-5 py-4">
+            <form method="get" class="flex items-end gap-2">
+                <div class="flex-1"><label class="text-xs font-bold text-slate-600 uppercase">Gecikme (gün)</label>
+                <input type="number" min="1" name="overdue_days" value="{{ payable_overdue_days }}" class="acct-input w-full px-3 py-2 border rounded-xl text-sm mt-1"></div>
+                <button type="submit" class="px-3 py-2 bg-slate-800 text-white rounded-xl text-sm font-bold">Uygula</button>
+            </form>
+        </div>
+    </div>
+
+    <form method="post" class="bg-white rounded-3xl border border-slate-200 p-5 grid md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create">
+        <input name="supplier_name" required placeholder="Tedarikçi adı" class="acct-input px-3 py-2 border rounded-xl text-sm">
+        <input name="invoice_ref" placeholder="Fatura no" class="acct-input px-3 py-2 border rounded-xl text-sm">
+        <input name="amount" required placeholder="Tutar (₺)" class="acct-input px-3 py-2 border rounded-xl text-sm">
+        <input type="date" name="due_date" class="acct-input px-3 py-2 border rounded-xl text-sm">
+        <input name="notes" placeholder="Not" class="acct-input px-3 py-2 border rounded-xl text-sm md:col-span-2">
+        <button type="submit" class="px-4 py-2 bg-violet-600 text-white rounded-xl text-sm font-bold">Borç ekle</button>
+    </form>
+
+    <section class="bg-white rounded-3xl border border-slate-200 overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-xs uppercase text-slate-500">
+                <tr><th class="px-4 py-3 text-left">Tedarikçi</th><th class="px-4 py-3 text-right">Kalan</th><th class="px-4 py-3 text-left">Vade</th><th class="px-4 py-3 text-right">Ödeme</th></tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for row in payable_rows %}
+                <tr class="{% if row.is_overdue %}bg-red-50/40{% endif %}">
+                    <td class="px-4 py-3"><p class="font-semibold">{{ row.payable.supplier_name }}</p>{% if row.payable.invoice_ref %}<p class="text-xs text-slate-400">{{ row.payable.invoice_ref }}</p>{% endif %}</td>
+                    <td class="px-4 py-3 text-right font-bold text-violet-800">{{ row.remaining|floatformat:2 }} ₺</td>
+                    <td class="px-4 py-3">{% if row.payable.due_date %}{{ row.payable.due_date|date:"d.m.Y" }}{% else %}—{% endif %}</td>
+                    <td class="px-4 py-3 text-right">
+                        <form method="post" class="inline-flex gap-1 items-center">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="pay">
+                            <input type="hidden" name="payable_id" value="{{ row.payable.id }}">
+                            <input name="pay_amount" value="{{ row.remaining|floatformat:2 }}" class="w-24 px-2 py-1 border rounded-lg text-xs">
+                            <button type="submit" class="px-2 py-1 bg-emerald-600 text-white rounded-lg text-xs font-bold">Öde</button>
+                        </form>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="4" class="px-4 py-8 text-center text-slate-400">Açık tedarikçi borcu yok.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+</div>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% extends 'muhasebe/base.html' %}
+{% block title %}{{ gy.mh_hesaplar }}{% endblock %}
+{% block header %}
+<h1 class="text-lg font-bold text-slate-900">{{ gy.mh_hesaplar }}</h1>
+<p class="text-sm text-slate-500">Nakit kasa, banka ve POS hesapları — gelir/gider kayıtları hesaba bağlanabilir.</p>
+{% endblock %}
+{% block content %}
+<div class="max-w-5xl mx-auto space-y-6">
+    <div class="rounded-2xl bg-emerald-50 border border-emerald-100 px-5 py-4">
+        <p class="text-[10px] font-bold uppercase text-emerald-700">Toplam bakiye</p>
+        <p class="text-3xl font-black text-emerald-900">{{ accounts_total_balance|floatformat:2 }} ₺</p>
+    </div>
+
+    <form method="post" class="bg-white rounded-3xl border border-slate-200 p-5 grid md:grid-cols-2 gap-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create">
+        <input name="name" required placeholder="Hesap adı" class="acct-input px-3 py-2 border rounded-xl text-sm">
+        <select name="account_type" class="acct-input px-3 py-2 border rounded-xl text-sm">
+            {% for val, label in account_type_choices %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+        </select>
+        <input name="opening_balance" placeholder="Açılış (₺)" value="0" class="acct-input px-3 py-2 border rounded-xl text-sm">
+        <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="is_default"> Varsayılan hesap</label>
+        <button type="submit" class="md:col-span-2 px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold w-fit">Hesap ekle</button>
+    </form>
+
+    <div class="grid sm:grid-cols-2 gap-4">
+        {% for row in account_rows %}
+        <article class="bg-white rounded-2xl border border-slate-200 p-5 {% if row.account.is_default %}ring-2 ring-emerald-200{% endif %}">
+            <div class="flex justify-between items-start gap-2">
+                <div>
+                    <p class="font-bold text-slate-900">{{ row.account.name }}</p>
+                    <p class="text-xs text-slate-500">{{ row.account.get_account_type_display }}{% if row.account.is_default %} · varsayılan{% endif %}</p>
+                </div>
+                <p class="text-xl font-black text-emerald-800">{{ row.current_balance|floatformat:2 }} ₺</p>
+            </div>
+            <p class="text-xs text-slate-400 mt-3">Gelir +{{ row.income|floatformat:2 }} · Gider −{{ row.expense|floatformat:2 }}</p>
+        </article>
+        {% empty %}
+        <p class="text-slate-400 text-sm">Henüz hesap yok.</p>
+        {% endfor %}
+    </div>
+    <p class="text-xs text-slate-500 mt-4">Gelir/gider kayıtlarında hesap atamak için <a href="{% url 'accounting_finance' %}" class="text-brand-600 font-semibold underline">Gelir & gider</a> formunu kullanın.</p>
+</div>
+{% endblock %}

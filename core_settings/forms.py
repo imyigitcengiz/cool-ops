@@ -14,6 +14,8 @@ from .models import (
     PersonnelDepartment,
     PersonnelPayment,
     FinanceRecord,
+    CashAccount,
+    OperationalProject,
     StatusOption,
     WhatsAppTemplate,
 )
@@ -505,7 +507,10 @@ class PersonnelPaymentForm(forms.ModelForm):
 class FinanceRecordForm(forms.ModelForm):
     class Meta:
         model = FinanceRecord
-        fields = ['record_type', 'category', 'title', 'amount', 'record_date', 'notes']
+        fields = [
+            'record_type', 'category', 'title', 'amount', 'record_date', 'notes',
+            'cash_account', 'sales_lead', 'operational_project',
+        ]
         widgets = {
             'record_type': forms.Select(attrs={'class': ACCOUNTING_SELECT}),
             'category': forms.Select(attrs={'class': ACCOUNTING_SELECT}),
@@ -513,10 +518,38 @@ class FinanceRecordForm(forms.ModelForm):
             'amount': forms.NumberInput(attrs={'class': ACCOUNTING_INPUT, 'step': '0.01', 'min': '0.01', 'inputmode': 'decimal', 'placeholder': '0,00'}),
             'record_date': forms.DateInput(attrs={'class': ACCOUNTING_INPUT, 'type': 'date'}),
             'notes': forms.TextInput(attrs={'class': ACCOUNTING_INPUT, 'placeholder': 'Opsiyonel not'}),
+            'cash_account': forms.Select(attrs={'class': ACCOUNTING_SELECT}),
+            'sales_lead': forms.Select(attrs={'class': ACCOUNTING_SELECT}),
+            'operational_project': forms.Select(attrs={'class': ACCOUNTING_SELECT}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        from core_settings.cash_accounts import ensure_default_account
+        from sales_leads.models import SalesLead
+
+        ensure_default_account()
         self.fields['category'].required = False
         self.fields['category'].choices = FinanceRecord.EXPENSE_CATEGORY_CHOICES
+        self.fields['cash_account'].required = False
+        self.fields['cash_account'].queryset = CashAccount.objects.filter(is_active=True).order_by('-is_default', 'name')
+        self.fields['cash_account'].empty_label = 'Varsayılan hesap'
+        self.fields['sales_lead'].required = False
+        self.fields['sales_lead'].queryset = (
+            SalesLead.objects.exclude(status=SalesLead.STATUS_CANCELLED)
+            .select_related('customer')
+            .order_by('-sale_date')[:200]
+        )
+        self.fields['sales_lead'].empty_label = 'Satış / proje (opsiyonel)'
+        self.fields['sales_lead'].label_from_instance = (
+            lambda lead: f'{lead.customer.name} — {lead.project_display[:40]}'
+        )
+        self.fields['operational_project'].required = False
+        self.fields['operational_project'].queryset = OperationalProject.objects.order_by('-created_at')[:100]
+        self.fields['operational_project'].empty_label = 'Operasyon projesi (opsiyonel)'
 
+    def clean(self):
+        cleaned = super().clean()
+        if cleaned.get('record_type') != FinanceRecord.TYPE_EXPENSE:
+            cleaned['category'] = ''
+        return cleaned

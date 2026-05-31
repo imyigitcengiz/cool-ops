@@ -112,6 +112,9 @@ INTRODUCER_JOURNEYS: tuple[dict, ...] = (
                 ),
                 demo_screens=(
                     _screen('Stok & reçete', 'accounting_stock', 'BOM satırları ve hareket geçmişi'),
+                    _screen('Tedarikçi borçları', 'accounting_payables'),
+                    _screen('Proje kârlılığı', 'accounting_project_costing'),
+                    _screen('Çoklu hesap', 'accounting_cash_accounts'),
                 ),
                 tips=('Stok parçacığı kapalıysa Modül merkezinden açmayı gösterin.',),
             ),

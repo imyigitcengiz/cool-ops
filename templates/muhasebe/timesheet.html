@@ -1,0 +1,69 @@
+{% extends 'muhasebe/base.html' %}
+{% block title %}{{ gy.mh_zaman }}{% endblock %}
+{% block header %}
+<h1 class="text-lg font-bold text-slate-900">{{ gy.mh_zaman }}</h1>
+<p class="text-sm text-slate-500">Personel / proje bazlı saat kaydı ve faturalama takibi.</p>
+{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto space-y-6">
+    <div class="flex flex-wrap gap-3 items-center">
+        <div class="rounded-2xl bg-indigo-50 border border-indigo-100 px-5 py-3">
+            <p class="text-[10px] font-bold uppercase text-indigo-700">Toplam saat</p>
+            <p class="text-xl font-black">{{ timesheet_total_hours|floatformat:1 }} sa</p>
+        </div>
+        <div class="rounded-2xl bg-white border px-5 py-3">
+            <p class="text-[10px] font-bold uppercase text-slate-600">Faturalanabilir</p>
+            <p class="text-xl font-black">{{ timesheet_billable_hours|floatformat:1 }} sa</p>
+        </div>
+        <form method="get" class="flex gap-2 items-end ml-auto">
+            <input type="number" name="year" value="{{ timesheet_year }}" class="w-20 px-2 py-2 border rounded-xl text-sm">
+            <input type="number" min="1" max="12" name="month" value="{{ timesheet_month }}" class="w-16 px-2 py-2 border rounded-xl text-sm">
+            <button type="submit" class="px-3 py-2 bg-slate-800 text-white rounded-xl text-sm font-bold">Ay</button>
+        </form>
+    </div>
+
+    <form method="post" class="bg-white rounded-3xl border p-5 grid md:grid-cols-3 gap-3">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="create">
+        <input type="hidden" name="year" value="{{ timesheet_year }}">
+        <input type="hidden" name="month" value="{{ timesheet_month }}">
+        <input type="date" name="entry_date" required class="acct-input px-3 py-2 border rounded-xl text-sm">
+        <input name="hours" required placeholder="Saat" class="acct-input px-3 py-2 border rounded-xl text-sm">
+        <input name="description" required placeholder="Açıklama" class="acct-input px-3 py-2 border rounded-xl text-sm md:col-span-3">
+        <select name="personnel_id" class="acct-input px-3 py-2 border rounded-xl text-sm">
+            <option value="">Personel</option>
+            {% for p in timesheet_personnel %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+        </select>
+        <select name="sales_lead_id" class="acct-input px-3 py-2 border rounded-xl text-sm">
+            <option value="">Satış kaydı</option>
+            {% for s in timesheet_sales %}<option value="{{ s.id }}">{{ s.customer.name }} — {{ s.project_display|truncatechars:30 }}</option>{% endfor %}
+        </select>
+        <select name="project_id" class="acct-input px-3 py-2 border rounded-xl text-sm">
+            <option value="">Proje</option>
+            {% for p in timesheet_projects %}<option value="{{ p.id }}">{{ p.name }}</option>{% endfor %}
+        </select>
+        <label class="flex items-center gap-2 text-sm"><input type="checkbox" name="billable" checked> Faturalanabilir</label>
+        <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-xl text-sm font-bold w-fit">Kayıt ekle</button>
+    </form>
+
+    <section class="bg-white rounded-3xl border overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-xs uppercase text-slate-500"><tr><th class="px-4 py-3 text-left">Tarih</th><th class="px-4 py-3">Saat</th><th class="px-4 py-3 text-left">Açıklama</th><th class="px-4 py-3 text-left">Personel</th><th class="px-4 py-3">Fatura</th></tr></thead>
+            <tbody class="divide-y">
+                {% for e in timesheet_entries %}
+                <tr>
+                    <td class="px-4 py-3">{{ e.entry_date|date:"d.m.Y" }}</td>
+                    <td class="px-4 py-3 text-center font-bold">{{ e.hours|floatformat:1 }}</td>
+                    <td class="px-4 py-3">{{ e.description }}</td>
+                    <td class="px-4 py-3 text-slate-500">{% if e.personnel %}{{ e.personnel.name }}{% else %}—{% endif %}</td>
+                    <td class="px-4 py-3 text-center">
+                        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="toggle_invoiced"><input type="hidden" name="entry_id" value="{{ e.id }}"><input type="hidden" name="year" value="{{ timesheet_year }}"><input type="hidden" name="month" value="{{ timesheet_month }}">
+                        <button type="submit" class="text-xs font-bold {% if e.invoiced %}text-emerald-700{% else %}text-slate-400{% endif %}">{% if e.invoiced %}Faturalandı{% else %}Bekliyor{% endif %}</button></form>
+                    </td>
+                </tr>
+                {% empty %}<tr><td colspan="5" class="py-8 text-center text-slate-400">Bu ay kayıt yok.</td></tr>{% endfor %}
+            </tbody>
+        </table>
+    </section>
+</div>
+{% endblock %}
