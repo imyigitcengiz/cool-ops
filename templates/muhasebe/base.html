@@ -10,6 +10,7 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body class="erp-app erp-theme-emerald flex h-screen overflow-hidden bg-slate-50">
+    {% include 'common/impersonation_banner.html' %}
     {% include 'common/erp_mobile_sidebar_start.html' with sidebar_width='w-60' %}
         <div class="p-5 border-b border-slate-800">
             <a href="{% if user_access.accounting %}{% url 'accounting_hub' %}{% else %}{% url 'accounting_personnel' %}{% endif %}" class="text-lg font-bold text-white flex items-center gap-2">

@@ -15,10 +15,12 @@ from .admin_views import (
     RoleUpdateView,
     SuperAdminDashboardView,
 )
+from .impersonation_views import ImpersonateStartView, ImpersonateStopView
 from .views import ProfileSettingsView, UserLoginView, UserLogoutView
 
 urlpatterns = [
     path('profil/', ProfileSettingsView.as_view(), name='profile_settings'),
+    path('profil/gecis/bitir/', ImpersonateStopView.as_view(), name='impersonate_stop'),
     path('giris/', UserLoginView.as_view(), name='login'),
     path('cikis/', UserLogoutView.as_view(), name='logout'),
     path('yonetim/', SuperAdminDashboardView.as_view(), name='admin_dashboard'),
@@ -30,6 +32,7 @@ urlpatterns = [
     path('yonetim/kullanicilar/yeni/', AdminUserCreateView.as_view(), name='admin_user_create'),
     path('yonetim/kullanicilar/<int:pk>/duzenle/', AdminUserUpdateView.as_view(), name='admin_user_edit'),
     path('yonetim/kullanicilar/<int:pk>/sil/', AdminUserDeleteView.as_view(), name='admin_user_delete'),
+    path('yonetim/kullanicilar/<int:pk>/gecis/', ImpersonateStartView.as_view(), name='admin_impersonate_start'),
     path('yonetim/yedekler/', AdminSystemBackupView.as_view(), name='admin_system_backup'),
     path('yonetim/guncellemeler/', AdminSystemUpdatesView.as_view(), name='admin_system_updates'),
     path('yonetim/guncellemeler/durum/', AdminSystemUpdateStatusApiView.as_view(), name='admin_system_updates_status'),

@@ -1,0 +1,9 @@
+{% if target_user.is_active and not target_user.is_superuser and target_user.pk != request.user.pk %}
+<form method="post" action="{% url 'admin_impersonate_start' target_user.pk %}" class="inline">
+    {% csrf_token %}
+    <button type="submit" class="{{ button_class|default:'text-amber-700 font-bold hover:underline' }}"
+            onclick="return confirm('{{ target_user.display_name|escapejs }} kullanıcısının rolüyle sistemi incelemek istiyor musunuz?');">
+        {{ label|default:'Rol ile görüntüle' }}
+    </button>
+</form>
+{% endif %}

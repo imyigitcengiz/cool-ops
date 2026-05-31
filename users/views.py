@@ -51,6 +51,10 @@ class UserLogoutView(AuthLogoutView):
     next_page = reverse_lazy('landing')
 
     def dispatch(self, request, *args, **kwargs):
+        from users.impersonation import SESSION_IMPERSONATOR_KEY
+
+        if request.method == 'POST':
+            request.session.pop(SESSION_IMPERSONATOR_KEY, None)
         response = super().dispatch(request, *args, **kwargs)
         if request.method == 'POST':
             messages.info(request, 'Oturum kapatıldı.')

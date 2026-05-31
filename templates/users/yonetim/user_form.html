@@ -29,6 +29,9 @@
     <div class="flex flex-wrap items-center gap-3 pt-2">
         <a href="{% url 'admin_users' %}" class="px-5 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold">Vazgeç</a>
         <button type="submit" class="px-5 py-2.5 rounded-xl bg-red-600 text-white font-bold">Kaydet</button>
+        {% if is_edit %}
+        {% include 'common/impersonate_user_button.html' with target_user=form.instance label='Bu rol ile sistemi incele' button_class='px-5 py-2.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 font-bold hover:bg-amber-100' %}
+        {% endif %}
         {% if is_edit and user_can_delete %}
         <a href="{% url 'admin_user_delete' form.instance.pk %}" class="ml-auto px-5 py-2.5 rounded-xl border border-red-200 text-red-600 font-bold hover:bg-red-50">Kullanıcıyı sil</a>
         {% elif is_edit and user_delete_blocked_reason %}

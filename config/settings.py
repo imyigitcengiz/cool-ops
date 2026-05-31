@@ -201,6 +201,7 @@ TEMPLATES = [
                 'core_settings.context_processors.site_settings',
                 'users.context_processors.user_profile_card',
                 'users.context_access.user_access',
+                'users.context_impersonation.impersonation_banner',
                 'common.context_processors.gy_branding',
                 'common.context_processors.module_install_context',
             ],

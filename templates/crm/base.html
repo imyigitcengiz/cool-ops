@@ -12,6 +12,7 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body class="erp-app erp-theme-violet flex h-screen overflow-hidden bg-slate-100">
+    {% include 'common/impersonation_banner.html' %}
     {% include 'common/erp_mobile_sidebar_start.html' %}
         <div class="p-6">
             <a href="{% url 'contact_hub' %}" class="text-xl font-bold text-white flex items-center gap-2">
