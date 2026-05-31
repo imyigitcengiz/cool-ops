@@ -125,6 +125,8 @@ DEFAULT_ROLES = {
 }
 
 ROUTE_PERMISSIONS = [
+    ('/api/bildirimler/', None),
+    ('/api/hizli-arama/', None),
     ('/yonetim/', None),
     ('/profil/', None),
     ('/chat/', None),
@@ -209,5 +211,5 @@ ROUTE_PERMISSIONS = [
     ('/panel/', 'access.home'),
 ]
 
-LOGIN_EXEMPT_PREFIXES = ('/giris/', '/static/', '/healthz/')
+LOGIN_EXEMPT_PREFIXES = ('/giris/', '/static/', '/healthz/', '/bilgi-bankasi/')
 SUPERUSER_ONLY_PREFIXES = ('/yonetim/',)

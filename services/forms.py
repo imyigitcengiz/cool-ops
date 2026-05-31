@@ -58,7 +58,7 @@ class ServiceRecordForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.fields['solution_partner'].queryset = SolutionPartner.objects.filter(is_active=True).order_by('name')
         self.fields['solution_partner'].empty_label = 'Çözüm ortağı seçin (opsiyonel)'
-        self.fields['service_personnel'].queryset = ServicePersonnel.objects.filter(is_active=True).select_related('team').order_by('name')
+        self.fields['service_personnel'].queryset = ServicePersonnel.objects.filter(is_active=True).select_related('team', 'department').order_by('name')
         self.fields['service_personnel'].empty_label = 'Servis personeli seçin (opsiyonel)'
         self.fields['list_price'].label = 'Normal fiyat (₺)'
         self.fields['discounted_price'].label = 'İndirimli fiyat (₺)'

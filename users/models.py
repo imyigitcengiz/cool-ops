@@ -149,3 +149,46 @@ class UserProfile(models.Model):
         if self.job_title:
             return self.job_title
         return self.user.role_label
+
+
+class UserNotification(models.Model):
+    LEVEL_INFO = 'info'
+    LEVEL_SUCCESS = 'success'
+    LEVEL_WARNING = 'warning'
+    LEVEL_CHOICES = (
+        (LEVEL_INFO, 'Bilgi'),
+        (LEVEL_SUCCESS, 'Başarılı'),
+        (LEVEL_WARNING, 'Uyarı'),
+    )
+
+    SOURCE_SYSTEM = 'system'
+    SOURCE_PAYROLL = 'payroll'
+    SOURCE_RECEIVABLES = 'receivables'
+    SOURCE_SERVICE = 'service'
+    SOURCE_CHOICES = (
+        (SOURCE_SYSTEM, 'Sistem'),
+        (SOURCE_PAYROLL, 'Maaş'),
+        (SOURCE_RECEIVABLES, 'Alacak'),
+        (SOURCE_SERVICE, 'Servis'),
+    )
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    title = models.CharField(max_length=200)
+    body = models.TextField(blank=True)
+    link = models.CharField(max_length=500, blank=True)
+    level = models.CharField(max_length=20, choices=LEVEL_CHOICES, default=LEVEL_INFO)
+    source = models.CharField(max_length=30, choices=SOURCE_CHOICES, default=SOURCE_SYSTEM)
+    dedupe_key = models.CharField(max_length=120, blank=True, db_index=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Bildirim'
+        verbose_name_plural = 'Bildirimler'
+        indexes = [
+            models.Index(fields=['user', 'is_read', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.user_id}: {self.title}'

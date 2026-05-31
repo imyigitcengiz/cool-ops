@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bilgi bankası — Tanıtım rehberi | {{ gy.app_name }}</title>
+    <meta name="description" content="CoolOPS tanıtım yol haritası: demo adımları, modül anlatımı, sektör rehberi ve sık sorulan sorular.">
+    {% load static %}
+    {% include 'common/erp_head_assets.html' %}
+    <style>
+        .kb-glow {
+            background:
+                radial-gradient(ellipse 70% 50% at 10% 0%, rgba(139, 92, 246, 0.12), transparent),
+                radial-gradient(ellipse 60% 40% at 90% 10%, rgba(14, 165, 233, 0.10), transparent);
+        }
+        .kb-sidebar { max-height: calc(100vh - 5rem); }
+        @media (min-width: 1024px) {
+            .kb-sidebar { position: sticky; top: 4.5rem; overflow-y: auto; }
+        }
+        .kb-step-line { width: 2px; background: linear-gradient(to bottom, rgba(139,92,246,0.5), rgba(14,165,233,0.3)); }
+    </style>
+</head>
+<body class="erp-app erp-theme-sky min-h-screen bg-slate-950 text-slate-100 antialiased">
+    <header class="border-b border-white/10 bg-slate-950/90 backdrop-blur sticky top-0 z-30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+            <div class="flex items-center gap-3 min-w-0">
+                <a href="{% url 'landing' %}" class="flex items-center gap-2 shrink-0 text-slate-400 hover:text-white">
+                    <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                    <span class="text-sm font-semibold hidden sm:inline">Tanıtım</span>
+                </a>
+                <span class="text-white/20 hidden sm:inline">|</span>
+                <div class="min-w-0">
+                    <p class="text-xs font-bold uppercase tracking-wider text-violet-400">Bilgi bankası</p>
+                    <h1 class="text-sm sm:text-base font-bold text-white truncate">Tanıtım yol haritası</h1>
+                </div>
+            </div>
+            <nav class="flex items-center gap-2 shrink-0">
+                <a href="#yollar" class="hidden md:inline-flex px-2 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/5">Yollar</a>
+                <a href="#moduller" class="hidden md:inline-flex px-2 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/5">Modüller</a>
+                <a href="#sss" class="hidden md:inline-flex px-2 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white hover:bg-white/5">SSS</a>
+                {% if user.is_authenticated %}
+                <a href="{% url 'home' %}" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-brand-600 text-white text-sm font-bold hover:bg-brand-500">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                    <span class="hidden sm:inline">Panel</span>
+                </a>
+                {% else %}
+                <a href="{% url 'login' %}" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-brand-600 text-white text-sm font-bold hover:bg-brand-500">
+                    <i data-lucide="log-in" class="w-4 h-4"></i>
+                    Giriş
+                </a>
+                {% endif %}
+            </nav>
+        </div>
+    </header>
+
+    <div class="kb-glow border-b border-white/5">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 py-10 md:py-14">
+            <p class="text-violet-400 text-sm font-bold uppercase tracking-wider mb-3">Satış · demo · danışmanlık</p>
+            <h2 class="text-3xl md:text-4xl font-extrabold text-white max-w-3xl leading-tight">
+                Ürünü tanıtırken izleyeceğiniz yol haritası
+            </h2>
+            <p class="mt-4 text-slate-400 max-w-2xl leading-relaxed">
+                Tanıtım sayfasındaki modül ve sektör içeriğinden türetilmiş adım adım rehber.
+                Canlı demo öncesi hazırlık, sektöre göre vurgu ve modül sözlüğü tek yerde.
+            </p>
+            <div class="mt-6 flex flex-wrap gap-2">
+                {% for icon, title, sub in introducer_vertical_copy.highlights %}
+                <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-slate-300" title="{{ sub }}">
+                    <i data-lucide="{{ icon }}" class="w-3.5 h-3.5 text-brand-400"></i> {{ title }}
+                </span>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-10 flex flex-col lg:flex-row gap-8 lg:gap-10">
+        <!-- Sidebar: journey picker -->
+        <aside id="yollar" class="kb-sidebar lg:w-72 shrink-0 scroll-mt-24">
+            <p class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Demo yolları</p>
+            <nav class="space-y-2" aria-label="Demo yolları">
+                {% for journey in introducer_journeys %}
+                <a href="?yol={{ journey.slug }}#adimlar"
+                   class="block rounded-2xl border p-4 transition-colors {% if active_journey_slug == journey.slug %}border-violet-500/40 bg-violet-500/10{% else %}border-white/10 bg-white/[0.02] hover:border-white/20 hover:bg-white/[0.04]{% endif %}">
+                    <div class="flex items-start gap-3">
+                        <span class="w-9 h-9 rounded-xl bg-white/5 flex items-center justify-center shrink-0">
+                            <i data-lucide="{{ journey.icon }}" class="w-4 h-4 text-violet-400"></i>
+                        </span>
+                        <div class="min-w-0">
+                            <p class="font-bold text-sm text-white leading-snug">{{ journey.title }}</p>
+                            <p class="text-xs text-slate-500 mt-1">{{ journey.duration }}</p>
+                        </div>
+                    </div>
+                </a>
+                {% endfor %}
+            </nav>
+
+            <div class="mt-8 rounded-2xl border border-white/10 bg-slate-900/50 p-4">
+                <p class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">Değer sütunları</p>
+                <ul class="space-y-3">
+                    {% for title, body in introducer_pillars %}
+                    <li>
+                        <p class="text-sm font-semibold text-slate-200">{{ title }}</p>
+                        <p class="text-xs text-slate-500 mt-0.5 leading-relaxed">{{ body }}</p>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </aside>
+
+        <!-- Main -->
+        <div class="flex-1 min-w-0 space-y-12">
+            {% if active_journey %}
+            <section id="adimlar" class="scroll-mt-24">
+                <div class="rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900/80 to-slate-800/40 p-6 md:p-8">
+                    <div class="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                            <p class="text-xs font-bold uppercase tracking-wider text-violet-400">Aktif yol</p>
+                            <h3 class="text-2xl font-bold text-white mt-1">{{ active_journey.title }}</h3>
+                            <p class="text-sm text-slate-400 mt-2 max-w-xl">{{ active_journey.summary }}</p>
+                        </div>
+                        <div class="text-right text-sm">
+                            <p class="text-slate-500">Süre</p>
+                            <p class="font-bold text-white">{{ active_journey.duration }}</p>
+                            <p class="text-xs text-slate-500 mt-2 max-w-[14rem]">{{ active_journey.audience }}</p>
+                        </div>
+                    </div>
+                </div>
+
+                <ol class="mt-8 space-y-0">
+                    {% for step in active_journey.steps %}
+                    <li class="relative flex gap-4 md:gap-6 pb-10 last:pb-0">
+                        {% if not forloop.last %}
+                        <div class="absolute left-[1.125rem] top-10 bottom-0 kb-step-line hidden sm:block" aria-hidden="true"></div>
+                        {% endif %}
+                        <div class="w-9 h-9 rounded-full bg-violet-600 text-white flex items-center justify-center font-bold text-sm shrink-0 z-10">
+                            {{ step.order }}
+                        </div>
+                        <article class="flex-1 min-w-0 rounded-2xl border border-white/10 bg-white/[0.02] p-5 md:p-6">
+                            <div class="flex flex-wrap items-baseline justify-between gap-2 mb-3">
+                                <h4 class="text-lg font-bold text-white">{{ step.title }}</h4>
+                                {% if step.duration != '—' %}
+                                <span class="text-xs font-semibold text-slate-500 bg-white/5 px-2 py-1 rounded-lg">{{ step.duration }}</span>
+                                {% endif %}
+                            </div>
+                            <p class="text-sm text-brand-300/90 font-medium">{{ step.goal }}</p>
+
+                            {% if step.talking_points %}
+                            <div class="mt-4">
+                                <p class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Anlatım noktaları</p>
+                                <ul class="space-y-2">
+                                    {% for point in step.talking_points %}
+                                    <li class="flex items-start gap-2 text-sm text-slate-300 leading-relaxed">
+                                        <i data-lucide="message-circle" class="w-4 h-4 text-violet-400 shrink-0 mt-0.5"></i>
+                                        {{ point }}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+
+                            {% if step.demo_screens %}
+                            <div class="mt-5">
+                                <p class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Demo ekranları</p>
+                                <div class="flex flex-col gap-2">
+                                    {% for screen in step.demo_screens %}
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        {% if screen.url_name %}
+                                        <a href="{% url screen.url_name %}"
+                                           class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-brand-600/20 border border-brand-500/30 text-brand-300 text-xs font-semibold hover:bg-brand-600/30 transition-colors"
+                                           {% if not user.is_authenticated %}title="Giriş gerekir"{% endif %}>
+                                            <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                                            {{ screen.label }}
+                                        </a>
+                                        {% else %}
+                                        <span class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-slate-400 text-xs font-semibold">
+                                            {{ screen.label }}
+                                        </span>
+                                        {% endif %}
+                                        {% if screen.note %}
+                                        <span class="text-xs text-slate-500">{{ screen.note }}</span>
+                                        {% endif %}
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            {% if step.checklist %}
+                            <div class="mt-5 rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+                                <p class="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-2">Kontrol listesi</p>
+                                <ul class="space-y-1.5">
+                                    {% for item in step.checklist %}
+                                    <li class="flex items-start gap-2 text-sm text-slate-300">
+                                        <i data-lucide="square-check" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i>
+                                        {{ item }}
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            {% endif %}
+
+                            {% if step.tips %}
+                            <div class="mt-4 flex items-start gap-2 text-xs text-amber-200/80 bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2">
+                                <i data-lucide="lightbulb" class="w-4 h-4 shrink-0 mt-0.5"></i>
+                                {% for tip in step.tips %}{{ tip }}{% if not forloop.last %} · {% endif %}{% endfor %}
+                            </div>
+                            {% endif %}
+                        </article>
+                    </li>
+                    {% endfor %}
+                </ol>
+            </section>
+            {% endif %}
+
+            <!-- Sectors -->
+            <section id="sektorler" class="scroll-mt-24">
+                <h3 class="text-xl font-bold text-white mb-4">Sektör hızlı rehber</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {% for icon, title, fit, note in introducer_sectors %}
+                    <div class="rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                        <div class="flex items-center gap-3 mb-2">
+                            <i data-lucide="{{ icon }}" class="w-5 h-5 text-brand-400"></i>
+                            <span class="font-bold text-white">{{ title }}</span>
+                            <span class="ml-auto text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full
+                                {% if fit == 'Tam uyum' %}bg-emerald-500/20 text-emerald-300
+                                {% elif fit == 'Yüksek' %}bg-sky-500/20 text-sky-300
+                                {% elif fit == 'Orta' %}bg-amber-500/20 text-amber-300
+                                {% else %}bg-slate-500/20 text-slate-400{% endif %}">{{ fit }}</span>
+                        </div>
+                        <p class="text-sm text-slate-400">{{ note }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <!-- Flows -->
+            <section class="grid md:grid-cols-2 gap-6">
+                <div class="rounded-2xl border border-white/10 p-5">
+                    <h3 class="font-bold text-white mb-4 flex items-center gap-2">
+                        <i data-lucide="route" class="w-5 h-5 text-violet-400"></i> Saha servis akışı
+                    </h3>
+                    <ol class="space-y-3">
+                        {% for border, color, num, label, desc in introducer_flow_saha %}
+                        <li class="flex gap-3 rounded-xl border p-3 {{ border }}">
+                            <span class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold {{ color }} bg-white/5">{{ num }}</span>
+                            <div>
+                                <p class="font-semibold text-white text-sm">{{ label }}</p>
+                                <p class="text-xs text-slate-400">{{ desc }}</p>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ol>
+                </div>
+                <div class="rounded-2xl border border-white/10 p-5">
+                    <h3 class="font-bold text-white mb-4 flex items-center gap-2">
+                        <i data-lucide="route" class="w-5 h-5 text-blue-400"></i> Hizmet profili akışı
+                    </h3>
+                    <ol class="space-y-3">
+                        {% for border, color, num, label, desc in introducer_flow_hizmet %}
+                        <li class="flex gap-3 rounded-xl border p-3 {{ border }}">
+                            <span class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold {{ color }} bg-white/5">{{ num }}</span>
+                            <div>
+                                <p class="font-semibold text-white text-sm">{{ label }}</p>
+                                <p class="text-xs text-slate-400">{{ desc }}</p>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ol>
+                </div>
+            </section>
+
+            <!-- Module reference -->
+            <section id="moduller" class="scroll-mt-24">
+                <h3 class="text-xl font-bold text-white mb-2">Modül sözlüğü</h3>
+                <p class="text-sm text-slate-500 mb-6">Tanıtım sırasında hızlı bakış — landing özellik listesiyle aynı kaynak.</p>
+                <div class="space-y-4">
+                    {% for section in introducer_module_sections %}
+                    <details class="group rounded-2xl border border-white/10 bg-white/[0.02] overflow-hidden">
+                        <summary class="flex items-center gap-3 px-5 py-4 cursor-pointer list-none font-bold text-white hover:bg-white/[0.03]">
+                            <i data-lucide="{{ section.icon }}" class="w-5 h-5 text-brand-400"></i>
+                            {{ section.title }}
+                            <i data-lucide="chevron-down" class="w-4 h-4 ml-auto text-slate-500 group-open:rotate-180 transition-transform"></i>
+                        </summary>
+                        <ul class="px-5 pb-5 grid sm:grid-cols-2 gap-3 border-t border-white/5 pt-4">
+                            {% for icon, title, desc in section.features %}
+                            <li class="flex gap-3 text-sm">
+                                <i data-lucide="{{ icon }}" class="w-4 h-4 text-slate-500 shrink-0 mt-0.5"></i>
+                                <div>
+                                    <p class="font-semibold text-slate-200">{{ title }}</p>
+                                    <p class="text-xs text-slate-500 mt-0.5">{{ desc }}</p>
+                                </div>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </details>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <!-- Objections -->
+            <section id="itirazlar" class="scroll-mt-24">
+                <h3 class="text-xl font-bold text-white mb-4">Sık itirazlar ve yanıtlar</h3>
+                <div class="space-y-3">
+                    {% for q, a in introducer_objections %}
+                    <div class="rounded-2xl border border-white/10 p-5">
+                        <p class="font-semibold text-amber-200/90 text-sm">"{{ q }}"</p>
+                        <p class="text-sm text-slate-400 mt-2 leading-relaxed">{{ a }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <!-- FAQ -->
+            <section id="sss" class="scroll-mt-24">
+                <h3 class="text-xl font-bold text-white mb-4">Sık sorulan sorular</h3>
+                <div class="space-y-3">
+                    {% for q, a in introducer_faq %}
+                    <details class="rounded-2xl border border-white/10 bg-white/[0.02] group">
+                        <summary class="px-5 py-4 cursor-pointer list-none font-semibold text-slate-200 hover:text-white">{{ q }}</summary>
+                        <p class="px-5 pb-4 text-sm text-slate-400 leading-relaxed border-t border-white/5 pt-3">{{ a }}</p>
+                    </details>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <!-- Deploy + audience -->
+            <section class="rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900 to-slate-800 p-6 md:p-8">
+                <h3 class="text-lg font-bold text-white">Kurulum anlatımı</h3>
+                <p class="text-sm text-slate-400 mt-2">Self-host mesajını kapatırken platform etiketlerini kullanın.</p>
+                <div class="mt-4 flex flex-wrap gap-2">
+                    {% for platform in introducer_deploy_platforms %}
+                    <span class="px-3 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-slate-300">{{ platform }}</span>
+                    {% endfor %}
+                </div>
+                <h4 class="text-sm font-bold text-white mt-8 mb-3">Kimler için? (kapanış)</h4>
+                <ul class="grid sm:grid-cols-2 gap-2 text-sm text-slate-400">
+                    {% for item in introducer_audience %}
+                    <li class="flex items-start gap-2">
+                        <i data-lucide="check" class="w-4 h-4 text-emerald-400 shrink-0 mt-0.5"></i>
+                        {{ item }}
+                    </li>
+                    {% endfor %}
+                </ul>
+                <div class="mt-8 flex flex-wrap gap-3">
+                    <a href="{% url 'landing' %}#kurulum" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/20 text-sm font-semibold text-slate-300 hover:bg-white/5">
+                        Tanıtım — kurulum bölümü
+                    </a>
+                    {% if user.is_authenticated %}
+                    <a href="{% url 'home' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-bold hover:bg-brand-500">
+                        Demo paneline git
+                    </a>
+                    {% endif %}
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <footer class="border-t border-white/10 py-8 text-center text-slate-500 text-sm mt-8">
+        <p>{{ gy.app_name }} · Bilgi bankası · <a href="{% url 'landing' %}" class="text-brand-400 hover:underline">Tanıtım sayfası</a></p>
+    </footer>
+    <script>if (window.lucide) lucide.createIcons();</script>
+</body>
+</html>

@@ -37,3 +37,25 @@ class PanelViewsTests(TestCase):
         response = self.client.get('/panel/yetenekler/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Entegrasyon')
+
+    def test_introducer_knowledge_base_public(self):
+        response = self.client.get('/bilgi-bankasi/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Bilgi bankası')
+        self.assertContains(response, 'Tam demo')
+
+    def test_introducer_knowledge_base_journey_query(self):
+        response = self.client.get('/bilgi-bankasi/?yol=hizmet-hizli')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Hızlı demo')
+
+    def test_contact_hub_ok(self):
+        self.client.force_login(self.user)
+        response = self.client.get('/contact/')
+        self.assertEqual(response.status_code, 200)
+
+    def test_whatsapp_baglan_ok(self):
+        self.client.force_login(self.user)
+        response = self.client.get('/tools/whatsapp-baglan/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'WhatsApp Köprüsü')

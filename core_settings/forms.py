@@ -11,6 +11,7 @@ from .models import (
     SolutionPartnerType,
     ServiceTeam,
     ServicePersonnel,
+    PersonnelDepartment,
     PersonnelPayment,
     FinanceRecord,
     StatusOption,
@@ -186,6 +187,16 @@ class SolutionPartnerTypeForm(forms.ModelForm):
         }
 
 
+class PersonnelDepartmentForm(forms.ModelForm):
+    class Meta:
+        model = PersonnelDepartment
+        fields = ['name', 'is_active']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': INPUT, 'placeholder': 'Örn: Tasarım, Saha Montaj, Ofis'}),
+            'is_active': forms.CheckboxInput(attrs={'class': 'w-4 h-4 accent-brand-600 rounded'}),
+        }
+
+
 class ServiceTeamForm(forms.ModelForm):
     class Meta:
         model = ServiceTeam
@@ -205,9 +216,11 @@ class ServiceTeamForm(forms.ModelForm):
 class ServicePersonnelForm(forms.ModelForm):
     class Meta:
         model = ServicePersonnel
-        fields = ['name', 'team', 'product_groups', 'company_phone', 'notes', 'is_active']
+        fields = ['name', 'department', 'job_title', 'team', 'product_groups', 'company_phone', 'notes', 'is_active']
         widgets = {
             'name': forms.TextInput(attrs={'class': INPUT, 'placeholder': 'Örn: Ahmet Usta'}),
+            'department': forms.Select(attrs={'class': INPUT}),
+            'job_title': forms.TextInput(attrs={'class': INPUT, 'placeholder': 'Örn: Grafik Tasarımcı'}),
             'team': forms.Select(attrs={'class': INPUT}),
             'product_groups': forms.SelectMultiple(attrs={'class': INPUT, 'size': 6}),
             'company_phone': forms.TextInput(attrs={'class': INPUT, 'placeholder': 'Örn: +9053...'}),
@@ -217,8 +230,12 @@ class ServicePersonnelForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['department'].queryset = PersonnelDepartment.objects.filter(is_active=True).order_by('name')
+        self.fields['department'].required = False
+        self.fields['department'].empty_label = 'Departman (opsiyonel)'
         self.fields['team'].queryset = ServiceTeam.objects.filter(is_active=True).order_by('name')
-        self.fields['team'].empty_label = 'Ekip seçin'
+        self.fields['team'].required = False
+        self.fields['team'].empty_label = 'Ekip (opsiyonel)'
         self.fields['product_groups'].queryset = ProductOption.objects.order_by('name')
 
 
@@ -233,9 +250,11 @@ class PayrollPersonnelQuickForm(forms.ModelForm):
 
     class Meta:
         model = ServicePersonnel
-        fields = ['name', 'team', 'company_phone', 'monthly_salary', 'notes']
+        fields = ['name', 'department', 'job_title', 'team', 'company_phone', 'monthly_salary', 'notes']
         widgets = {
             'name': forms.TextInput(attrs={'class': INPUT, 'placeholder': 'Ad Soyad'}),
+            'department': forms.Select(attrs={'class': INPUT}),
+            'job_title': forms.TextInput(attrs={'class': INPUT, 'placeholder': 'Örn: Grafik Tasarımcı'}),
             'team': forms.Select(attrs={'class': INPUT}),
             'company_phone': forms.TextInput(attrs={'class': INPUT, 'placeholder': '+905…'}),
             'monthly_salary': forms.NumberInput(attrs={'class': INPUT, 'step': '0.01', 'min': '0', 'placeholder': 'Aylık maaş'}),
@@ -244,6 +263,9 @@ class PayrollPersonnelQuickForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['department'].queryset = PersonnelDepartment.objects.filter(is_active=True).order_by('name')
+        self.fields['department'].required = False
+        self.fields['department'].empty_label = 'Departman (opsiyonel)'
         self.fields['team'].queryset = ServiceTeam.objects.filter(is_active=True).order_by('name')
         self.fields['team'].required = False
         self.fields['team'].empty_label = 'Ekip (opsiyonel)'
@@ -261,9 +283,11 @@ class AccountingPersonnelForm(forms.ModelForm):
 
     class Meta:
         model = ServicePersonnel
-        fields = ['name', 'team', 'company_phone', 'monthly_salary', 'product_groups', 'notes', 'is_active']
+        fields = ['name', 'department', 'job_title', 'team', 'company_phone', 'monthly_salary', 'product_groups', 'notes', 'is_active']
         widgets = {
             'name': forms.TextInput(attrs={'class': ACCOUNTING_INPUT, 'placeholder': 'Ad Soyad'}),
+            'department': forms.Select(attrs={'class': ACCOUNTING_SELECT}),
+            'job_title': forms.TextInput(attrs={'class': ACCOUNTING_INPUT, 'placeholder': 'Örn: Grafik Tasarımcı'}),
             'team': forms.Select(attrs={'class': ACCOUNTING_SELECT}),
             'company_phone': forms.TextInput(attrs={'class': ACCOUNTING_INPUT, 'placeholder': '+905…'}),
             'monthly_salary': forms.NumberInput(attrs={'class': ACCOUNTING_INPUT, 'step': '0.01', 'min': '0', 'inputmode': 'decimal', 'placeholder': '0,00'}),
@@ -274,6 +298,9 @@ class AccountingPersonnelForm(forms.ModelForm):
 
     def __init__(self, *args, show_product_groups=False, **kwargs):
         super().__init__(*args, **kwargs)
+        self.fields['department'].queryset = PersonnelDepartment.objects.filter(is_active=True).order_by('name')
+        self.fields['department'].required = False
+        self.fields['department'].empty_label = 'Departman (opsiyonel)'
         self.fields['team'].queryset = ServiceTeam.objects.filter(is_active=True).order_by('name')
         self.fields['team'].required = False
         self.fields['team'].empty_label = 'Ekip (opsiyonel)'
@@ -288,6 +315,25 @@ class AccountingPersonnelForm(forms.ModelForm):
 
             period = period_start(timezone.localdate())
             self.fields['salary_pay_date'].initial = default_salary_payment_date(self.instance, period)
+
+    def save(self, commit=True):
+        preserve_groups = (
+            self.instance.pk
+            and 'product_groups' in self.fields
+            and 'product_groups' not in self.data
+        )
+        old_group_ids = (
+            list(self.instance.product_groups.values_list('pk', flat=True))
+            if preserve_groups else []
+        )
+        instance = super().save(commit=False)
+        if commit:
+            instance.save()
+            if preserve_groups:
+                instance.product_groups.set(old_group_ids)
+            elif 'product_groups' in self.fields:
+                self.save_m2m()
+        return instance
 
 
 class PayrollQuickAdvanceForm(forms.Form):

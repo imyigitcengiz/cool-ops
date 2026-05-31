@@ -1,0 +1,28 @@
+{% if user.is_authenticated %}
+<div class="erp-global-bar flex items-center gap-2 shrink-0">
+    <button type="button" id="erpQuickSearchOpen" class="erp-global-search-trigger hidden sm:flex items-center gap-2 min-w-[200px] lg:min-w-[260px] px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white hover:border-slate-300 text-left transition-colors" aria-label="Hızlı arama" aria-haspopup="dialog" aria-controls="erpQuickSearchModal">
+        <i data-lucide="search" class="w-4 h-4 text-slate-400 shrink-0"></i>
+        <span class="flex-1 text-sm text-slate-500 truncate">Hızlı arama</span>
+        <kbd class="hidden md:inline-flex items-center px-1.5 py-0.5 rounded-md border border-slate-200 bg-white text-[10px] font-bold text-slate-400">/</kbd>
+    </button>
+    <button type="button" id="erpQuickSearchOpenMobile" class="sm:hidden p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50" aria-label="Hızlı arama">
+        <i data-lucide="search" class="w-5 h-5"></i>
+    </button>
+
+    <div class="relative" id="erpNotificationsWrap">
+        <button type="button" id="erpNotificationsBtn" class="relative p-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50" aria-label="Bildirimler" aria-expanded="false" aria-controls="erpNotificationsPanel">
+            <i data-lucide="bell" class="w-5 h-5"></i>
+            <span id="erpNotificationsBadge" class="hidden absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">0</span>
+        </button>
+        <div id="erpNotificationsPanel" class="hidden absolute right-0 mt-2 w-[min(100vw-2rem,22rem)] bg-white rounded-2xl border border-slate-200 shadow-xl z-50 overflow-hidden">
+            <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-2">
+                <p class="font-bold text-slate-900 text-sm">Bildirimler</p>
+                <button type="button" id="erpNotificationsMarkAll" class="text-xs font-bold text-brand-600 hover:underline">Tümünü okundu</button>
+            </div>
+            <div id="erpNotificationsList" class="max-h-80 overflow-y-auto divide-y divide-slate-100">
+                <p class="px-4 py-8 text-center text-sm text-slate-400">Yükleniyor…</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}

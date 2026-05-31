@@ -33,11 +33,29 @@ class PublicLandingView(TemplateView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):
-        from common.landing_content import LANDING_VERTICAL_COPY
+        from common.landing_content import (
+            LANDING_VERTICAL_COPY,
+            LANDING_PILLARS,
+            LANDING_SERVICES_FEATURES,
+            LANDING_MUHASEBE_FEATURES,
+            LANDING_REHBER_FEATURES,
+            LANDING_OUTREACH_FEATURES,
+            LANDING_INTEGRATION_DETAILS,
+            LANDING_PLATFORM_FEATURES,
+            LANDING_SETTINGS_FEATURES,
+            LANDING_SECTORS,
+            LANDING_FLOW_SAHA,
+            LANDING_FLOW_HIZMET,
+            LANDING_DEPLOY_PLATFORMS,
+            LANDING_AUDIENCE,
+            build_landing_particle_groups,
+        )
         from common.module_catalog import (
             MODULE_KIND_APP,
             MODULE_KIND_INTEGRATION,
+            MODULE_KIND_ROADMAP,
             MODULE_STATUS_ACTIVE,
+            MODULE_STATUS_ROADMAP,
             MODULES,
         )
 
@@ -53,11 +71,31 @@ class PublicLandingView(TemplateView):
             m for m in MODULES
             if m['kind'] == MODULE_KIND_INTEGRATION and m['status'] == MODULE_STATUS_ACTIVE
         ]
+        roadmap = [
+            m for m in MODULES
+            if m['kind'] == MODULE_KIND_ROADMAP and m['status'] == MODULE_STATUS_ROADMAP
+        ]
         apps.sort(key=lambda a: (a.get('sort', 99), a['name']))
         integrations.sort(key=lambda a: (a.get('sort', 99), a['name']))
+        roadmap.sort(key=lambda a: (a.get('sort', 99), a['name']))
         context['landing_vertical_copy'] = LANDING_VERTICAL_COPY['kobi']
         context['landing_apps'] = apps
         context['landing_integrations'] = integrations
+        context['landing_roadmap'] = roadmap
+        context['landing_pillars'] = LANDING_PILLARS
+        context['landing_services_features'] = LANDING_SERVICES_FEATURES
+        context['landing_muhasebe_features'] = LANDING_MUHASEBE_FEATURES
+        context['landing_rehber_features'] = LANDING_REHBER_FEATURES
+        context['landing_outreach_features'] = LANDING_OUTREACH_FEATURES
+        context['landing_integration_details'] = LANDING_INTEGRATION_DETAILS
+        context['landing_platform_features'] = LANDING_PLATFORM_FEATURES
+        context['landing_settings_features'] = LANDING_SETTINGS_FEATURES
+        context['landing_sectors'] = LANDING_SECTORS
+        context['landing_flow_saha'] = LANDING_FLOW_SAHA
+        context['landing_flow_hizmet'] = LANDING_FLOW_HIZMET
+        context['landing_particle_groups'] = build_landing_particle_groups()
+        context['landing_deploy_platforms'] = LANDING_DEPLOY_PLATFORMS
+        context['landing_audience'] = LANDING_AUDIENCE
         return context
 
 

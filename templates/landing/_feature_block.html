@@ -1,0 +1,22 @@
+<div id="{{ section_id|default:'block' }}" class="scroll-mt-24">
+    <div class="flex items-center gap-3 mb-2">
+        <span class="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+            <i data-lucide="{{ icon }}" class="w-5 h-5 {{ icon_class|default:'text-brand-400' }}"></i>
+        </span>
+        <div>
+            <h2 class="text-xl font-bold text-white">{{ title }}</h2>
+            {% if subtitle %}<p class="text-sm text-slate-500">{{ subtitle }}</p>{% endif %}
+        </div>
+    </div>
+    <div class="landing-feature-grid mt-5 grid grid-cols-1 {% if cols == '2' %}sm:grid-cols-2{% else %}sm:grid-cols-2 lg:grid-cols-3{% endif %} gap-3">
+        {% for icon, feat_title, summary in features %}
+        <article class="rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+            <div class="flex items-center gap-2 mb-1">
+                <i data-lucide="{{ icon }}" class="w-4 h-4 {{ icon_class|default:'text-brand-400' }} shrink-0"></i>
+                <h3 class="font-bold text-white text-sm">{{ feat_title }}</h3>
+            </div>
+            <p class="text-xs text-slate-400 leading-relaxed pl-6">{{ summary }}</p>
+        </article>
+        {% endfor %}
+    </div>
+</div>

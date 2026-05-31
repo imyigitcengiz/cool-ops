@@ -9,6 +9,21 @@
 </div>
 
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+    <a href="{% url 'introducer_knowledge_base' %}"
+       class="group block bg-white rounded-3xl border border-violet-200 shadow-sm hover:shadow-xl hover:border-violet-300 transition-all p-6">
+        <div class="w-12 h-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mb-4 group-hover:bg-violet-600 group-hover:text-white transition-colors">
+            <i data-lucide="book-open" class="w-6 h-6"></i>
+        </div>
+        <h2 class="text-lg font-bold text-slate-900">Tanıtım bilgi bankası</h2>
+        <p class="text-sm text-slate-500 mt-2 leading-relaxed">
+            Demo yol haritası, modül sözlüğü, sektör rehberi ve SSS — ürün tanıtımı için adım adım rehber.
+        </p>
+        <span class="inline-flex items-center gap-2 mt-5 text-sm font-semibold text-violet-600 group-hover:text-violet-700">
+            Rehberi aç
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </span>
+    </a>
+
     {% if user_perms.tools_whatsapp %}
     <a href="{% url 'tools_whatsapp_baglan' %}"
        class="group block bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-green-200 transition-all p-6">

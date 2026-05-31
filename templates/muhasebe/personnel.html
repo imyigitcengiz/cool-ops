@@ -5,7 +5,7 @@
 
 {% block header %}
 <h1 class="text-lg font-bold text-slate-900">{{ gy.mh_personel }}</h1>
-<p class="text-sm text-slate-500">Personel kartları, maaş tanımı ve dönem özeti — avans/ödeme işlemleri maaş sayfasında yapılır.</p>
+<p class="text-sm text-slate-500">Departman ve ünvan (ofis/beyaz yaka) ile saha ekibi ayrı tanımlanır — maaş ve dönem özeti burada, avans/ödeme maaş sayfasında.</p>
 {% endblock %}
 
 {% block content %}
@@ -15,6 +15,15 @@
             <div class="space-y-1.5">
                 <label class="text-xs font-bold text-slate-600 uppercase">Dönem özeti</label>
                 <input type="month" name="period" value="{{ period_str }}" class="acct-input px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-semibold">
+            </div>
+            <div class="space-y-1.5">
+                <label class="text-xs font-bold text-slate-600 uppercase">Departman</label>
+                <select name="department" class="acct-input px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm min-w-[140px]">
+                    <option value="">Tüm departmanlar</option>
+                    {% for d in departments %}
+                    <option value="{{ d.id }}" {% if request.GET.department == d.id|stringformat:"i" %}selected{% endif %}>{{ d.name }}</option>
+                    {% endfor %}
+                </select>
             </div>
             <div class="space-y-1.5">
                 <label class="text-xs font-bold text-slate-600 uppercase">Ekip</label>
@@ -27,7 +36,7 @@
             </div>
             <div class="space-y-1.5 flex-1 min-w-[140px]">
                 <label class="text-xs font-bold text-slate-600 uppercase">Ara</label>
-                <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Ad veya telefon" class="acct-input w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm">
+                <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Ad, ünvan veya telefon" class="acct-input w-full px-3 py-2.5 bg-white border border-slate-200 rounded-xl text-sm">
             </div>
             <button type="submit" class="px-4 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-bold">Filtrele</button>
             {% if can_payroll %}
@@ -37,6 +46,57 @@
             {% endif %}
         </form>
     </section>
+
+    <details class="bg-white rounded-3xl border border-slate-200 shadow-sm group">
+        <summary class="px-5 py-4 cursor-pointer list-none flex items-center justify-between gap-3 font-bold text-slate-900">
+            <span class="inline-flex items-center gap-2"><i data-lucide="building-2" class="w-5 h-5 text-slate-600"></i> Departman tanımları</span>
+            <i data-lucide="chevron-down" class="w-5 h-5 text-slate-400 group-open:rotate-180 transition-transform"></i>
+        </summary>
+        <div class="px-5 pb-5 border-t border-slate-100 pt-4 space-y-4">
+            <p class="text-xs text-slate-500">Organizasyon birimleri — tasarım, ofis, saha montaj gibi. Personel ekibe bağlı olabilir veya yalnızca departmanda kalabilir (ör. grafik tasarımcı).</p>
+            <form method="post" class="flex flex-wrap items-end gap-3">
+                {% csrf_token %}
+                <input type="hidden" name="add_department" value="1">
+                <div class="space-y-1 min-w-[200px] flex-1">
+                    <label class="text-xs font-bold text-slate-600 uppercase">Yeni departman</label>
+                    {{ department_form.name }}
+                </div>
+                <label class="inline-flex items-center gap-2 text-sm text-slate-700 pb-2">{{ department_form.is_active }} Aktif</label>
+                <button type="submit" class="px-4 py-2.5 bg-slate-800 text-white rounded-xl text-sm font-bold">Ekle</button>
+            </form>
+            <div class="divide-y divide-slate-100 rounded-2xl border border-slate-100">
+                {% for d in all_departments %}
+                <div class="p-3 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <p class="font-semibold text-slate-900">{{ d.name }}</p>
+                        {% if not d.is_active %}<span class="text-xs text-slate-400">Pasif</span>{% endif %}
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button type="button" class="dept-edit-toggle px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600">Düzenle</button>
+                        <form method="post" data-acct-confirm="Departman silinsin mi?" class="inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="delete_department" value="1">
+                            <input type="hidden" name="id" value="{{ d.id }}">
+                            <button type="submit" class="px-3 py-1.5 rounded-lg border border-red-200 text-xs font-bold text-red-600">Sil</button>
+                        </form>
+                    </div>
+                </div>
+                <div class="dept-edit-panel hidden px-3 pb-3 -mt-1">
+                    <form method="post" class="flex flex-wrap items-end gap-2">
+                        {% csrf_token %}
+                        <input type="hidden" name="update_department" value="1">
+                        <input type="hidden" name="id" value="{{ d.id }}">
+                        <input type="text" name="name" value="{{ d.name }}" required class="acct-input px-3 py-2 border border-slate-200 rounded-xl text-sm min-w-[180px]">
+                        <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="is_active" class="w-4 h-4 accent-emerald-600 rounded" {% if d.is_active %}checked{% endif %}> Aktif</label>
+                        <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold">Kaydet</button>
+                    </form>
+                </div>
+                {% empty %}
+                <p class="p-4 text-sm text-slate-400 text-center">Henüz departman yok.</p>
+                {% endfor %}
+            </div>
+        </div>
+    </details>
 
     <details class="bg-white rounded-3xl border border-emerald-200 shadow-sm group">
         <summary class="px-5 py-4 cursor-pointer list-none flex items-center justify-between gap-3 font-bold text-slate-900">
@@ -48,15 +108,18 @@
             <input type="hidden" name="add_personnel" value="1">
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-4">
                 <div class="space-y-1.5"><label class="text-xs font-bold text-slate-600 uppercase">Ad soyad <span class="text-red-500">*</span></label>{{ personnel_form.name }}</div>
+                <div class="space-y-1.5"><label class="text-xs font-bold text-slate-600 uppercase">Departman</label>{{ personnel_form.department }}</div>
+                <div class="space-y-1.5"><label class="text-xs font-bold text-slate-600 uppercase">Ünvan</label>{{ personnel_form.job_title }}</div>
                 <div class="space-y-1.5"><label class="text-xs font-bold text-slate-600 uppercase">Ekip</label>{{ personnel_form.team }}</div>
                 <div class="space-y-1.5"><label class="text-xs font-bold text-slate-600 uppercase">Telefon</label>{{ personnel_form.company_phone }}</div>
                 <div class="space-y-1.5"><label class="text-xs font-bold text-slate-600 uppercase">Aylık brüt maaş (₺)</label>{{ personnel_form.monthly_salary }}</div>
                 <div class="space-y-1.5"><label class="text-xs font-bold text-slate-600 uppercase">İlk maaş tarihi</label>{{ personnel_form.salary_pay_date }}</div>
                 <div class="space-y-1.5"><label class="text-xs font-bold text-slate-600 uppercase">Not</label>{{ personnel_form.notes }}</div>
                 {% if show_product_groups %}
-                <div class="space-y-1.5 lg:col-span-3"><label class="text-xs font-bold text-slate-600 uppercase">Yetenekli ürün grupları</label>{{ personnel_form.product_groups }}</div>
+                <div class="space-y-1.5 lg:col-span-3"><label class="text-xs font-bold text-slate-600 uppercase">Yetenekli ürün grupları (saha)</label>{{ personnel_form.product_groups }}</div>
                 {% endif %}
             </div>
+            <p class="text-xs text-slate-400">Ofis personeli için departman + ünvan yeterli; saha çalışanı için ekibe de atayın.</p>
             <label class="inline-flex items-center gap-2 text-sm text-slate-700">{{ personnel_form.is_active }} Aktif personel</label>
             <button type="submit" class="px-6 py-2.5 bg-emerald-600 text-white rounded-xl font-bold hover:bg-emerald-700">Kaydet</button>
         </form>
@@ -77,11 +140,15 @@
                     <div class="min-w-0 flex-1">
                         <div class="flex flex-wrap items-center gap-2">
                             <h4 class="font-bold text-slate-900">{{ p.name }}</h4>
+                            {% if p.job_title %}<span class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-600">{{ p.job_title }}</span>{% endif %}
                             {% if not p.is_active %}<span class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-500">Pasif</span>{% endif %}
                             {% if pr and pr.is_paid %}<span class="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold">Ödendi</span>
                             {% elif pr and pr.can_pay %}<span class="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-bold">Bekliyor</span>{% endif %}
                         </div>
-                        <p class="text-sm text-slate-500 mt-0.5">{% if p.team %}{{ p.team.name }}{% else %}Ekip yok{% endif %}{% if p.company_phone %} · {{ p.company_phone }}{% endif %}</p>
+                        <p class="text-sm text-slate-500 mt-0.5">
+                            {% if p.org_summary %}{{ p.org_summary }}{% else %}Departman/ekip atanmamış{% endif %}
+                            {% if p.company_phone %} · {{ p.company_phone }}{% endif %}
+                        </p>
                         <div class="mt-3 flex flex-wrap gap-4 text-sm">
                             <div>
                                 <p class="text-[10px] font-bold uppercase text-slate-400">Brüt maaş</p>
@@ -122,6 +189,13 @@
                         <input type="hidden" name="update_personnel" value="1">
                         <input type="hidden" name="id" value="{{ p.id }}">
                         <div class="space-y-1"><label class="text-xs font-bold text-slate-500">Ad soyad</label><input type="text" name="name" value="{{ p.name }}" required class="acct-input w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"></div>
+                        <div class="space-y-1"><label class="text-xs font-bold text-slate-500">Departman</label>
+                            <select name="department" class="acct-input w-full px-3 py-2 border border-slate-200 rounded-xl text-sm">
+                                <option value="">—</option>
+                                {% for d in departments %}<option value="{{ d.id }}" {% if p.department_id == d.id %}selected{% endif %}>{{ d.name }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div class="space-y-1"><label class="text-xs font-bold text-slate-500">Ünvan</label><input type="text" name="job_title" value="{{ p.job_title|default:'' }}" class="acct-input w-full px-3 py-2 border border-slate-200 rounded-xl text-sm" placeholder="Grafik Tasarımcı"></div>
                         <div class="space-y-1"><label class="text-xs font-bold text-slate-500">Ekip</label>
                             <select name="team" class="acct-input w-full px-3 py-2 border border-slate-200 rounded-xl text-sm">
                                 <option value="">—</option>
@@ -132,6 +206,15 @@
                         <div class="space-y-1"><label class="text-xs font-bold text-slate-500">Aylık maaş</label><input type="number" name="monthly_salary" step="0.01" min="0" value="{{ p.monthly_salary|default_if_none:'' }}" class="acct-input w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"></div>
                         <div class="space-y-1"><label class="text-xs font-bold text-slate-500">Maaş tarihi</label><input type="date" name="salary_pay_date" class="acct-input w-full px-3 py-2 border border-slate-200 rounded-xl text-sm salary-pay-date" data-pay-day="{{ p.salary_pay_day|default:'' }}"></div>
                         <div class="space-y-1"><label class="text-xs font-bold text-slate-500">Not</label><input type="text" name="notes" value="{{ p.notes|default:'' }}" class="acct-input w-full px-3 py-2 border border-slate-200 rounded-xl text-sm"></div>
+                        {% if show_product_groups %}
+                        <div class="space-y-1 lg:col-span-3"><label class="text-xs font-bold text-slate-500">Yetenekli ürün grupları</label>
+                            <select name="product_groups" multiple class="acct-input w-full px-3 py-2 border border-slate-200 rounded-xl text-sm" size="4">
+                                {% for product in personnel_form.fields.product_groups.queryset %}
+                                <option value="{{ product.id }}" {% if product in p.product_groups.all %}selected{% endif %}>{{ product.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
                         <div class="flex items-end gap-3 lg:col-span-3">
                             <label class="inline-flex items-center gap-2 text-sm"><input type="checkbox" name="is_active" class="w-4 h-4 accent-emerald-600 rounded" {% if p.is_active %}checked{% endif %}> Aktif</label>
                             <button type="submit" class="px-5 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold">Güncelle</button>
@@ -163,6 +246,12 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.personnel-edit-toggle').forEach(function (btn) {
         btn.addEventListener('click', function () {
             const panel = btn.closest('article').querySelector('.personnel-edit-panel');
+            panel?.classList.toggle('hidden');
+        });
+    });
+    document.querySelectorAll('.dept-edit-toggle').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            const panel = btn.closest('.p-3')?.nextElementSibling;
             panel?.classList.toggle('hidden');
         });
     });

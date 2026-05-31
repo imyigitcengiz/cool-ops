@@ -9,12 +9,13 @@ from django.contrib import messages
 from .models import (
     SiteSettings, ServiceTypeOption, ProductOption, ProductColorOption, StatusOption, PriorityOption,
     WhatsAppTemplate, SolutionPartner, SolutionPartnerType, ServiceTeam, ServicePersonnel,
+    PersonnelDepartment,
     PersonnelPayment, FinanceRecord,
 )
 from .forms import (
     GeneralSiteSettingsForm, SiteSettingsForm, ServiceTypeOptionForm, ProductOptionForm, StatusOptionForm,
     PriorityOptionForm, WhatsAppTemplateForm, SolutionPartnerForm, SolutionPartnerTypeForm,
-    ServiceTeamForm, ServicePersonnelForm, PersonnelPaymentForm, PersonnelAdvanceForm,
+    ServiceTeamForm, ServicePersonnelForm, PersonnelDepartmentForm, PersonnelPaymentForm, PersonnelAdvanceForm,
     PersonnelSalaryPayForm, PersonnelSalaryAddForm, PayrollPersonnelQuickForm,
     AccountingPersonnelForm, PayrollQuickAdvanceForm, FinanceRecordForm,
 )
@@ -426,16 +427,23 @@ class AccountingPersonnelView(TemplateView):
         context = super().get_context_data(**kwargs)
         q = self.request.GET.get('q', '').strip()
         team = self.request.GET.get('team', '').strip()
+        department = self.request.GET.get('department', '').strip()
         period = parse_period(self.request.GET.get('period'))
         show_skills = self._show_product_groups()
 
-        personnel = ServicePersonnel.objects.select_related('team').prefetch_related('product_groups').order_by('name')
+        personnel = ServicePersonnel.objects.select_related('team', 'department').prefetch_related('product_groups').order_by('name')
         if q:
             personnel = personnel.filter(
-                Q(name__icontains=q) | Q(company_phone__icontains=q) | Q(notes__icontains=q),
+                Q(name__icontains=q)
+                | Q(company_phone__icontains=q)
+                | Q(notes__icontains=q)
+                | Q(job_title__icontains=q)
+                | Q(department__name__icontains=q),
             )
         if team and team.isdigit():
             personnel = personnel.filter(team_id=int(team))
+        if department and department.isdigit():
+            personnel = personnel.filter(department_id=int(department))
 
         payroll_by_person = {}
         if can_manage_payroll(self.request.user):
@@ -449,8 +457,11 @@ class AccountingPersonnelView(TemplateView):
 
         context.update({
             'personnel_form': AccountingPersonnelForm(show_product_groups=show_skills),
+            'department_form': PersonnelDepartmentForm(),
             'show_product_groups': show_skills,
             'teams': ServiceTeam.objects.filter(is_active=True).order_by('name'),
+            'departments': PersonnelDepartment.objects.filter(is_active=True).order_by('name'),
+            'all_departments': PersonnelDepartment.objects.order_by('name'),
             'personnel_list': personnel,
             'personnel_rows': personnel_rows,
             'period': period,
@@ -475,12 +486,35 @@ class AccountingPersonnelView(TemplateView):
             period_qs = f'?period={request.GET.get("period")}'
         if request.GET.get('team'):
             period_qs += ('&' if period_qs else '?') + f'team={request.GET.get("team")}'
+        if request.GET.get('department'):
+            period_qs += ('&' if period_qs else '?') + f'department={request.GET.get("department")}'
         if request.GET.get('q'):
             period_qs += ('&' if period_qs else '?') + f'q={request.GET.get("q")}'
 
         show_skills = self._show_product_groups()
 
-        if 'add_personnel' in request.POST:
+        if 'add_department' in request.POST:
+            form = PersonnelDepartmentForm(request.POST)
+            if form.is_valid():
+                dept = form.save()
+                messages.success(request, f'{dept.name} departmanı eklendi.')
+            else:
+                messages.error(request, 'Departman eklenemedi.')
+        elif 'update_department' in request.POST:
+            obj = get_object_or_404(PersonnelDepartment, pk=request.POST.get('id'))
+            form = PersonnelDepartmentForm(request.POST, instance=obj)
+            if form.is_valid():
+                form.save()
+                messages.success(request, 'Departman güncellendi.')
+            else:
+                messages.error(request, 'Departman güncellenemedi.')
+        elif 'delete_department' in request.POST:
+            try:
+                PersonnelDepartment.objects.filter(id=request.POST.get('id')).delete()
+                messages.info(request, 'Departman silindi.')
+            except Exception:
+                messages.error(request, 'Departman silinemedi — bağlı personel olabilir.')
+        elif 'add_personnel' in request.POST:
             form = AccountingPersonnelForm(request.POST, show_product_groups=show_skills)
             if form.is_valid():
                 person = form.save()

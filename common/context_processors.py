@@ -31,7 +31,7 @@ def gy_branding(request):
             'ym_saha_plani': ml.YM_SAHA_PLANI,
             'ym_durumlar': ml.YM_DURUMLAR,
             'ym_ariza': ml.YM_ARIZA_TIPLERI,
-            'ym_oncelik': ml.YM_ONCELIKLER,
+            'ym_oncelikler': ml.YM_ONCELIKLER,
             'rehber_ozet': ml.REHBER_OZET,
             'rehber_musteriler': ml.REHBER_MUSTERILER,
             'rehber_firmalar': ml.REHBER_FIRMALAR,

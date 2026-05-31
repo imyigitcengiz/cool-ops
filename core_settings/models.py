@@ -303,8 +303,36 @@ class ServiceTeam(models.Model):
         return self.name
 
 
+class PersonnelDepartment(models.Model):
+    name = models.CharField(max_length=80, unique=True, verbose_name='Departman adı')
+    is_active = models.BooleanField(default=True, verbose_name='Aktif')
+
+    class Meta:
+        verbose_name = 'Personel departmanı'
+        verbose_name_plural = 'Personel departmanları'
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+
 class ServicePersonnel(models.Model):
     name = models.CharField(max_length=120, verbose_name='Ad Soyad')
+    department = models.ForeignKey(
+        PersonnelDepartment,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='personnel',
+        verbose_name='Departman',
+        help_text='Organizasyon birimi — ofis, tasarım, saha vb.',
+    )
+    job_title = models.CharField(
+        max_length=120,
+        blank=True,
+        verbose_name='Ünvan',
+        help_text='Örn: Grafik Tasarımcı, Montaj Ustası',
+    )
     team = models.ForeignKey(
         ServiceTeam,
         on_delete=models.SET_NULL,
@@ -312,6 +340,7 @@ class ServicePersonnel(models.Model):
         blank=True,
         related_name='personnel',
         verbose_name='Ekip',
+        help_text='Saha servis ekibi — ofis personeli için boş bırakılabilir.',
     )
     product_groups = models.ManyToManyField(
         ProductOption,
@@ -338,12 +367,23 @@ class ServicePersonnel(models.Model):
     notes = models.CharField(max_length=255, blank=True, null=True, verbose_name='Not')
 
     class Meta:
-        verbose_name = 'Servis personeli'
-        verbose_name_plural = 'Servis personelleri'
+        verbose_name = 'Personel'
+        verbose_name_plural = 'Personeller'
         ordering = ['name']
 
     def __str__(self):
         return self.name
+
+    @property
+    def org_summary(self) -> str:
+        parts: list[str] = []
+        if self.department_id:
+            parts.append(self.department.name)
+        if self.job_title:
+            parts.append(self.job_title)
+        if self.team_id:
+            parts.append(f'Ekip: {self.team.name}')
+        return ' · '.join(parts)
 
 
 class PersonnelPayment(models.Model):

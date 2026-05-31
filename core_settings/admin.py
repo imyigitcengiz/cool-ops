@@ -11,6 +11,7 @@ from .models import (
     SolutionPartnerType,
     ServiceTeam,
     ServicePersonnel,
+    PersonnelDepartment,
 )
 
 @admin.register(SiteSettings)
@@ -27,4 +28,5 @@ admin.site.register(WhatsAppTemplate)
 admin.site.register(SolutionPartner)
 admin.site.register(SolutionPartnerType)
 admin.site.register(ServiceTeam)
+admin.site.register(PersonnelDepartment)
 admin.site.register(ServicePersonnel)

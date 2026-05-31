@@ -11,12 +11,23 @@ from analytics.views import (
     PublicLandingView,
 )
 from common.media_views import serve_media_file
-from common.views import healthz
+from common.views import IntroducerKnowledgeBaseView, healthz
+from common.shell_api import (
+    notification_mark_read_api,
+    notifications_api,
+    notifications_mark_all_read_api,
+    quick_search_api,
+)
 
 urlpatterns = [
     path('healthz/', healthz, name='healthz'),
+    path('api/hizli-arama/', quick_search_api, name='quick_search_api'),
+    path('api/bildirimler/', notifications_api, name='notifications_api'),
+    path('api/bildirimler/tumu-okundu/', notifications_mark_all_read_api, name='notifications_mark_all_read_api'),
+    path('api/bildirimler/<int:pk>/okundu/', notification_mark_read_api, name='notification_mark_read_api'),
     path('admin/', admin.site.urls),
     path('', PublicLandingView.as_view(), name='landing'),
+    path('bilgi-bankasi/', IntroducerKnowledgeBaseView.as_view(), name='introducer_knowledge_base'),
     path('panel/', HomeView.as_view(), name='home'),
     path('panel/moduller/', ModuleHubView.as_view(), name='module_hub'),
     path('panel/yetenekler/', CapabilitiesHubView.as_view(), name='capabilities_hub'),
