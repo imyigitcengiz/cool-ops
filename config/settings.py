@@ -220,19 +220,11 @@ CHANNEL_LAYERS = {
 }
 
 
-# Database
+# Database — PostgreSQL (önerilen) veya SQLite
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
+from config.database import build_databases  # noqa: E402
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
-}
-
-_db_path = os.environ.get('DJANGO_DB_PATH', '').strip()
-if _db_path:
-    DATABASES['default']['NAME'] = Path(_db_path)
+DATABASES = build_databases(BASE_DIR)
 
 
 # Password validation — kurumsal politika config.settings_security içinde
