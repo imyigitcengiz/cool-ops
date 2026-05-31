@@ -11,6 +11,7 @@ Tek `docker-compose.yaml`; platforma göre **overlay** dosyası eklenir (`COMPOS
 | **1Panel** | `deploy/1panel/docker-compose.1panel.yaml` | [1panel/README.md](1panel/README.md) |
 | **Portainer** | `deploy/portainer/docker-compose.portainer.yaml` | [portainer/README.md](portainer/README.md) |
 | **Easypanel** | *(gerekmez)* | [easypanel/README.md](easypanel/README.md) |
+| **Dockerfile only** (Compose yok) | — | [dockerfile/README.md](dockerfile/README.md) |
 | **Plesk Git** | `deploy/plesk/docker-compose.plesk.yaml` | [plesk/README.md](plesk/README.md) |
 | **VPS / SSH** | `deploy/docker-compose.vps.yaml` | `./deploy/install.sh` |
 

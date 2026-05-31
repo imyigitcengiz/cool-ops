@@ -209,11 +209,17 @@ if [[ -z "${WHATSAPP_BRIDGE_TOKEN:-}" ]]; then
   fi
 fi
 
-# WhatsApp köprü varsayılanları (compose servis adı: whatsapp_bridge)
-export WHATSAPP_BRIDGE_URL="${WHATSAPP_BRIDGE_URL:-http://whatsapp_bridge:3939}"
+# WhatsApp köprü varsayılanları
+if [[ "${COOLOPS_COMPOSE_STACK:-${KOBIOPS_COMPOSE_STACK:-0}}" == "1" ]]; then
+  export WHATSAPP_BRIDGE_URL="${WHATSAPP_BRIDGE_URL:-http://whatsapp_bridge:3939}"
+  export DJANGO_WHATSAPP_BRIDGE_WAIT_ON_START="${DJANGO_WHATSAPP_BRIDGE_WAIT_ON_START:-0}"
+else
+  # Tek konteyner (Dockerfile / Nixpacks) — ayrı köprü servisi yok
+  export WHATSAPP_BRIDGE_URL="${WHATSAPP_BRIDGE_URL:-}"
+  export DJANGO_WHATSAPP_BRIDGE_WAIT_ON_START="${DJANGO_WHATSAPP_BRIDGE_WAIT_ON_START:-0}"
+fi
 export DJANGO_WHATSAPP_BRIDGE_CAN_SPAWN="${DJANGO_WHATSAPP_BRIDGE_CAN_SPAWN:-0}"
 export DJANGO_WHATSAPP_BRIDGE_AUTO_START="${DJANGO_WHATSAPP_BRIDGE_AUTO_START:-0}"
-export DJANGO_WHATSAPP_BRIDGE_WAIT_ON_START="${DJANGO_WHATSAPP_BRIDGE_WAIT_ON_START:-1}"
 
 export DATA_DIR="${DATA_DIR:-/data}"
 export DJANGO_DB_PATH="${DJANGO_DB_PATH:-${DATA_DIR}/db.sqlite3}"
