@@ -1,0 +1,124 @@
+# Dokploy — Compose Raw (tek dosya, overlay gerekmez)
+# Dokploy → Docker Compose → Compose Type: Raw → bu dosyanın içeriğini yapıştırın
+# VEYA Git repo + Compose path: deploy/dokploy/docker-compose.raw.yaml
+#
+# Environment (Dokploy UI):
+#   APP_URL=http://xxx.sslip.io
+#   DJANGO_ENSURE_SUPERADMIN=1
+#   DJANGO_ALLOW_SSLIP_HOSTS=1
+# Domains → servis app, port 80, HTTPS kapalı (sslip.io)
+
+name: cool-ops
+
+x-app-port: &app_port "80"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        KOBIOPS_BUILD_COMMIT: ${KOBIOPS_BUILD_COMMIT:-unknown}
+    restart: unless-stopped
+    expose:
+      - *app_port
+    networks:
+      - default
+      - dokploy-network
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=dokploy-network
+    environment:
+      PORT: *app_port
+      DATA_DIR: /data
+      KOBIOPS_SECRETS_DIR: /run/kobiops-secrets
+      COOLOPS_SECRETS_DIR: /run/kobiops-secrets
+      DJANGO_DB_PATH: /data/db.sqlite3
+      DJANGO_MEDIA_ROOT: /data/media
+      DJANGO_SERVE_MEDIA: "1"
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-0}
+      DJANGO_ENSURE_SUPERADMIN: ${DJANGO_ENSURE_SUPERADMIN:-1}
+      DJANGO_ALLOW_SSLIP_HOSTS: ${DJANGO_ALLOW_SSLIP_HOSTS:-1}
+      GY_REQUIRE_PERSISTENT_VOLUME: ${GY_REQUIRE_PERSISTENT_VOLUME:-1}
+      GY_ALLOW_EPHEMERAL_DATA: ${GY_ALLOW_EPHEMERAL_DATA:-0}
+      WHATSAPP_BRIDGE_URL: http://whatsapp_bridge:3939
+      WHATSAPP_BRIDGE_TOKEN: ${WHATSAPP_BRIDGE_TOKEN:-}
+      DJANGO_WHATSAPP_BRIDGE_CAN_SPAWN: "0"
+      DJANGO_WHATSAPP_BRIDGE_AUTO_START: "0"
+      DJANGO_WHATSAPP_BRIDGE_WAIT_ON_START: "0"
+      KOBIOPS_COMPOSE_STACK: "1"
+      COOLOPS_COMPOSE_STACK: "1"
+      APP_URL: ${APP_URL:-}
+      SERVICE_FQDN_APP: ${SERVICE_FQDN_APP:-}
+      SERVICE_URL_APP: ${SERVICE_URL_APP:-}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-}
+      DJANGO_ALLOWED_HOSTS: ${DJANGO_ALLOWED_HOSTS:-}
+      DJANGO_CSRF_TRUSTED_ORIGINS: ${DJANGO_CSRF_TRUSTED_ORIGINS:-}
+      DJANGO_SECURE_SSL: ${DJANGO_SECURE_SSL:-}
+      MEDIA_COMPRESS_ENABLED: ${MEDIA_COMPRESS_ENABLED:-1}
+    volumes:
+      - gy_data:/data
+      - kobiops_secrets:/run/kobiops-secrets
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import os,urllib.request; urllib.request.urlopen('http://127.0.0.1:%s/healthz/' % os.environ.get('PORT','80'), timeout=5)",
+        ]
+      interval: 30s
+      timeout: 8s
+      start_period: 180s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+
+  whatsapp_bridge:
+    build:
+      context: .
+      dockerfile: deploy/whatsapp-bridge/Dockerfile
+    restart: unless-stopped
+    expose:
+      - "3939"
+    environment:
+      WHATSAPP_BRIDGE_BIND: "0.0.0.0"
+      KOBIOPS_SECRETS_DIR: /run/kobiops-secrets
+      COOLOPS_SECRETS_DIR: /run/kobiops-secrets
+      WHATSAPP_BRIDGE_TOKEN: ${WHATSAPP_BRIDGE_TOKEN:-}
+    volumes:
+      - whatsapp_session:/app/session
+      - kobiops_secrets:/run/kobiops-secrets
+    shm_size: "512mb"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://127.0.0.1:'+(process.env.WHATSAPP_BRIDGE_PORT||3939)+'/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      start_period: 120s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 1536M
+
+networks:
+  dokploy-network:
+    external: true
+
+volumes:
+  gy_data:
+    name: kobiops_gy_data
+  whatsapp_session:
+    name: kobiops_whatsapp_session
+  kobiops_secrets:
+    name: kobiops_secrets

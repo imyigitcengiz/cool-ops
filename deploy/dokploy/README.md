@@ -4,14 +4,31 @@
 
 ## 3 adımda deploy
 
+### A) Git + Compose (önerilen)
+
 1. **Project** → **Docker Compose** → **Create**
 2. **Source:** GitHub → `imyigitcengiz/cool-ops`, branch `main`  
    **Compose file path:** `docker-compose.yaml`
-3. **Environment** → [dokploy.env.example](./dokploy.env.example) dosyasını açıp içeriği yapıştırın  
-   (minimal sürüm: [dokploy.env.minimal](./dokploy.env.minimal))  
-   **`APP_URL`** satırını kendi domain'inizle değiştirin (`/` olmadan, sslip.io için `http://`).
-4. **Domains** → servis **`app`** (whatsapp_bridge değil), container port **`80`**, HTTPS **kapalı** (sslip.io)  
-   → **Deploy** (domain değiştirdikten sonra mutlaka yeniden deploy)
+3. **Environment** → [dokploy.env.example](./dokploy.env.example) veya [dokploy.env.minimal](./dokploy.env.minimal)
+4. **Domains** → servis **`app`**, port **`80`**, HTTPS **kapalı** (sslip.io) → **Deploy**
+
+Overlay için env: `COMPOSE_FILE=docker-compose.yaml:deploy/dokploy/docker-compose.dokploy.yaml`
+
+### B) Compose Raw (tek dosya — Dockerfile modu işe yaramadıysa)
+
+1. **Docker Compose** → **Compose Type: Raw**
+2. Repo’daki **[docker-compose.raw.yaml](./docker-compose.raw.yaml)** içeriğini yapıştır  
+   veya Git path: `deploy/dokploy/docker-compose.raw.yaml`
+3. **Environment:**
+   ```env
+   APP_URL=http://panel.ornek.sslip.io
+   DJANGO_ENSURE_SUPERADMIN=1
+   DJANGO_ALLOW_SSLIP_HOSTS=1
+   DJANGO_DEBUG=0
+   ```
+4. **Domains** → **`app`**, port **80**, HTTPS kapalı → **Deploy**
+
+Raw dosya: `app` + `whatsapp_bridge` + `dokploy-network` + volume’ler — overlay gerekmez.
 
 **Env şablonları**
 
