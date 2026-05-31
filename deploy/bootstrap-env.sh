@@ -55,7 +55,13 @@ _detect_url() {
   for key in SERVICE_URL_APP SERVICE_URL DOKPLOY_DEPLOY_URL DOKPLOY_URL APP_URL WEBSITE_URL; do
     url="${!key:-}"
     if [[ -n "$url" ]]; then
-      echo "$url"
+      local host
+      host="$(_strip_url_host "$url")"
+      if _is_http_only_host "$host"; then
+        echo "http://${host}"
+      else
+        echo "$url"
+      fi
       return 0
     fi
   done
