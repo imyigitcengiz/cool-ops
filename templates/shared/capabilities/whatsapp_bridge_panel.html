@@ -68,7 +68,7 @@
         <div class="mb-6">
             <h2 class="text-xl font-bold text-slate-900">Otomatik mesaj senaryoları</h2>
             <p class="text-slate-600 mt-1 text-sm">Olay bazlı kurallar: servis <strong>neyle açıldı</strong>, durum <strong>neydi → ne oldu</strong> gibi koşullara göre otomatik mesaj.</p>
-            <p class="text-[11px] text-slate-400 mt-2">Değişkenler: <code>[name]</code> <code>[arıza]</code> <code>[yeni_durum]</code> <code>[eski_durum]</code> <code>[oncelik]</code> <code>[servis_no]</code> <code>[not]</code> <code>[bölge]</code> <code>[phone]</code> <code>[tarih]</code></p>
+            <p class="text-[11px] text-slate-400 mt-2">Değişkenler: <code>[name]</code> <code>[arıza]</code> <code>[yeni_durum]</code> <code>[eski_durum]</code> <code>[oncelik]</code> <code>[servis_no]</code> <code>[not]</code> <code>[bölge]</code> <code>[phone]</code> <code>[tarih]</code> <code>[normal_fiyat]</code> <code>[indirimli_fiyat]</code></p>
         </div>
 
         <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4 mb-6">
@@ -100,7 +100,11 @@
                 <p class="text-xs text-slate-500 mb-3">Her koşul satırında birden fazla durum seçebilirsiniz (veya = seçilenlerden biri). Birden fazla satır = aynı mesajla ayrı kurallar oluşturulur.</p>
                 <div id="scConditionRows" class="space-y-3"></div>
             </div>
-            <textarea id="scMessage" rows="4" placeholder="Merhaba [name], #[servis_no] servis kaydınız [eski_durum] durumundan [yeni_durum] durumuna alındı." class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm"></textarea>
+            <div class="flex flex-wrap gap-1.5 mb-2">
+                <button type="button" class="sc-insert-var px-2 py-1 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 text-[11px] font-bold" data-var="normal_fiyat">+ Normal fiyat</button>
+                <button type="button" class="sc-insert-var px-2 py-1 rounded-lg bg-amber-50 text-amber-900 border border-amber-200 text-[11px] font-bold" data-var="indirimli_fiyat">+ İndirimli fiyat</button>
+            </div>
+            <textarea id="scMessage" rows="4" placeholder="Merhaba [name], #[servis_no] ücretli servis — normal: [normal_fiyat] ₺, indirimli: [indirimli_fiyat] ₺" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm"></textarea>
             <div class="flex flex-wrap items-center gap-4 text-sm">
                 <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="scAutoSend" checked class="accent-green-600"> Otomatik gönder</label>
                 <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" id="scActive" checked class="accent-green-600"> Aktif</label>
@@ -915,6 +919,19 @@
         if (!btn || !scenarioMeta) return;
         const preset = (scenarioMeta.rule_presets || []).find(p => p.id === btn.dataset.presetId);
         applyRulePreset(preset);
+    });
+
+    document.querySelectorAll('.sc-insert-var').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const ta = document.getElementById('scMessage');
+            const token = `[${btn.dataset.var || ''}]`;
+            if (!ta || !token || token === '[]') return;
+            const start = ta.selectionStart ?? ta.value.length;
+            const end = ta.selectionEnd ?? ta.value.length;
+            ta.value = `${ta.value.slice(0, start)}${token}${ta.value.slice(end)}`;
+            ta.focus();
+            ta.selectionStart = ta.selectionEnd = start + token.length;
+        });
     });
 
     document.getElementById('scAddBtn')?.addEventListener('click', async () => {

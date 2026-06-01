@@ -7,7 +7,11 @@ from datetime import date, timedelta
 
 from django.utils import timezone
 
-from common.weather_service import daily_forecast_for_site
+from common.weather_service import (
+    customer_weather_query,
+    daily_forecast_for_site,
+    resolve_customer_coordinates,
+)
 from core_settings.models import InstallationScheduleEntry, SiteSettings
 
 TR_MONTHS = (
@@ -61,12 +65,17 @@ def _entries_for_range(start: date, end: date) -> dict[str, list]:
     return grouped
 
 
-def _serialize_entry(entry: InstallationScheduleEntry) -> dict:
+def _serialize_entry(entry: InstallationScheduleEntry, *, entry_weather=None) -> dict:
+    weather_dict = entry_weather.to_dict() if entry_weather else None
+    loc_label = customer_weather_query(entry.customer) or ''
     return {
         'id': entry.id,
         'customer_name': entry.customer.name,
         'customer_phone': entry.customer.phone or '',
         'customer_address': entry.customer.address or '',
+        'customer_region': entry.customer.region or '',
+        'weather_location': loc_label,
+        'weather': weather_dict,
         'team_name': entry.team.name if entry.team else '',
         'work_type': entry.work_type,
         'work_type_label': entry.get_work_type_display(),
@@ -87,12 +96,17 @@ def build_day_cell(
     settings: SiteSettings,
     entries_by_date: dict[str, list],
     weather_by_date: dict,
+    entry_weather_map: dict,
     today: date,
 ) -> dict:
     iso = d.isoformat()
     weather = weather_by_date.get(iso)
     weather_dict = weather.to_dict() if weather else None
-    entries = [_serialize_entry(e) for e in entries_by_date.get(iso, [])]
+    raw_entries = entries_by_date.get(iso, [])
+    entries = [
+        _serialize_entry(e, entry_weather=entry_weather_map.get((e.pk, iso)))
+        for e in raw_entries
+    ]
     holiday = is_day_holiday(d, settings)
     return {
         'date': d,
@@ -130,6 +144,24 @@ def build_schedule_calendar(
     entries_by_date = _entries_for_range(range_start, range_end)
     weather_by_date = daily_forecast_for_site(settings, range_start, range_end)
 
+    entry_weather_map: dict[tuple[int, str], object] = {}
+    coord_cache: dict[str, tuple[float, float]] = {}
+    for day_entries in entries_by_date.values():
+        for entry in day_entries:
+            key = (entry.pk, entry.scheduled_date.isoformat())
+            if key in entry_weather_map:
+                continue
+            loc_key = customer_weather_query(entry.customer) or '__site_default__'
+            if loc_key not in coord_cache:
+                lat, lon, _ = resolve_customer_coordinates(entry.customer, settings)
+                coord_cache[loc_key] = (lat, lon)
+            lat, lon = coord_cache[loc_key]
+            from common.weather_service import fetch_daily_forecast
+
+            day_iso = entry.scheduled_date.isoformat()
+            forecasts = fetch_daily_forecast(lat, lon, entry.scheduled_date, entry.scheduled_date)
+            entry_weather_map[key] = forecasts.get(day_iso)
+
     weeks = []
     current_week_idx = None
     for wi, week_dates in enumerate(weeks_raw):
@@ -143,6 +175,7 @@ def build_schedule_calendar(
                 settings=settings,
                 entries_by_date=entries_by_date,
                 weather_by_date=weather_by_date,
+                entry_weather_map=entry_weather_map,
                 today=today,
             )
             for d in week_dates
@@ -180,7 +213,9 @@ def build_schedule_calendar(
             'sunday_working': settings.schedule_sunday_working,
             'saturday_default_work': settings.schedule_saturday_default_work,
             'saturday_default_work_label': settings.get_schedule_saturday_default_work_display(),
-            'weather_city': settings.weather_city or 'İstanbul',
+            'weather_city': (settings.weather_city or '').strip() or 'Ayarlanmadı',
+            'weather_city_value': (settings.weather_city or '').strip(),
+            'weather_city_configured': bool((settings.weather_city or '').strip()),
         },
         'work_type_choices': InstallationScheduleEntry.TYPE_CHOICES,
     }
@@ -288,6 +323,7 @@ def save_schedule_settings(
     saturday_working: bool,
     sunday_working: bool,
     saturday_default_work: str,
+    weather_city: str | None = None,
 ) -> None:
     settings.schedule_saturday_working = saturday_working
     settings.schedule_sunday_working = sunday_working
@@ -296,8 +332,16 @@ def save_schedule_settings(
         InstallationScheduleEntry.TYPE_SERVICE,
     ):
         settings.schedule_saturday_default_work = saturday_default_work
-    settings.save(update_fields=[
+    update_fields = [
         'schedule_saturday_working',
         'schedule_sunday_working',
         'schedule_saturday_default_work',
-    ])
+    ]
+    if weather_city is not None:
+        settings.weather_city = weather_city.strip()
+        update_fields.append('weather_city')
+    settings.save(update_fields=update_fields)
+    if weather_city is not None:
+        from common.weather_service import refresh_site_coordinates
+
+        refresh_site_coordinates(settings)

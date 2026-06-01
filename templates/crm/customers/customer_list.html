@@ -59,6 +59,7 @@
                         <th class="px-4 py-3 font-bold text-slate-700">Bölge</th>
                         <th class="px-4 py-3 font-bold text-slate-700">Ürünler</th>
                         <th class="px-4 py-3 font-bold text-slate-700">Sözleşme</th>
+                        <th class="px-4 py-3 font-bold text-slate-700">Süre</th>
                         <th class="px-4 py-3 font-bold text-slate-700">Satış</th>
                         <th class="px-4 py-3 font-bold text-slate-700">Servis</th>
                         <th class="px-4 py-3 font-bold text-slate-700 text-right">İşlem</th>
@@ -92,6 +93,14 @@
                         </td>
                         <td class="px-4 py-3">
                             <span class="font-semibold text-brand-600">{{ c.contract_date|date:"d.m.Y"|default:"-" }}</span>
+                        </td>
+                        <td class="px-4 py-3">
+                            {% if c.contract_years_label %}
+                            <span class="text-sm font-semibold text-slate-700">{{ c.contract_years_label }}</span>
+                            <span class="text-[10px] text-slate-400 block">önce</span>
+                            {% else %}
+                            <span class="text-slate-400">—</span>
+                            {% endif %}
                         </td>
                         <td class="px-4 py-3">
                             {% if c.sales_count %}

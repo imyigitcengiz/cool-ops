@@ -111,7 +111,9 @@
                         <td class="px-6 py-4">
                             <div class="flex flex-col">
                                 <span class="text-brand-600 font-bold text-sm">{{ c.contract_date|date:"d.m.Y"|default:"-" }}</span>
-                                {% if c.contract_age %}
+                                {% if c.contract_years_label %}
+                                <span class="text-[10px] text-slate-500 font-semibold">{{ c.contract_years_label }} önce</span>
+                                {% elif c.contract_age %}
                                 <span class="text-[10px] text-slate-400 font-medium">({{ c.contract_age }} önce)</span>
                                 {% endif %}
                             </div>

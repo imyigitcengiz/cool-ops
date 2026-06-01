@@ -60,6 +60,20 @@
     <!-- Main Content -->
     <main class="flex-1 overflow-y-auto">
         {% include 'common/toast_messages.html' %}
+        {% if services_saturday_weather %}
+        <div class="mx-4 md:mx-8 mt-3 px-4 py-2.5 rounded-2xl bg-sky-50 border border-sky-100 text-sm text-sky-900 flex flex-wrap items-center gap-2">
+            <i data-lucide="cloud-sun" class="w-4 h-4 text-sky-600 shrink-0"></i>
+            <span class="font-semibold">Cumartesi {{ services_saturday_weather.date_label }}</span>
+            <span class="text-sky-800">{{ services_saturday_weather.city }}</span>
+            {% if services_saturday_weather.temp_max != None %}
+            <span>{{ services_saturday_weather.temp_min|floatformat:0 }}–{{ services_saturday_weather.temp_max|floatformat:0 }}°C</span>
+            {% endif %}
+            <span>· {{ services_saturday_weather.condition }}</span>
+            {% if services_saturday_weather.precip_probability != None %}
+            <span class="text-sky-700">· Yağış %{{ services_saturday_weather.precip_probability }}</span>
+            {% endif %}
+        </div>
+        {% endif %}
         <header class="bg-white border-b border-slate-200 px-4 md:px-8 py-4 flex items-center justify-between sticky top-0 z-10 gap-3">
             <button type="button" id="sidebarToggle" class="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-xl shrink-0" aria-label="Menüyü aç" aria-expanded="false" aria-controls="appSidebar">
                 <i data-lucide="menu" class="w-5 h-5"></i>

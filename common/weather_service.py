@@ -237,3 +237,75 @@ def fetch_daily_forecast(
 def daily_forecast_for_site(settings, start: date, end: date) -> dict[str, DailyWeather]:
     lat, lon, _city = resolve_coordinates(settings)
     return fetch_daily_forecast(lat, lon, start, end)
+
+
+def customer_weather_query(customer) -> str:
+    """Müşteri bölge/adresinden hava sorgusu için şehir adı."""
+    region = (getattr(customer, 'region', None) or '').strip()
+    if region:
+        return region
+    address = (getattr(customer, 'address', None) or '').strip()
+    if address:
+        first_line = address.split('\n')[0].strip()
+        if len(first_line) <= 120:
+            return first_line
+        return first_line[:120]
+    return ''
+
+
+def resolve_customer_coordinates(customer, settings=None) -> tuple[float, float, str]:
+    """Müşteri konumuna göre koordinat; yoksa site varsayılanı."""
+    query = customer_weather_query(customer)
+    if query:
+        geo = geocode_city(query)
+        if geo:
+            return geo
+    if settings is not None:
+        return resolve_coordinates(settings)
+    return DEFAULT_LAT, DEFAULT_LON, DEFAULT_CITY
+
+
+def daily_forecast_for_customer(
+    customer,
+    start: date,
+    end: date,
+    *,
+    settings=None,
+) -> dict[str, DailyWeather]:
+    lat, lon, _city = resolve_customer_coordinates(customer, settings)
+    return fetch_daily_forecast(lat, lon, start, end)
+
+
+def weather_for_customer_on_date(customer, day: date, *, settings=None) -> DailyWeather | None:
+    forecasts = daily_forecast_for_customer(customer, day, day, settings=settings)
+    return forecasts.get(day.isoformat())
+
+
+def next_saturday(today: date | None = None) -> date:
+    from datetime import timedelta as td
+
+    today = today or date.today()
+    days_ahead = (5 - today.weekday()) % 7
+    if days_ahead == 0 and today.weekday() == 5:
+        return today
+    if days_ahead == 0:
+        days_ahead = 7
+    return today + td(days=days_ahead)
+
+
+def saturday_forecast_for_site(settings) -> dict | None:
+    """Yardım masası üst çubuğu için yaklaşan cumartesi özeti."""
+    sat = next_saturday()
+    daily = daily_forecast_for_site(settings, sat, sat)
+    snap = daily.get(sat.isoformat())
+    if not snap:
+        return None
+    lat, lon, city = resolve_coordinates(settings)
+    return {
+        'date': sat.isoformat(),
+        'date_label': sat.strftime('%d.%m.%Y'),
+        'city': city,
+        'latitude': lat,
+        'longitude': lon,
+        **snap.to_dict(),
+    }

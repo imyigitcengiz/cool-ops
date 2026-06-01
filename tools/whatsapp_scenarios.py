@@ -65,6 +65,11 @@ def apply_template_variables(template_text: str, context: dict) -> str:
         'region': context.get('region') or '-',
         'tarih': context.get('date') or '-',
         'date': context.get('date') or '-',
+        'normal_fiyat': context.get('normal_fiyat') or context.get('list_price') or '-',
+        'indirimli_fiyat': context.get('indirimli_fiyat') or context.get('discounted_price') or '-',
+        'list_price': context.get('list_price') or context.get('normal_fiyat') or '-',
+        'discounted_price': context.get('discounted_price') or context.get('indirimli_fiyat') or '-',
+        'fiyat': context.get('indirimli_fiyat') or context.get('normal_fiyat') or '-',
     }
 
     def replacer(match):

@@ -51,6 +51,13 @@
                 {% for entry in day.entries %}
                 <div class="entry">
                     <div class="entry-name">{{ entry.customer_name }}</div>
+                    {% if entry.weather %}
+                    <div class="weather">
+                        {% if entry.weather.temp_max != None %}{{ entry.weather.temp_max|floatformat:0 }}°C{% endif %}
+                        · {{ entry.weather.condition }}
+                        {% if entry.weather_location %} ({{ entry.weather_location }}){% endif %}
+                    </div>
+                    {% endif %}
                     <div>{{ entry.work_type_label }}{% if entry.team_name %} · {{ entry.team_name }}{% endif %}</div>
                     {% if entry.customer_phone %}<div>Tel: {{ entry.customer_phone }}</div>{% endif %}
                     {% if entry.customer_address %}<div>{{ entry.customer_address|truncatechars:80 }}</div>{% endif %}

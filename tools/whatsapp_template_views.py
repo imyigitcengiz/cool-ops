@@ -85,6 +85,22 @@ RULE_PRESETS = [
         ),
     },
     {
+        'id': 'service_status_paid',
+        'label': '→ ücretli (fiyatlı)',
+        'title': 'Ücretli servis bildirimi',
+        'scenario': WhatsAppTemplate.SCENARIO_SERVICE_STATUS,
+        'trigger_from_name': 'aktif',
+        'trigger_to_name': 'ücretli',
+        'message': (
+            'Merhaba [name],\n\n'
+            '#[servis_no] servis kaydınız ücretli servis olarak işaretlendi.\n'
+            'Normal fiyat: [normal_fiyat] ₺\n'
+            'İndirimli fiyat: [indirimli_fiyat] ₺\n'
+            'Arıza: [arıza]\n'
+            'Onayınız halinde işleme alınacaktır.'
+        ),
+    },
+    {
         'id': 'service_status_done',
         'label': 'aktif → tamamlandı',
         'title': 'Servis tamamlandı bildirimi',

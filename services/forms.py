@@ -1,5 +1,7 @@
 from django import forms
+from django.core.exceptions import ValidationError
 
+from common.price_parse import parse_tr_decimal
 from core_settings.catalog import filter_service_type_ids
 from customers.models import Customer
 from .models import ServiceRecord, ServiceImage
@@ -94,4 +96,33 @@ class ServiceRecordForm(forms.ModelForm):
             allowed = filter_service_type_ids(product_ids, st_ids)
             allowed_set = set(allowed)
             cleaned['service_types'] = [st for st in service_types if st.pk in allowed_set]
+
+        status = cleaned.get('status')
+        warranty = cleaned.get('warranty_status')
+        needs_pricing = warranty == 'expired' or (
+            status and ServiceRecord.status_name_is_paid(status.name)
+        )
+        if needs_pricing:
+            lp = cleaned.get('list_price')
+            dp = cleaned.get('discounted_price')
+            if lp is None and dp is None:
+                self.add_error(
+                    'list_price',
+                    'Ücretli servis veya garanti bitmiş kayıtlar için en az bir fiyat girin.',
+                )
         return cleaned
+
+    def _clean_price_field(self, field_name: str):
+        raw = self.data.get(field_name) if self.is_bound else None
+        if raw is None or str(raw).strip() == '':
+            return None
+        try:
+            return parse_tr_decimal(raw)
+        except ValueError as exc:
+            raise ValidationError(str(exc)) from exc
+
+    def clean_list_price(self):
+        return self._clean_price_field('list_price')
+
+    def clean_discounted_price(self):
+        return self._clean_price_field('discounted_price')

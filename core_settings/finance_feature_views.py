@@ -311,8 +311,9 @@ class AccountingProjectsView(TemplateView):
                     'schedule_saturday_default_work',
                     InstallationScheduleEntry.TYPE_INSTALLATION,
                 ),
+                weather_city=(request.POST.get('schedule_weather_city') or '').strip(),
             )
-            messages.success(request, 'Hafta sonu ve cumartesi kuralları kaydedildi.')
+            messages.success(request, 'Montaj planı ve hava ayarları kaydedildi.')
 
         return redirect(schedule_redirect_url(request))
 

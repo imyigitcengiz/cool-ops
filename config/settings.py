@@ -205,6 +205,7 @@ TEMPLATES = [
                 'users.context_impersonation.impersonation_banner',
                 'common.context_processors.gy_branding',
                 'common.context_processors.module_install_context',
+                'services.context_processors.services_weather_banner',
             ],
         },
     },

@@ -25,8 +25,9 @@
             <a href="?year={{ calendar_year }}&month={{ calendar_month }}&view={{ calendar_view }}" class="ml-2 px-3 py-1.5 rounded-xl text-xs font-bold bg-slate-100 text-slate-700 hover:bg-slate-200">Bugün</a>
         </div>
         <p class="text-xs text-slate-500">
-            Hava: <span class="font-semibold text-slate-700">{{ schedule_settings.weather_city }}</span>
-            · Cumartesi: {% if schedule_settings.saturday_working %}çalışma{% else %}tatil{% endif %}, varsayılan {{ schedule_settings.saturday_default_work_label }}
+            Varsayılan hava şehri: <span class="font-semibold text-slate-700">{{ schedule_settings.weather_city }}</span>
+            · Günlük hava satırlarda <strong>müşteri bölgesine</strong> göre
+            · Cumartesi: {% if schedule_settings.saturday_working %}çalışma{% else %}tatil{% endif %}
             · Pazar: {% if schedule_settings.sunday_working %}çalışma{% else %}tatil{% endif %}
         </p>
     </section>
@@ -51,8 +52,10 @@
                         <span class="text-[9px] font-bold uppercase text-rose-600">Tatil</span>
                         {% endif %}
                     </div>
-                    {% if day.weather and day.in_month %}
-                    <p class="text-[10px] text-sky-700 leading-tight" title="Yağış olasılığı: {{ day.weather.precip_probability|default:'—' }}%">
+                    {% if day.in_month and day.entry_count %}
+                    <p class="text-[9px] text-sky-600 leading-tight">Hava: müşteri bölgesine göre ↓</p>
+                    {% elif day.weather and day.in_month %}
+                    <p class="text-[10px] text-sky-700 leading-tight" title="Varsayılan şehir özeti">
                         {% if day.weather.temp_max != None %}{{ day.weather.temp_max|floatformat:0 }}°{% endif %}
                         · {{ day.weather.condition }}
                     </p>
@@ -61,6 +64,13 @@
                         {% for entry in day.entries %}
                         <div class="rounded-lg border border-slate-200 bg-white p-1.5 text-[10px] leading-snug group relative">
                             <p class="font-bold text-slate-800 truncate">{{ entry.customer_name }}</p>
+                            {% if entry.weather %}
+                            <p class="text-[9px] text-sky-700" title="{% if entry.weather_location %}{{ entry.weather_location }}{% else %}Varsayılan şehir{% endif %}">
+                                {% if entry.weather.temp_max != None %}{{ entry.weather.temp_max|floatformat:0 }}°{% endif %}
+                                · {{ entry.weather.condition }}
+                                {% if entry.weather.precip_probability != None %} · %{{ entry.weather.precip_probability }}{% endif %}
+                            </p>
+                            {% endif %}
                             <p class="text-slate-500 truncate">
                                 <span class="{% if entry.work_type == 'service' %}text-violet-700{% else %}text-emerald-700{% endif %} font-semibold">{{ entry.work_type_label }}</span>
                                 {% if entry.team_name %} · {{ entry.team_name }}{% endif %}
@@ -157,11 +167,18 @@
             </section>
 
             <section class="bg-white rounded-3xl border border-slate-200 p-5 space-y-3">
-                <h3 class="font-bold text-slate-900 text-sm">Hafta sonu kuralları</h3>
+                <h3 class="font-bold text-slate-900 text-sm">Hava & hafta sonu</h3>
                 <form method="post" class="space-y-3">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="save_schedule_settings">
                     {% include 'muhasebe/_schedule_calendar_hidden.html' %}
+                    <div>
+                        <label class="text-xs font-semibold text-slate-600">Varsayılan hava şehri</label>
+                        <input type="text" name="schedule_weather_city" value="{{ schedule_settings.weather_city_value }}"
+                               placeholder="Örn. Ankara, İzmir"
+                               class="acct-input w-full px-3 py-2 border rounded-xl text-sm mt-1">
+                        <p class="text-[10px] text-slate-400 mt-1">Müşteri bölgesi boşsa kullanılır. <a href="{% url 'settings_genel' %}" class="text-brand-600 underline">Genel ayarlar</a></p>
+                    </div>
                     <label class="flex items-center gap-2 text-sm text-slate-700">
                         <input type="checkbox" name="schedule_saturday_working" class="rounded accent-brand-600" {% if schedule_settings.saturday_working %}checked{% endif %}>
                         Cumartesi çalışma günü

@@ -33,27 +33,62 @@ class Customer(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
-    @property
-    def contract_age(self):
+    def _contract_relativedelta(self):
+        from django.utils import timezone
+
         if not self.contract_date:
             return None
-        
-        from django.utils import timezone
-        from dateutil.relativedelta import relativedelta
-        
-        diff = relativedelta(timezone.now().date(), self.contract_date)
+        today = timezone.localdate()
+        if self.contract_date > today:
+            return None
+        try:
+            from dateutil.relativedelta import relativedelta
+
+            return relativedelta(today, self.contract_date)
+        except Exception:
+            days = max(0, (today - self.contract_date).days)
+            years, rem = divmod(days, 365)
+            months = rem // 30
+            days_left = rem % 30
+
+            class _Diff:
+                years = years
+                months = months
+                days = days_left
+
+            return _Diff()
+
+    @property
+    def contract_age(self):
+        diff = self._contract_relativedelta()
+        if not diff:
+            return None
         parts = []
         if diff.years > 0:
             parts.append(f"{diff.years} yıl")
         if diff.months > 0:
             parts.append(f"{diff.months} ay")
-        
         if not parts:
             if diff.days > 0:
                 return f"{diff.days} gün"
             return "Bugün"
-            
         return " ".join(parts)
+
+    @property
+    def contract_years_label(self):
+        """Sözleşmeden bu yana geçen süre (rehberde yıl vurgusu)."""
+        diff = self._contract_relativedelta()
+        if not diff:
+            return None
+        if diff.years > 0:
+            if diff.months > 0:
+                return f"{diff.years} yıl {diff.months} ay"
+            return f"{diff.years} yıl"
+        if diff.months > 0:
+            return f"{diff.months} ay"
+        if diff.days > 0:
+            return f"{diff.days} gün"
+        return "Bugün"
 
     def __str__(self):
         return self.name
