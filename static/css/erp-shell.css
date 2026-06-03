@@ -67,10 +67,50 @@
 
 :root {
   --erp-sidebar-width: 16rem;
+  --erp-touch-min: 2.75rem;
+  --erp-fab-bottom: max(1.5rem, env(safe-area-inset-bottom, 0px));
+  --erp-fab-right: max(1.5rem, env(safe-area-inset-right, 0px));
 }
 
 body.erp-app {
   font-family: 'Inter', system-ui, sans-serif;
+}
+
+body.erp-sidebar-body-lock {
+  overflow: hidden;
+}
+
+.erp-touch-target {
+  min-height: var(--erp-touch-min);
+  min-width: var(--erp-touch-min);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.erp-table-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+.erp-table-scroll table {
+  min-width: 56rem;
+}
+
+.erp-fab-stack {
+  position: fixed;
+  bottom: var(--erp-fab-bottom);
+  right: var(--erp-fab-right);
+}
+
+@media (max-width: 639px) {
+  #aiChatWrapper.erp-fab-stack-secondary {
+    bottom: calc(var(--erp-fab-bottom) + 3.75rem);
+  }
+
+  .erp-module-header-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
 }
 
 .erp-global-bar {

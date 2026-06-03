@@ -1,6 +1,6 @@
 {% load static %}
 {% if user.is_authenticated %}
-<div id="teamChatRoot" class="fixed bottom-6 right-6 z-[96] flex flex-col items-end font-sans" aria-live="polite">
+<div id="teamChatRoot" class="erp-fab-stack fixed z-[96] flex flex-col items-end font-sans" aria-live="polite">
     {% csrf_token %}
     <div id="teamChatPanel" class="hidden w-[min(100vw-2rem,400px)] h-[min(70vh,520px)] bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col mb-4">
         <div class="px-4 py-3 bg-slate-900 text-white flex items-center justify-between shrink-0">
@@ -13,7 +13,7 @@
                     <p id="teamChatSubtitle" class="text-[10px] text-slate-400 truncate">Genel ve özel mesajlar</p>
                 </div>
             </div>
-            <button type="button" id="teamChatClose" class="text-slate-400 hover:text-white p-1" aria-label="Kapat">
+            <button type="button" id="teamChatClose" class="erp-touch-target text-slate-400 hover:text-white p-2" aria-label="Kapat">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
         </div>

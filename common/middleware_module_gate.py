@@ -1,9 +1,11 @@
 """Kapalı modül / parçacık URL'lerini engelle."""
 
 from django.contrib import messages
+from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse
 
+from common.middleware import _is_api_request
 from common.module_catalog import (
     MODULE_KIND_INTEGRATION,
     MODULE_STATUS_ACTIVE,
@@ -31,6 +33,10 @@ class ModuleInstallMiddleware:
                 return blocked
         return self.get_response(request)
 
+    @staticmethod
+    def _api_forbidden(message: str):
+        return JsonResponse({'ok': False, 'error': 'module_disabled', 'detail': message}, status=403)
+
     def _blocked_response(self, request):
         path = request.path
 
@@ -40,19 +46,19 @@ class ModuleInstallMiddleware:
             if mod and mod['status'] in (MODULE_STATUS_ACTIVE, MODULE_STATUS_BETA):
                 if mod['kind'] == MODULE_KIND_INTEGRATION:
                     if not module_route_allowed(slug):
-                        messages.warning(
-                            request,
-                            f'"{mod["name"]}" entegrasyonu kapalı. Modül Merkezi\'nden açabilirsiniz.',
-                        )
+                        msg = f'"{mod["name"]}" entegrasyonu kapalı. Modül Merkezi\'nden açabilirsiniz.'
+                        if _is_api_request(request):
+                            return self._api_forbidden(msg)
+                        messages.warning(request, msg)
                         try:
                             return redirect(reverse('module_hub') + f'?highlight={slug}')
                         except Exception:
                             return redirect('module_hub')
                 elif not module_route_allowed(slug):
-                    messages.warning(
-                        request,
-                        f'{mod["name"]} modülü kapalı. Modül Merkezi\'nden açabilirsiniz.',
-                    )
+                    msg = f'{mod["name"]} modülü kapalı. Modül Merkezi\'nden açabilirsiniz.'
+                    if _is_api_request(request):
+                        return self._api_forbidden(msg)
+                    messages.warning(request, msg)
                     try:
                         return redirect(reverse('module_hub') + f'?highlight={slug}')
                     except Exception:
@@ -62,10 +68,10 @@ class ModuleInstallMiddleware:
         if particle_slug:
             p = particle_by_slug(particle_slug)
             if p and not self._particle_route_allowed(particle_slug, path):
-                messages.warning(
-                    request,
-                    f'"{p["name"]}" özelliği kapalı. Modül Merkezi\'nden açabilirsiniz.',
-                )
+                msg = f'"{p["name"]}" özelliği kapalı. Modül Merkezi\'nden açabilirsiniz.'
+                if _is_api_request(request):
+                    return self._api_forbidden(msg)
+                messages.warning(request, msg)
                 return redirect(reverse('module_hub'))
 
         return None

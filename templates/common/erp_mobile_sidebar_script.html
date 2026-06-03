@@ -4,29 +4,58 @@
     const backdrop = document.getElementById('sidebarBackdrop');
     const toggle = document.getElementById('sidebarToggle');
     if (!sidebar || !toggle) return;
+
     const setExpanded = (open) => {
         toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
         toggle.setAttribute('aria-label', open ? 'Menüyü kapat' : 'Menüyü aç');
     };
+
+    const lockBody = () => document.body.classList.add('erp-sidebar-body-lock');
+    const unlockBody = () => {
+        if (window.innerWidth < 1024) {
+            document.body.classList.remove('erp-sidebar-body-lock');
+        }
+    };
+
     const open = () => {
         sidebar.classList.remove('-translate-x-full');
         sidebar.classList.add('erp-sidebar-open');
         backdrop?.classList.remove('hidden');
         setExpanded(true);
+        lockBody();
     };
+
     const close = () => {
         sidebar.classList.add('-translate-x-full');
         sidebar.classList.remove('erp-sidebar-open');
         backdrop?.classList.add('hidden');
         setExpanded(false);
+        unlockBody();
     };
+
     toggle.addEventListener('click', () => {
         if (sidebar.classList.contains('-translate-x-full')) open();
         else close();
     });
     backdrop?.addEventListener('click', close);
+
+    sidebar.querySelectorAll('a[href]').forEach((link) => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth < 1024) close();
+        });
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && !sidebar.classList.contains('-translate-x-full')) {
+            close();
+        }
+    });
+
     window.addEventListener('resize', () => {
-        if (window.innerWidth >= 1024) close();
+        if (window.innerWidth >= 1024) {
+            backdrop?.classList.add('hidden');
+            document.body.classList.remove('erp-sidebar-body-lock');
+        }
     });
 })();
 </script>

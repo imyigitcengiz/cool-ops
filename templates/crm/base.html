@@ -75,14 +75,14 @@
     {% include 'common/erp_mobile_sidebar_end.html' %}
     <main class="flex-1 overflow-y-auto min-w-0">
         {% include 'common/toast_messages.html' %}
-        <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200 px-4 md:px-8 py-4 flex items-center justify-between gap-3">
+        <header class="sticky top-0 z-10 bg-white/80 backdrop-blur border-b border-slate-200 px-4 md:px-8 py-3 md:py-4 flex flex-wrap items-center gap-2 md:gap-3">
             <div class="flex items-center gap-3 min-w-0 flex-1">
                 {% include 'common/erp_sidebar_toggle.html' %}
                 <div class="min-w-0">
-                    {% block header_title %}<h1 class="text-lg font-bold text-slate-900">{{ gy.rehber }}</h1>{% endblock %}
+                    {% block header_title %}<h1 class="text-base sm:text-lg font-bold text-slate-900 truncate">{{ gy.rehber }}</h1>{% endblock %}
                 </div>
             </div>
-            <div class="flex items-center gap-3 shrink-0">
+            <div class="flex items-center gap-2 shrink-0 erp-module-header-actions w-full sm:w-auto justify-end">
                 {% include 'common/erp_global_bar.html' %}
                 {% include 'common/nav_media_library_btn.html' %}
                 {% block header_actions %}{% endblock %}

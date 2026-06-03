@@ -17,9 +17,7 @@
 </head>
 <body class="erp-app erp-theme-sky flex h-screen overflow-hidden bg-slate-100">
     {% include 'common/impersonation_banner.html' %}
-    <div id="sidebarBackdrop" class="fixed inset-0 bg-slate-900/50 z-40 hidden lg:hidden" aria-hidden="true"></div>
-    <!-- Sidebar -->
-    <aside id="appSidebar" class="fixed lg:static inset-y-0 left-0 z-50 w-64 bg-slate-900 text-slate-300 flex-shrink-0 flex flex-col transform -translate-x-full lg:translate-x-0 transition-transform duration-200">
+    {% include 'common/erp_mobile_sidebar_start.html' %}
         <div class="p-6">
             <a href="{% url 'home' %}" class="text-xl font-bold text-white flex items-center gap-2">
                 {% if site_settings.logo %}
@@ -29,11 +27,11 @@
                         {{ site_settings.site_name.0|upper }}
                     </span>
                 {% endif %}
-                {{ site_settings.site_name }}
+                <span class="truncate">{{ site_settings.site_name }}</span>
             </a>
         </div>
         
-        <nav class="flex-1 px-4 py-4 space-y-1">
+        <nav class="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
             {% if user_access.home %}
             <a href="{% url 'home' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl transition-colors text-slate-400 hover:text-white hover:bg-slate-800">
                 <i data-lucide="layout-grid" class="w-5 h-5"></i>
@@ -55,10 +53,10 @@
         </nav>
 
         {% include 'common/profile_sidebar_card.html' %}
-    </aside>
+    {% include 'common/erp_mobile_sidebar_end.html' %}
 
     <!-- Main Content -->
-    <main class="flex-1 overflow-y-auto">
+    <main class="flex-1 overflow-y-auto min-w-0">
         {% include 'common/toast_messages.html' %}
         {% if services_saturday_weather %}
         <div class="mx-4 md:mx-8 mt-3 px-4 py-2.5 rounded-2xl bg-sky-50 border border-sky-100 text-sm text-sky-900 flex flex-wrap items-center gap-2">
@@ -74,19 +72,17 @@
             {% endif %}
         </div>
         {% endif %}
-        <header class="bg-white border-b border-slate-200 px-4 md:px-8 py-4 flex items-center justify-between sticky top-0 z-10 gap-3">
-            <button type="button" id="sidebarToggle" class="lg:hidden p-2 text-slate-600 hover:bg-slate-100 rounded-xl shrink-0" aria-label="Menüyü aç" aria-expanded="false" aria-controls="appSidebar">
-                <i data-lucide="menu" class="w-5 h-5"></i>
-            </button>
-            <div class="flex-1 min-w-0"></div>
-            <div class="flex items-center gap-3 relative">
+        <header class="bg-white border-b border-slate-200 px-4 md:px-8 py-3 md:py-4 flex flex-wrap items-center gap-2 md:gap-3 sticky top-0 z-10">
+            {% include 'common/erp_sidebar_toggle.html' %}
+            <div class="flex-1 min-w-0 order-2 sm:order-none"></div>
+            <div class="flex items-center gap-2 md:gap-3 relative erp-module-header-actions order-3 w-full sm:w-auto justify-end">
                 {% include 'common/erp_global_bar.html' %}
                 {% include 'common/nav_media_library_btn.html' %}
                 {% if user_perms.services_manage %}
                 <div class="relative inline-block text-left">
-                    <button id="newActionBtn" class="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-xl hover:bg-brand-700 transition-all shadow-lg shadow-brand-200 text-sm font-medium">
+                    <button id="newActionBtn" class="erp-touch-target flex items-center gap-2 bg-brand-600 text-white px-3 sm:px-4 py-2 rounded-xl hover:bg-brand-700 transition-all shadow-lg shadow-brand-200 text-sm font-medium">
                         <i data-lucide="plus" class="w-4 h-4"></i>
-                        <span>Yeni İşlem</span>
+                        <span class="hidden sm:inline">Yeni İşlem</span>
                     </button>
                     <div id="newActionDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden">
                         <a href="{% url 'service_create' %}" class="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50">
@@ -112,7 +108,7 @@
             </script>
         </header>
 
-        <div class="p-8 max-w-[1600px] mx-auto">
+        <div class="p-4 md:p-8 max-w-[1600px] mx-auto">
             {% block content %}{% endblock %}
         </div>
     </main>

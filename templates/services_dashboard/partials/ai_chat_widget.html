@@ -1,7 +1,7 @@
 {% if site_settings.ai_chat_enabled %}
-<div id="aiChatWrapper" class="fixed bottom-24 right-6 z-[100] flex flex-col items-end">
+<div id="aiChatWrapper" class="erp-fab-stack erp-fab-stack-secondary fixed z-[100] flex flex-col items-end">
     <!-- Chat Window -->
-    <div id="aiChatWindow" class="hidden w-[380px] h-[500px] bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col mb-4 animate-in slide-in-from-bottom-4 duration-300">
+    <div id="aiChatWindow" class="hidden w-[min(100vw-2rem,380px)] max-h-[min(85vh,500px)] h-[500px] bg-white rounded-3xl shadow-2xl border border-slate-200 overflow-hidden flex flex-col mb-4 animate-in slide-in-from-bottom-4 duration-300">
         <!-- Header -->
         <div class="p-4 bg-slate-900 text-white flex items-center justify-between">
             <div class="flex items-center gap-3">

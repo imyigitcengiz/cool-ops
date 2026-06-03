@@ -11,7 +11,7 @@
         <a href="{% url 'outreach_hub' %}" class="text-sm font-bold text-blue-700 hover:text-blue-900 hover:underline">Tümünü gör →</a>
     </div>
 
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
         <div class="rounded-2xl bg-blue-50 border border-blue-100 px-4 py-3">
             <p class="text-[10px] font-bold uppercase text-blue-700/80">Gönderilen</p>
             <p class="text-xl font-black text-blue-800 mt-0.5">{{ outreach_sent_month|default:0 }}</p>
