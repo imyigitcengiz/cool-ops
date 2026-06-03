@@ -367,3 +367,56 @@ def backup_status_summary() -> dict:
         ),
         'database_exists': db_path.is_file(),
     }
+
+
+FACTORY_RESET_CONFIRM_PHRASE = 'SIFIRLA'
+
+
+def _seed_factory_defaults():
+    from core_settings.models import SiteSettings, WorkSchedulePlan
+    from core_settings.status_defaults import ensure_default_statuses
+    from core_settings.work_schedule import default_weekly_hours, set_default_plan
+
+    ensure_default_statuses()
+    if not SiteSettings.objects.exists():
+        SiteSettings.objects.create(site_name='CoolOPS')
+    if not WorkSchedulePlan.objects.exists():
+        plan = WorkSchedulePlan.objects.create(
+            name='Standart mesai',
+            is_default=True,
+            is_active=True,
+            weekly_hours=default_weekly_hours(),
+        )
+        set_default_plan(plan)
+    try:
+        from chat.services import ensure_team_thread
+        ensure_team_thread()
+    except Exception:
+        pass
+
+
+def factory_reset_database(*, backup_before: bool = True) -> tuple[bool, str]:
+    """
+    Tüm uygulama verisini siler; roller, varsayılan katalog ve admin/admin hesabını yeniden kurar.
+    Medya dosyalarına dokunmaz.
+    """
+    db_path = database_path()
+    prev_backup = None
+    if backup_before and db_path.is_file():
+        prev_backup = _backup_existing_db(db_path)
+
+    _close_db_connections()
+    _flush_database_for_full_restore()
+    _run_migrations()
+    management.call_command('sync_permissions', '--reset-system-roles', verbosity=0)
+    management.call_command('ensure_superadmin', '--reset-password', verbosity=0)
+    _seed_factory_defaults()
+
+    msg = (
+        'Veritabanı sıfırlandı. Tüm kayıtlar silindi; varsayılan katalog ve roller yeniden oluşturuldu. '
+        'Giriş: admin / admin — hemen şifrenizi değiştirin. '
+        'Not: Yüklenen dosyalar (media/) silinmedi.'
+    )
+    if prev_backup:
+        msg += f' Önceki veritabanı yedeklendi: {prev_backup}'
+    return True, msg

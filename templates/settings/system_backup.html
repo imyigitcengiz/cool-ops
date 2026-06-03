@@ -102,4 +102,54 @@
         </form>
     </div>
 </section>
+
+<section class="bg-white p-6 rounded-3xl border-2 border-red-300 shadow-sm space-y-5 mt-8">
+    <div class="flex items-start gap-3">
+        <span class="px-2 py-0.5 rounded-lg bg-red-100 text-red-800 text-xs font-bold uppercase tracking-wide">Danger zone</span>
+        <div class="flex-1">
+            <h2 class="text-lg font-bold text-red-900">Veritabanını fabrika ayarlarına sıfırla</h2>
+            <p class="text-sm text-slate-600 mt-1">
+                Tüm müşteri, servis, satış, personel ve ayar kayıtları kalıcı olarak silinir.
+                JSON/SQLite yedekleri üst üste karıştığında temiz başlangıç için kullanın.
+            </p>
+            <ul class="text-xs text-red-900 bg-red-50 border border-red-100 rounded-xl p-3 mt-3 list-disc pl-5 space-y-1">
+                <li>İşlem öncesi mevcut <code>db.sqlite3</code> otomatik yedeklenir (<code>.bak-…</code>)</li>
+                <li>Sıfırlama sonrası giriş: <strong>admin</strong> / <strong>admin</strong> (hemen değiştirin)</li>
+                <li>Varsayılan durumlar, mesai planı ve roller yeniden oluşturulur</li>
+                <li><strong>media/</strong> klasöründeki yüklenen dosyalar silinmez</li>
+            </ul>
+        </div>
+    </div>
+
+    <form method="post" class="space-y-4 border-t border-red-100 pt-4" id="factory-reset-form">
+        {% csrf_token %}
+        <input type="hidden" name="factory_reset_database" value="1">
+
+        <label class="flex items-start gap-3 cursor-pointer text-sm text-slate-700">
+            <input type="checkbox" name="acknowledge_data_loss" class="mt-1 rounded accent-red-600" required>
+            <span>Tüm veritabanı kayıtlarının geri dönüşsüz silineceğini anlıyorum.</span>
+        </label>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-wide">Onay metni</label>
+                <input type="text" name="confirm_phrase" required autocomplete="off" spellcheck="false"
+                       placeholder="{{ factory_reset_confirm_phrase }}"
+                       class="w-full p-3 bg-white border border-red-200 rounded-xl text-sm font-mono uppercase">
+                <p class="text-[11px] text-slate-500">Tam olarak <strong>{{ factory_reset_confirm_phrase }}</strong> yazın.</p>
+            </div>
+            <div class="space-y-2">
+                <label class="text-xs font-bold text-slate-500 uppercase tracking-wide">Mevcut şifreniz</label>
+                <input type="password" name="password" required autocomplete="current-password"
+                       class="w-full p-3 bg-white border border-red-200 rounded-xl text-sm">
+            </div>
+        </div>
+
+        <button type="submit"
+                class="px-5 py-3 bg-red-600 text-white rounded-xl font-bold hover:bg-red-700 transition-colors"
+                onclick="return confirm('SON UYARI: Tüm veritabanı kayıtları silinecek. Devam edilsin mi?');">
+            Veritabanını sıfırla
+        </button>
+    </form>
+</section>
 {% endblock %}

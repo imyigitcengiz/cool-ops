@@ -235,4 +235,4 @@ ROUTE_PERMISSIONS = [
 ]
 
 LOGIN_EXEMPT_PREFIXES = ('/giris/', '/static/', '/healthz/', '/bilgi-bankasi/')
-SUPERUSER_ONLY_PREFIXES = ('/yonetim/',)
+SUPERUSER_ONLY_PREFIXES = ('/yonetim/', '/ayarlar/yedekler/')

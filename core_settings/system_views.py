@@ -2,17 +2,13 @@ from django.contrib import messages
 from django.shortcuts import redirect
 from django.views.generic import TemplateView
 
-from core_settings.backup import (
-    backup_status_summary,
-    export_backup_response,
-    export_sqlite_response,
-    import_backup_file,
-    import_sqlite_file,
-)
+from core_settings.backup import backup_status_summary
 from core_settings.forms import AISettingsForm
 from core_settings.models import SiteSettings
+from core_settings.system_backup_handlers import handle_system_backup_post
 from customers.models import Customer
 from services.models import ServiceRecord
+from users.mixins import SuperuserRequiredMixin
 
 
 class SettingsAISettingsView(TemplateView):
@@ -53,43 +49,15 @@ class SettingsAIReportingView(TemplateView):
         return context
 
 
-class SettingsSystemBackupView(TemplateView):
+class SettingsSystemBackupView(SuperuserRequiredMixin, TemplateView):
     template_name = 'settings/system_backup.html'
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['backup_status'] = backup_status_summary()
+        from core_settings.backup import FACTORY_RESET_CONFIRM_PHRASE
+        context['factory_reset_confirm_phrase'] = FACTORY_RESET_CONFIRM_PHRASE
         return context
 
     def post(self, request, *args, **kwargs):
-        if 'export_backup' in request.POST:
-            try:
-                return export_backup_response()
-            except Exception as exc:
-                messages.error(request, f'Yedekleme sırasında hata oluştu: {exc}')
-                return redirect('settings_system_backup')
-
-        if 'import_backup' in request.POST:
-            ok, msg = import_backup_file(request.FILES.get('backup_file'))
-            if ok:
-                messages.success(request, msg)
-            else:
-                messages.error(request, msg)
-            return redirect('settings_system_backup')
-
-        if 'export_sqlite' in request.POST:
-            try:
-                return export_sqlite_response()
-            except Exception as exc:
-                messages.error(request, f'SQLite indirme hatası: {exc}')
-                return redirect('settings_system_backup')
-
-        if 'import_sqlite' in request.POST:
-            ok, msg = import_sqlite_file(request.FILES.get('sqlite_file'))
-            if ok:
-                messages.success(request, msg)
-            else:
-                messages.error(request, msg)
-            return redirect('settings_system_backup')
-
-        return redirect('settings_system_backup')
+        return handle_system_backup_post(request, redirect_name='settings_system_backup')
