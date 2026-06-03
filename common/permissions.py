@@ -102,7 +102,7 @@ def accounting_fallback_redirect(user):
     if can_access_accounting(user):
         return redirect('accounting_hub')
     if can_manage_payroll_personnel(user):
-        return redirect('accounting_personnel')
+        return redirect('contact_personnel')
     return redirect('home')
 
 

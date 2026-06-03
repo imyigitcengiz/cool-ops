@@ -56,11 +56,19 @@ class ServiceRecordForm(forms.ModelForm):
             return Customer.objects.filter(pk=int(initial)).first()
         return None
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, request=None, **kwargs):
+        self._request = request
         super().__init__(*args, **kwargs)
-        self.fields['solution_partner'].queryset = SolutionPartner.objects.filter(is_active=True).order_by('name')
+        partner_qs = SolutionPartner.objects.filter(is_active=True).order_by('name')
+        personnel_qs = ServicePersonnel.objects.filter(is_active=True).select_related('team', 'department').order_by('name')
+        if request:
+            from common.brand_scope import filter_by_brand
+
+            partner_qs = filter_by_brand(partner_qs, request)
+            personnel_qs = filter_by_brand(personnel_qs, request)
+        self.fields['solution_partner'].queryset = partner_qs
         self.fields['solution_partner'].empty_label = 'Çözüm ortağı seçin (opsiyonel)'
-        self.fields['service_personnel'].queryset = ServicePersonnel.objects.filter(is_active=True).select_related('team', 'department').order_by('name')
+        self.fields['service_personnel'].queryset = personnel_qs
         self.fields['service_personnel'].empty_label = 'Servis personeli seçin (opsiyonel)'
         from core_settings.models import SiteSettings
         from common.currency import currency_from_settings

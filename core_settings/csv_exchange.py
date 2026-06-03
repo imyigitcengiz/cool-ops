@@ -74,8 +74,12 @@ def finance_record_csv_row(rec) -> list:
 
 
 FINANCE_CSV_HEADER = [
-    'TÜR', 'KATEGORİ', 'AÇIKLAMA', 'TUTAR', 'TARİH',
-    'HESAP', 'SATIŞ_ID', 'SATIŞ_ETİKET', 'PROJE', 'NOT',
+    'Tür', 'Gider kategorisi', 'Açıklama', 'Tutar', 'Tarih',
+    'Hesap', 'Satış / proje (ID)', 'Satış etiketi', 'Operasyon projesi', 'Not',
+]
+
+PAYROLL_CSV_HEADER = [
+    'Maaş dönemi', 'Personel', 'Tür', 'Tutar', 'Ödeme tarihi', 'Not',
 ]
 
 

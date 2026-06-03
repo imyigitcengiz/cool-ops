@@ -1,0 +1,16 @@
+{# Sidebar modül başlığı — brand_url, brand_title, brand_icon, brand_subtitle, brand_logo_url (opsiyonel) #}
+<div class="erp-sidebar-brand{% if brand_border %} erp-sidebar-brand--border{% endif %}">
+    <a href="{{ brand_url }}" class="erp-sidebar-brand__link">
+        {% if brand_logo_url %}
+        <img src="{{ brand_logo_url }}" alt="" class="erp-sidebar-brand__logo">
+        {% else %}
+        <span class="erp-sidebar-brand__icon" aria-hidden="true">
+            <i data-lucide="{{ brand_icon|default:'layout-grid' }}" class="w-5 h-5"></i>
+        </span>
+        {% endif %}
+        <span class="erp-sidebar-brand__title">{{ brand_title }}</span>
+    </a>
+    {% if brand_subtitle %}
+    <p class="erp-sidebar-brand__subtitle">{{ brand_subtitle }}</p>
+    {% endif %}
+</div>

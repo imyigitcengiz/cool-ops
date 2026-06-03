@@ -1,5 +1,8 @@
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import check_password
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
 
@@ -70,6 +73,15 @@ class FactoryResetDatabaseTests(TestCase):
         })
         self.assertEqual(response.status_code, 302)
         self.assertEqual(User.objects.filter(username='super_reset').count(), 1)
+
+    @patch('core_settings.system_backup_handlers.import_sqlite_file', return_value=(True, 'SQLite yüklendi.'))
+    def test_import_sqlite_success_logs_out(self, _mock_import):
+        client, _user = _superuser_client(password='secret123')
+        url = reverse('settings_system_backup')
+        uploaded = SimpleUploadedFile('test.sqlite3', b'SQLite format 3\x00' + b'\x00' * 200)
+        response = client.post(url, {'import_sqlite': '1', 'sqlite_file': uploaded})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, reverse('login'))
 
     def test_factory_reset_post_success_logs_out(self):
         client, user = _superuser_client(password='secret123')

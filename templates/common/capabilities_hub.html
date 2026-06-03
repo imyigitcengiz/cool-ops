@@ -1,106 +1,65 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ gy.entegrasyon_merkezi }} | {{ site_settings.site_name }}</title>
-    {% load static %}
-    {% include 'common/erp_head_assets.html' %}
-</head>
-<body class="erp-app erp-theme-sky flex h-screen overflow-hidden bg-slate-100 text-slate-900">
-    {% include 'common/impersonation_banner.html' %}
-    {% include 'common/erp_mobile_sidebar_start.html' %}
-        <div class="p-4 border-b border-slate-800">
-            <a href="{% url 'home' %}" class="text-xs font-semibold text-slate-500 hover:text-white">← {{ gy.ana_panel }}</a>
-            <h1 class="text-lg font-bold text-white mt-2 flex items-center gap-2">
-                <i data-lucide="zap" class="w-5 h-5 text-amber-400"></i>
-                <span class="truncate">{{ gy.entegrasyon_merkezi }}</span>
-            </h1>
-            <p class="text-xs text-slate-500 mt-1">WhatsApp, firma kazıma, medya</p>
-        </div>
-        <nav class="flex-1 p-3 space-y-1 overflow-y-auto text-sm">
-            {% include 'common/erp_cross_nav.html' %}
-        </nav>
-        {% include 'common/profile_sidebar_card.html' %}
-    {% include 'common/erp_mobile_sidebar_end.html' %}
-    <main class="flex-1 min-w-0 overflow-y-auto">
-        <header class="erp-module-header">
-            <div class="erp-module-header__inner">
-                <div class="erp-module-header__top">
-                    <div class="erp-module-header__lead">
-                        {% include 'common/erp_sidebar_toggle.html' %}
-                        <div class="erp-module-header__text min-w-0">
-                            <h1 class="erp-module-header__title truncate">{{ gy.entegrasyon_merkezi }}</h1>
-                            <p class="erp-module-header__subtitle truncate">WhatsApp, firma kazıma, medya</p>
-                        </div>
-                    </div>
-                    <div class="erp-module-header__tools">
-                        {% include 'common/erp_module_header_tools.html' %}
-                    </div>
-                </div>
-            </div>
-        </header>
-        <div class="p-4 md:p-8 space-y-8 md:space-y-10 max-w-5xl mx-auto">
-            {% include 'common/toast_messages.html' %}
+{% extends 'common/erp_unified_shell.html' %}
+{% block title %}{{ gy.entegrasyon_merkezi }}{% endblock %}
+{% block header_title %}<h1 class="erp-module-header__title truncate">{{ gy.entegrasyon_merkezi }}</h1>{% endblock %}
+{% block header_subtitle %}<p class="erp-module-header__subtitle truncate">WhatsApp, firma kazıma, medya</p>{% endblock %}
+{% block shell_header_text_class %}{% endblock %}
+{% block content_wrapper_class %}erp-page-content mx-auto w-full max-w-5xl py-6 md:py-8 space-y-8 md:space-y-10{% endblock %}
+{% block content %}
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
+    <div class="rounded-2xl bg-amber-50 border border-amber-200 p-4">
+        <p class="text-[10px] font-bold uppercase text-amber-700">Açık yetenek</p>
+        <p class="text-2xl font-bold text-amber-900"><span data-capabilities-enabled-count>{{ capabilities_enabled }}</span>/{{ capabilities_total }}</p>
+    </div>
+</div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
-                <div class="rounded-2xl bg-amber-50 border border-amber-200 p-4">
-                    <p class="text-[10px] font-bold uppercase text-amber-700">Açık yetenek</p>
-                    <p class="text-2xl font-bold text-amber-900"><span data-capabilities-enabled-count>{{ capabilities_enabled }}</span>/{{ capabilities_total }}</p>
+{% for group in capability_groups %}
+<section>
+    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-2">
+        <i data-lucide="{{ group.icon }}" class="w-4 h-4"></i> {{ group.name }}
+    </h3>
+    <div class="grid sm:grid-cols-2 gap-4">
+        {% for cap in group.items %}
+        <article class="module-card bg-white rounded-2xl border {% if cap.installed %}border-amber-200{% else %}border-slate-200{% endif %} shadow-sm overflow-hidden flex flex-col"
+            data-module-card data-module-slug="{{ cap.slug }}" data-module-kind="integration"
+            data-module-installed="{% if cap.installed %}1{% else %}0{% endif %}">
+            <div class="p-5 flex-1">
+                <div class="flex justify-between gap-2 mb-2">
+                    <span class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                        <i data-lucide="{{ cap.icon }}" class="w-5 h-5"></i>
+                    </span>
+                    <span data-module-badge class="text-[10px] font-bold px-2 py-0.5 rounded-lg h-fit {% if cap.installed %}bg-emerald-50 text-emerald-700{% else %}bg-slate-100 text-slate-500{% endif %}">
+                        {% if cap.installed %}Açık{% else %}Kapalı{% endif %}
+                    </span>
                 </div>
+                <h4 class="font-bold text-slate-900">{{ cap.name }}</h4>
+                <p class="text-sm text-slate-500 mt-2">{{ cap.summary }}</p>
+                {% if cap.status_hint %}
+                <p class="text-xs text-amber-700 font-semibold mt-3">{{ cap.status_hint }}</p>
+                {% endif %}
             </div>
-
-            {% for group in capability_groups %}
-            <section>
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-2">
-                    <i data-lucide="{{ group.icon }}" class="w-4 h-4"></i> {{ group.name }}
-                </h3>
-                <div class="grid sm:grid-cols-2 gap-4">
-                    {% for cap in group.items %}
-                    <article class="module-card bg-white rounded-2xl border {% if cap.installed %}border-amber-200{% else %}border-slate-200{% endif %} shadow-sm overflow-hidden flex flex-col"
-                        data-module-card data-module-slug="{{ cap.slug }}" data-module-kind="integration"
-                        data-module-installed="{% if cap.installed %}1{% else %}0{% endif %}">
-                        <div class="p-5 flex-1">
-                            <div class="flex justify-between gap-2 mb-2">
-                                <span class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                                    <i data-lucide="{{ cap.icon }}" class="w-5 h-5"></i>
-                                </span>
-                                <span data-module-badge class="text-[10px] font-bold px-2 py-0.5 rounded-lg h-fit {% if cap.installed %}bg-emerald-50 text-emerald-700{% else %}bg-slate-100 text-slate-500{% endif %}">
-                                    {% if cap.installed %}Açık{% else %}Kapalı{% endif %}
-                                </span>
-                            </div>
-                            <h4 class="font-bold text-slate-900">{{ cap.name }}</h4>
-                            <p class="text-sm text-slate-500 mt-2">{{ cap.summary }}</p>
-                            {% if cap.status_hint %}
-                            <p class="text-xs text-amber-700 font-semibold mt-3">{{ cap.status_hint }}</p>
-                            {% endif %}
-                        </div>
-                        <div class="px-5 py-3 border-t bg-slate-50/80 flex flex-wrap gap-2 items-center" data-module-actions>
-                            {% if cap.can_open %}
-                            <a href="{{ cap.open_url }}" data-module-open class="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600">Kullan</a>
-                            {% elif cap.installed %}
-                            <span data-module-perm-hint class="text-xs text-amber-700 font-semibold">Rol izni gerekir</span>
-                            {% endif %}
-                            {% if can_manage_modules and cap.can_toggle %}
-                            <button type="button" data-module-toggle data-module-slug="{{ cap.slug }}"
-                                class="text-xs font-bold ml-auto {% if cap.installed %}text-red-600{% else %}text-emerald-700{% endif %}">
-                                {% if cap.installed %}Kapat{% else %}Aç{% endif %}
-                            </button>
-                            {% endif %}
-                        </div>
-                    </article>
-                    {% endfor %}
-                </div>
-            </section>
-            {% empty %}
-            <p class="text-slate-500">Entegrasyon bulunamadı.</p>
-            {% endfor %}
-        </div>
-    </main>
-    <script src="{% static 'js/gy-toast.js' %}"></script>
-    <script src="{% static 'js/module-toggle.js' %}"></script>
-    {% include 'common/erp_shell_extras.html' %}
-    {% include 'common/erp_mobile_sidebar_script.html' %}
-    <script>if (window.lucide) lucide.createIcons();</script>
-</body>
-</html>
+            <div class="px-5 py-3 border-t bg-slate-50/80 flex flex-wrap gap-2 items-center" data-module-actions>
+                {% if cap.can_open %}
+                <a href="{{ cap.open_url }}" data-module-open class="px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600">Kullan</a>
+                {% elif cap.installed %}
+                <span data-module-perm-hint class="text-xs text-amber-700 font-semibold">Rol izni gerekir</span>
+                {% endif %}
+                {% if can_manage_modules and cap.can_toggle %}
+                <button type="button" data-module-toggle data-module-slug="{{ cap.slug }}"
+                    class="text-xs font-bold ml-auto {% if cap.installed %}text-red-600{% else %}text-emerald-700{% endif %}">
+                    {% if cap.installed %}Kapat{% else %}Aç{% endif %}
+                </button>
+                {% endif %}
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+{% empty %}
+<p class="text-slate-500">Entegrasyon bulunamadı.</p>
+{% endfor %}
+{% endblock %}
+{% block extra_js %}
+{% load static %}
+<script src="{% static 'js/gy-toast.js' %}"></script>
+<script src="{% static 'js/module-toggle.js' %}"></script>
+{% endblock %}

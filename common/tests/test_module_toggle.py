@@ -19,7 +19,14 @@ class ModuleToggleApiTests(TestCase):
         self.client.force_login(self.user)
 
     def test_toggle_off_on_without_page_reload(self):
+        from common.module_runtime import get_enabled_module_slugs
+
         slug = 'integration_weather'
+        settings = SiteSettings.objects.first()
+        enabled = list(get_enabled_module_slugs())
+        if slug not in enabled:
+            settings.enabled_module_slugs = enabled + [slug]
+            settings.save()
         self.assertTrue(is_module_installed(slug))
 
         off = self.client.post('/panel/moduller/toggle/', {'module_slug': slug})
@@ -33,35 +40,25 @@ class ModuleToggleApiTests(TestCase):
         self.assertEqual(on.status_code, 200)
         self.assertTrue(on.json()['installed'])
 
-    def test_disable_projects_removes_particle_slug(self):
-        from common.module_runtime import get_enabled_module_slugs
+    def test_disable_montaj_particle_persists(self):
+        from common.module_runtime import get_enabled_module_slugs, is_particle_enabled
 
-        slug = 'projects'
+        particle = 'p.accounting.projects'
         settings = SiteSettings.objects.first()
-        enabled = list(get_enabled_module_slugs())
-        if slug not in enabled:
-            self.client.post('/panel/moduller/toggle/', {'module_slug': slug})
-        off = self.client.post('/panel/moduller/toggle/', {'module_slug': slug})
+        modules = list(get_enabled_module_slugs())
+        if 'accounting' not in modules:
+            settings.enabled_module_slugs = modules + ['accounting', particle]
+            settings.save()
+        elif particle not in settings.enabled_module_slugs:
+            settings.enabled_module_slugs = list(settings.enabled_module_slugs) + [particle]
+            settings.save()
+        self.assertTrue(is_particle_enabled(particle))
+
+        off = self.client.post('/panel/moduller/toggle/', {'particle_slug': particle})
         self.assertTrue(off.json()['ok'])
         settings.refresh_from_db()
-        self.assertNotIn('p.accounting.projects', settings.enabled_module_slugs)
-
-    def test_installed_state_ignores_particle_fallback(self):
-        from common.module_catalog import module_by_slug
-        from common.module_runtime import build_module_record, get_enabled_module_slugs, is_module_installed
-
-        slug = 'projects'
-        settings = SiteSettings.objects.first()
-        settings.enabled_module_slugs = [s for s in get_enabled_module_slugs() if s != slug]
-        settings.save()
-
-        self.assertFalse(is_module_installed(slug))
-        record = build_module_record(self.user, module_by_slug(slug))
-        self.assertFalse(record['installed'])
-
-        resp = self.client.post('/panel/moduller/toggle/', {'module_slug': slug})
-        self.assertTrue(resp.json()['installed'])
-        self.assertTrue(is_module_installed(slug))
+        self.assertNotIn(particle, settings.enabled_module_slugs)
+        self.assertFalse(is_particle_enabled(particle))
 
     def test_toggle_requires_settings_perm(self):
         User = get_user_model()
@@ -73,6 +70,42 @@ class ModuleToggleApiTests(TestCase):
         self.client.force_login(user)
         resp = self.client.post('/panel/moduller/toggle/', {'module_slug': 'contact'})
         self.assertEqual(resp.status_code, 403)
+
+    def test_toggle_particle_off_on(self):
+        from common.module_runtime import get_enabled_particle_slugs, is_particle_enabled
+
+        slug = 'p.contact.customers'
+        settings = SiteSettings.objects.first()
+        modules = list(__import__('common.module_runtime', fromlist=['get_enabled_module_slugs']).get_enabled_module_slugs())
+        if 'contact' not in modules:
+            settings.enabled_module_slugs = modules + ['contact']
+            settings.save()
+
+        if slug not in get_enabled_particle_slugs():
+            settings.enabled_module_slugs = modules + [slug]
+            settings.save()
+        self.assertTrue(is_particle_enabled(slug))
+
+        off = self.client.post('/panel/moduller/toggle/', {'particle_slug': slug})
+        self.assertEqual(off.status_code, 200)
+        self.assertTrue(off.json()['ok'])
+        self.assertFalse(off.json()['enabled'])
+        self.assertFalse(is_particle_enabled(slug))
+
+        on = self.client.post('/panel/moduller/toggle/', {'particle_slug': slug})
+        self.assertEqual(on.status_code, 200)
+        self.assertTrue(on.json()['enabled'])
+
+    def test_particle_requires_parent_module(self):
+        from common.module_runtime import get_enabled_module_slugs
+
+        settings = SiteSettings.objects.first()
+        modules = [s for s in get_enabled_module_slugs() if s != 'contact']
+        settings.enabled_module_slugs = modules
+        settings.save()
+        resp = self.client.post('/panel/moduller/toggle/', {'particle_slug': 'p.contact.customers'})
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(resp.json()['ok'])
 
     def test_cannot_disable_last_module(self):
         settings = SiteSettings.objects.first()

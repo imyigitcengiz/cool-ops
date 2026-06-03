@@ -61,12 +61,12 @@ PARTICLES: tuple[dict, ...] = (
         'sort': 35,
     },
     {
-        'slug': 'p.accounting.personnel',
+        'slug': 'p.contact.personnel',
         'name': 'Personel & kadro',
-        'summary': 'Sigortalı personel, ekip ataması — kurumsal İK.',
-        'category': 'operasyon',
-        'parent_module': 'accounting',
-        'route_prefixes': ('/muhasebe/personel/', '/contact/personel/'),
+        'summary': 'Personel ağı, departman/ünvan ve ekip ataması — Rehber modülü.',
+        'category': 'rehber',
+        'parent_module': 'contact',
+        'route_prefixes': ('/contact/personel/',),
         'vertical_tags': ('kobi', 'retail', 'healthcare'),
         'default_enabled': True,
         'sort': 40,
@@ -183,7 +183,7 @@ PARTICLES: tuple[dict, ...] = (
     },
     {
         'slug': 'p.accounting.timesheet',
-        'name': 'Zaman & faturalama',
+        'name': 'Zaman & Faturalama',
         'summary': 'Saat kaydı, personel ve proje bazlı takip.',
         'category': 'operasyon',
         'parent_module': 'accounting',
@@ -229,7 +229,7 @@ VERTICAL_CATALOG_PRESETS: dict[str, dict[str, tuple[str, ...]]] = {
         ),
         'particles': (
             'p.contact.customers', 'p.contact.firms', 'p.contact.teams',
-            'p.accounting.personnel', 'p.accounting.payroll',
+            'p.contact.personnel', 'p.accounting.payroll',
             'p.accounting.finance', 'p.accounting.sales',
         ),
     },
@@ -267,8 +267,18 @@ LEGACY_MODULE_ALIASES: dict[str, tuple[str, ...]] = {
     ),
 }
 
+# Eski parçacık slug → yeni (site ayarı migrasyonu)
+LEGACY_PARTICLE_SLUG_MAP: dict[str, str] = {
+    'p.accounting.personnel': 'p.contact.personnel',
+}
+
+
+def resolve_particle_slug(slug: str) -> str:
+    return LEGACY_PARTICLE_SLUG_MAP.get(slug, slug)
+
 
 def particle_by_slug(slug: str) -> dict | None:
+    slug = resolve_particle_slug(slug)
     for p in PARTICLES:
         if p['slug'] == slug:
             return dict(p)

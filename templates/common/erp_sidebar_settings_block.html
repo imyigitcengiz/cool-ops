@@ -1,0 +1,58 @@
+{% if user_access.settings %}
+
+{% url 'settings_genel' as settings_hub_href %}
+
+<div class="erp-sidebar-module erp-sidebar-module--settings{% if erp_sidebar_expand == 'settings' %} erp-sidebar-module--expanded{% endif %}"
+
+     data-erp-sidebar-module="settings">
+
+    <div class="erp-sidebar-module__hub-row">
+
+        <a href="{{ settings_hub_href }}"
+
+           class="erp-sidebar-module__hub{% if erp_sidebar_expand == 'settings' %} erp-sidebar-module__hub--current{% endif %}">
+
+            <span class="erp-sidebar-module__icon-wrap" aria-hidden="true">
+
+                <i data-lucide="sliders-horizontal" class="erp-sidebar-module__icon"></i>
+
+            </span>
+
+            <span class="erp-sidebar-module__label">
+
+                <span class="erp-sidebar-module__title">{{ gy.site_ayarlari }}</span>
+
+            </span>
+
+        </a>
+
+        <button type="button"
+
+                class="erp-sidebar-module__toggle"
+
+                data-erp-module-toggle
+
+                aria-expanded="{% if erp_sidebar_expand == 'settings' %}true{% else %}false{% endif %}"
+
+                aria-controls="erp-sidebar-menu-settings"
+
+                aria-label="Site ayarları alt menüsü">
+
+            <i data-lucide="panel-right-open" class="erp-sidebar-module__toggle-icon"></i>
+
+        </button>
+
+    </div>
+
+    <div id="erp-sidebar-menu-settings" class="erp-sidebar-module__menu" data-erp-module-menu role="region" aria-label="Site ayarları menüsü">
+
+        <p class="erp-sidebar-menu-heading">{{ gy.site_ayarlari }}</p>
+
+        {% include 'common/erp_settings_nav.html' %}
+
+    </div>
+
+</div>
+
+{% endif %}
+

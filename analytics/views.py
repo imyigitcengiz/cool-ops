@@ -15,6 +15,8 @@ from django.http import JsonResponse
 import logging
 
 import openai
+from django.utils.decorators import method_decorator
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 
 from common.decorators import json_auth_required, permission_required
@@ -130,9 +132,9 @@ class HomeView(TemplateView):
         if panel_section_visible('contact') and user.has_perm_codename('access.contact'):
             context['contact_show_panel'] = True
         if can_access_accounting(user) and panel_section_visible('accounting'):
-            context.update(build_accounting_panel_context(user))
+            context.update(build_accounting_panel_context(self.request))
         if panel_section_visible('services') and user.has_perm_codename('access.services'):
-            context.update(build_services_panel_context(user))
+            context.update(build_services_panel_context(self.request))
         if panel_section_visible('outreach') and user.has_perm_codename('access.outreach'):
             context.update(build_outreach_panel_context(user))
 
@@ -151,6 +153,7 @@ class HomeView(TemplateView):
         return context
 
 
+@method_decorator(ensure_csrf_cookie, name='dispatch')
 class ModuleHubView(TemplateView):
     """Modül merkezi — kurulum aç/kapa."""
 
@@ -175,7 +178,7 @@ class ModuleHubView(TemplateView):
 
     def post(self, request, *args, **kwargs):
         from common.middleware import _is_api_request
-        from common.module_toggle import toggle_module_slug
+        from common.module_toggle import toggle_module_slug, toggle_particle_slug
 
         if not (request.user.is_superuser or request.user.has_perm_codename('access.settings')):
             if _is_api_request(request):
@@ -191,23 +194,26 @@ class ModuleHubView(TemplateView):
         if request.GET.get('q'):
             redirect_qs = f'?q={request.GET.get("q")}'
 
-        if 'apply_sector' in request.POST:
-            sector_slug = request.POST.get('sector_slug', '').strip()
-            from common.sector_catalog import sector_by_slug, apply_sector_preset
-
-            if not sector_by_slug(sector_slug):
-                messages.error(request, 'Geçersiz sektör profili.')
-            else:
-                apply_sector_preset(settings, sector_slug)
-                sec = sector_by_slug(sector_slug)
-                messages.success(
-                    request,
-                    f'"{sec["name"]}" sektör paketi uygulandı — modüller güncellendi.',
-                )
-
-        elif 'toggle_module' in request.POST:
+        if 'toggle_module' in request.POST:
             slug = request.POST.get('module_slug', '').strip()
             result = toggle_module_slug(request.user, slug)
+            if _is_api_request(request):
+                status = 200 if result.get('ok') else 400
+                if not result.get('ok') and 'yetkiniz' in result.get('error', ''):
+                    status = 403
+                return JsonResponse(result, status=status)
+            if result.get('ok'):
+                level = result.get('level', 'success')
+                if level == 'info':
+                    messages.info(request, result['message'])
+                else:
+                    messages.success(request, result['message'])
+            else:
+                messages.error(request, result.get('error', 'İşlem başarısız.'))
+
+        elif 'toggle_particle' in request.POST:
+            particle_slug = request.POST.get('particle_slug', '').strip()
+            result = toggle_particle_slug(request.user, particle_slug)
             if _is_api_request(request):
                 status = 200 if result.get('ok') else 400
                 if not result.get('ok') and 'yetkiniz' in result.get('error', ''):

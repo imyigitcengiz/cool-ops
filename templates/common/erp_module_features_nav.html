@@ -1,0 +1,10 @@
+{# Eklenti modülleri (Montaj programı, borçlar, …) #}
+{% if features %}
+<p class="erp-nav-group-label">{{ gy.ozellikler }}</p>
+{% for app in features %}
+<a href="{{ app.url }}" class="erp-nav-link {% if app.active %}erp-nav-link--active{% endif %}">
+    <i data-lucide="{{ app.icon }}" class="erp-nav-link__icon"></i>
+    <span class="erp-nav-link__text">{{ app.name }}</span>
+</a>
+{% endfor %}
+{% endif %}

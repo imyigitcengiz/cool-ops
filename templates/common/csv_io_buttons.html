@@ -13,9 +13,14 @@ CSV indir / yükle — mobilde yatay kaydırmalı şerit.
     </a>
     {% endif %}
     <a href="{% url 'csv_import_wizard' %}?type={{ import_type }}&next={{ request.get_full_path|urlencode }}"
-       class="erp-csv-io__btn erp-csv-io__btn--upload erp-touch-target">
+       class="erp-csv-io__btn erp-csv-io__btn--upload erp-touch-target" title="CSV araçları">
         <i data-lucide="upload" class="w-4 h-4 shrink-0" aria-hidden="true"></i>
         <span>CSV yükle</span>
+    </a>
+    <a href="{% url 'tools_csv_hub' %}?open={{ import_type }}"
+       class="erp-csv-io__btn erp-csv-io__btn--hub erp-touch-target" title="Tüm CSV işlemleri">
+        <i data-lucide="arrow-up-down" class="w-4 h-4 shrink-0" aria-hidden="true"></i>
+        <span class="hidden sm:inline">CSV merkezi</span>
     </a>
 </div>
 {% endif %}

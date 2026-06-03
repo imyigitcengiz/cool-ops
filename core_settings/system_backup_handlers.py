@@ -13,6 +13,22 @@ from core_settings.backup import (
 from users.impersonation import get_real_user
 
 
+def _finish_database_restore_response(request, *, redirect_name: str, ok: bool, msg: str):
+    """
+    SQLite / tam JSON yedeği oturum tablosunu da değiştirir.
+    Yanıtta eski session kaydını güncellemeye çalışmak SessionInterrupted üretir.
+    """
+    if ok:
+        logout(request)
+        messages.success(
+            request,
+            f'{msg} Veritabanı değişti — lütfen tekrar giriş yapın.',
+        )
+        return redirect('login')
+    messages.error(request, msg)
+    return redirect(redirect_name)
+
+
 def handle_system_backup_post(request, *, redirect_name: str):
     if 'export_backup' in request.POST:
         try:
@@ -23,11 +39,9 @@ def handle_system_backup_post(request, *, redirect_name: str):
 
     if 'import_backup' in request.POST:
         ok, msg = import_backup_file(request.FILES.get('backup_file'))
-        if ok:
-            messages.success(request, msg)
-        else:
-            messages.error(request, msg)
-        return redirect(redirect_name)
+        return _finish_database_restore_response(
+            request, redirect_name=redirect_name, ok=ok, msg=msg,
+        )
 
     if 'export_sqlite' in request.POST:
         try:
@@ -38,11 +52,9 @@ def handle_system_backup_post(request, *, redirect_name: str):
 
     if 'import_sqlite' in request.POST:
         ok, msg = import_sqlite_file(request.FILES.get('sqlite_file'))
-        if ok:
-            messages.success(request, msg)
-        else:
-            messages.error(request, msg)
-        return redirect(redirect_name)
+        return _finish_database_restore_response(
+            request, redirect_name=redirect_name, ok=ok, msg=msg,
+        )
 
     if 'factory_reset_database' in request.POST:
         return _handle_factory_reset_post(request, redirect_name=redirect_name)

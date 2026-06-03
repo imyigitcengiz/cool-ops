@@ -1,6 +1,13 @@
 from django.urls import path
 from django.views.generic import RedirectView
 
+from common.csv_exchange_views import CsvExchangeHubView
+from common.csv_import_views import (
+    CsvImportReportView,
+    CsvImportWizardView,
+    csv_import_execute_api,
+    csv_import_preview_api,
+)
 from analytics.views import ai_chat_view
 from tools.weather_views import weather_api
 from tools.media_views import ToolsMediaDeleteView, ToolsMediaLibraryView
@@ -24,6 +31,11 @@ from tools.whatsapp_template_views import (
 
 urlpatterns = [
     path('', ToolsHubView.as_view(), name='tools_hub'),
+    path('csv/', CsvExchangeHubView.as_view(), name='tools_csv_hub'),
+    path('csv/yukle/', CsvImportWizardView.as_view(), name='csv_import_wizard'),
+    path('csv/rapor/', CsvImportReportView.as_view(), name='tools_csv_import_report'),
+    path('csv/yukle/onizle/', csv_import_preview_api, name='csv_import_preview'),
+    path('csv/yukle/ice-aktar/', csv_import_execute_api, name='csv_import_execute'),
     path('whatsapp-baglan/', WhatsappBaglanView.as_view(), name='tools_whatsapp_baglan'),
     path('whatsapp-api/', WhatsappApiSettingsView.as_view(), name='tools_whatsapp_api_settings'),
     path('whatsapp-mesaj-gonderici/', RedirectView.as_view(url='/tools/whatsapp-baglan/', permanent=False)),

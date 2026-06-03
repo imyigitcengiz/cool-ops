@@ -24,6 +24,7 @@ from customers.media_views import (
     customer_media_delete_api,
 )
 from core_settings.views import (
+    AccountingPersonnelView,
     TeamNetworkView,
     PersonnelNetworkView,
 )
@@ -67,6 +68,7 @@ urlpatterns = [
     path('cozum-agi/yonet/', RedirectView.as_view(url='/contact/firmalar/?kind=partner', permanent=False), name='solution_network_manage'),
     path('ekip/', TeamNetworkView.as_view(), name='team_network'),
     path('personel/', PersonnelNetworkView.as_view(), name='personnel_network'),
+    path('personel/yonetim/', AccountingPersonnelView.as_view(), name='contact_personnel'),
     path('whatsapp-sablonlari/', RedirectView.as_view(url='/tools/whatsapp-baglan/#senaryolar', permanent=False), name='contact_whatsapp_templates'),
     path('whatsapp-kampanyalar/', RedirectView.as_view(url='/tools/whatsapp-baglan/', permanent=False)),
     path('firma-bul/', FirmaBulView.as_view(), name='contact_firma_bul'),

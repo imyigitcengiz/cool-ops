@@ -24,7 +24,7 @@ class KobiLeanPresetTests(TestCase):
         modules = default_enabled_module_slugs()
         for required in ('contact', 'services', 'accounting', 'settings', 'integration_whatsapp_bridge'):
             self.assertIn(required, modules)
-        for optional in ('outreach', 'integration_data_harvest', 'projects'):
+        for optional in ('outreach', 'integration_data_harvest', 'p.accounting.projects'):
             self.assertNotIn(optional, modules)
 
     def test_montaj_sector_preset_is_lean(self):

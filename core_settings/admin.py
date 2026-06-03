@@ -1,5 +1,7 @@
 from django.contrib import admin
 from .models import (
+    BusinessBrand,
+    BrandMembership,
     SiteSettings,
     ServiceTypeOption,
     ProductOption,
@@ -21,6 +23,19 @@ from .models import (
     FinanceRecord,
     EExportSettings,
 )
+
+@admin.register(BusinessBrand)
+class BusinessBrandAdmin(admin.ModelAdmin):
+    list_display = ('name', 'slug', 'is_default', 'is_active', 'created_at')
+    prepopulated_fields = {'slug': ('name',)}
+    search_fields = ('name', 'legal_name')
+
+
+@admin.register(BrandMembership)
+class BrandMembershipAdmin(admin.ModelAdmin):
+    list_display = ('user', 'brand', 'role', 'is_default', 'joined_at')
+    list_filter = ('role', 'is_default')
+
 
 @admin.register(SiteSettings)
 class SiteSettingsAdmin(admin.ModelAdmin):

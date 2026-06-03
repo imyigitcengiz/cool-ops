@@ -58,29 +58,28 @@
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         <div class="lg:col-span-2 space-y-6">
-            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-5 {% if add_project_mode %}opacity-95{% endif %}">
+            <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-5">
                 <div class="flex items-center justify-between">
-                    <h2 class="font-bold text-slate-900">Müşteri Bilgileri</h2>
-                    {% if add_project_mode or is_edit %}
+                    <h2 class="font-bold text-slate-900">Müşteri</h2>
+                    {% if add_project_mode %}
+                    <span class="text-xs font-bold text-brand-700 bg-brand-50 px-2 py-1 rounded-lg">Mevcut müşteri — yalnızca proje eklenir</span>
+                    {% elif is_edit %}
                     <span class="text-xs font-bold text-brand-700 bg-brand-50 px-2 py-1 rounded-lg">Paylaşılan bilgi</span>
                     {% endif %}
                 </div>
 
-                {% if not is_edit and not add_project_mode %}
-                <label class="flex items-center gap-3 cursor-pointer">
-                    {{ form.use_existing_customer }}
-                    <span class="text-sm font-semibold text-slate-700">{{ form.use_existing_customer.label }}</span>
-                </label>
-                <div id="existingCustomerBlock" class="space-y-2 hidden">
-                    <label class="text-sm font-semibold text-slate-700">{{ form.existing_customer.label }}</label>
-                    {{ form.existing_customer }}
-                    {% if form.existing_customer.errors %}<p class="text-red-500 text-xs">{{ form.existing_customer.errors.0 }}</p>{% endif %}
-                </div>
-                {% else %}
                 {{ form.use_existing_customer }}
-                {{ form.existing_customer }}
-                {% endif %}
 
+                {% if add_project_mode and selected_customer %}
+                <div class="rounded-2xl bg-brand-50 border border-brand-100 p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                    <div><p class="text-[10px] font-bold uppercase text-slate-400">Müşteri Adı</p><p class="font-bold text-slate-900">{{ selected_customer.name }}</p></div>
+                    <div><p class="text-[10px] font-bold uppercase text-slate-400">Telefon</p><p class="font-semibold text-slate-700">{{ selected_customer.phone|default:"—" }}</p></div>
+                    <div><p class="text-[10px] font-bold uppercase text-slate-400">Bölge</p><p class="font-semibold text-slate-700">{{ selected_customer.region|default:"—" }}</p></div>
+                    <div><p class="text-[10px] font-bold uppercase text-slate-400">Sözleşme</p><p class="font-semibold text-slate-700">{% if selected_customer.contract_date %}{{ selected_customer.contract_date|date:"d.m.Y" }}{% else %}—{% endif %}</p></div>
+                </div>
+                {% for field in form %}{% if field.name in 'name phone region address location_link contract_date existing_customer' %}{{ field }}{% endif %}{% endfor %}
+                {% elif is_edit %}
+                {{ form.existing_customer }}
                 <div id="customerFields" class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {% for field in form %}
                         {% if field.name in 'name phone region address location_link contract_date' %}
@@ -92,6 +91,31 @@
                         {% endif %}
                     {% endfor %}
                 </div>
+                {% else %}
+                <p class="text-xs text-slate-500">Yardım masası servis kaydı gibi: önce rehberden müşteri seçin; yeni kayıt için <strong>+</strong> kullanın.</p>
+                <div class="space-y-2">
+                    <label class="text-sm font-semibold text-slate-700">{{ form.existing_customer.label }}</label>
+                    <div class="flex gap-2">
+                        <div class="flex-1">{{ form.existing_customer }}</div>
+                        <button type="button" id="openManualCustomerBtn" class="p-3 bg-brand-50 text-brand-600 rounded-xl hover:bg-brand-100 transition-colors shrink-0" title="Yeni müşteri bilgisi gir">
+                            <i data-lucide="user-plus" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                    {% if form.existing_customer.errors %}<p class="text-red-500 text-xs">{{ form.existing_customer.errors.0 }}</p>{% endif %}
+                </div>
+                <div id="customerFields" class="hidden grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                    <p class="md:col-span-2 text-xs font-bold text-amber-800">Yeni müşteri — bilgileri girin</p>
+                    {% for field in form %}
+                        {% if field.name in 'name phone region address location_link contract_date' %}
+                        <div class="space-y-2 {% if field.name == 'address' %}md:col-span-2{% endif %}">
+                            <label class="text-sm font-semibold text-slate-700">{{ field.label }}{% if field.name == 'name' %} <span class="text-red-500">*</span>{% endif %}</label>
+                            {{ field }}
+                            {% if field.errors %}<p class="text-red-500 text-xs">{{ field.errors.0 }}</p>{% endif %}
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                {% endif %}
             </div>
 
             <div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
@@ -179,35 +203,28 @@ window.SALES_LEAD_FORM = JSON.parse(document.getElementById('salesLeadFormData')
 <script src="/static/js/sales-lead-form.js"></script>
 <script>
 (function () {
-    const useExisting = document.querySelector('input[name="use_existing_customer"]');
-    const existingBlock = document.getElementById('existingCustomerBlock');
     const customerFields = document.getElementById('customerFields');
     const existingSelect = document.querySelector('select[name="existing_customer"]');
+    const manualBtn = document.getElementById('openManualCustomerBtn');
     const addProjectMode = {{ add_project_mode|yesno:"true,false" }};
     const isEdit = {{ is_edit|yesno:"true,false" }};
+    let manualMode = false;
 
-    function setCustomerFieldsDisabled(disabled) {
-        if (!customerFields) return;
-        customerFields.classList.toggle('opacity-50', disabled);
-        customerFields.querySelectorAll('input, textarea').forEach(el => { el.readOnly = disabled; });
+    function showManualCustomerFields() {
+        manualMode = true;
+        if (customerFields) customerFields.classList.remove('hidden');
+        if (existingSelect) existingSelect.value = '';
     }
 
-    function toggleCustomerMode() {
-        const use = useExisting && useExisting.checked && useExisting.type !== 'hidden';
-        if (existingBlock) existingBlock.classList.toggle('hidden', !use);
-        setCustomerFieldsDisabled(use || addProjectMode);
+    if (manualBtn) {
+        manualBtn.addEventListener('click', showManualCustomerFields);
     }
 
-    if (useExisting && useExisting.type !== 'hidden') {
-        useExisting.addEventListener('change', toggleCustomerMode);
-    }
-    toggleCustomerMode();
-
-    if (existingSelect && existingSelect.type !== 'hidden') {
+    if (existingSelect && existingSelect.type !== 'hidden' && !addProjectMode && !isEdit) {
         existingSelect.addEventListener('change', function () {
             const id = this.value;
-            if (!id) return;
-            window.location.href = '{% url "sales_lead_create" %}?customer=' + id;
+            if (!id || manualMode) return;
+            window.location.href = '{% url "sales_lead_create" %}?customer=' + encodeURIComponent(id);
         });
     }
 

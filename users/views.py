@@ -7,7 +7,9 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.generic import TemplateView
 
 from common.login_throttle import clear_login_attempts, is_login_blocked, register_failed_login
-from .forms import UserLoginForm, UserPasswordChangeForm, UserProfileForm
+from common.brand_scope import create_brand_for_user, set_active_brand, user_brands
+
+from .forms import BusinessBrandCreateForm, UserLoginForm, UserPasswordChangeForm, UserProfileForm
 from .utils import get_or_create_user_profile
 
 
@@ -72,11 +74,41 @@ class ProfileSettingsView(LoginRequiredMixin, TemplateView):
         context['profile'] = profile
         context['profile_form'] = UserProfileForm(instance=profile, user=self.request.user)
         context['password_form'] = UserPasswordChangeForm(user=self.request.user)
+        context['brand_form'] = BusinessBrandCreateForm()
+        context['user_brands'] = list(user_brands(self.request.user))
         return context
 
     def post(self, request, *args, **kwargs):
         profile = get_or_create_user_profile(request.user)
         action = request.POST.get('form_action', 'profile')
+
+        if action == 'brand_create':
+            brand_form = BusinessBrandCreateForm(request.POST)
+            if brand_form.is_valid():
+                brand = create_brand_for_user(
+                    request.user,
+                    brand_form.cleaned_data['name'],
+                    legal_name=brand_form.cleaned_data.get('legal_name') or '',
+                    phone=brand_form.cleaned_data.get('phone') or '',
+                )
+                set_active_brand(request, brand.pk)
+                messages.success(request, f'"{brand.name}" markası oluşturuldu ve seçildi.')
+            else:
+                messages.error(request, 'Marka eklenemedi. Lütfen adı kontrol edin.')
+            return redirect('profile_settings')
+
+        if action == 'brand_switch':
+            raw = request.POST.get('brand_id')
+            try:
+                brand_id = int(raw)
+            except (TypeError, ValueError):
+                messages.error(request, 'Geçersiz marka seçimi.')
+                return redirect('profile_settings')
+            if set_active_brand(request, brand_id):
+                messages.success(request, 'Varsayılan markanız güncellendi.')
+            else:
+                messages.error(request, 'Bu markaya erişiminiz yok.')
+            return redirect('profile_settings')
 
         if action == 'password':
             password_form = UserPasswordChangeForm(user=request.user, data=request.POST)

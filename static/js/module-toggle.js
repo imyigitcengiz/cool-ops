@@ -1,6 +1,10 @@
 /** Modül / entegrasyon aç-kapa — sayfa yenilemeden, scroll korunur. */
 (function (global) {
   function csrfToken() {
+    const inp = document.querySelector(
+      'input[name="csrfmiddlewaretoken"]'
+    );
+    if (inp && inp.value) return inp.value;
     const match = document.cookie.match(/csrftoken=([^;]+)/);
     return match ? decodeURIComponent(match[1]) : '';
   }
@@ -28,25 +32,30 @@
     const isIntegration = kind === 'integration';
 
     card.dataset.moduleInstalled = installed ? '1' : '0';
-
-    card.classList.toggle('border-emerald-200', installed && !isIntegration);
-    card.classList.toggle('border-slate-200', !installed && !isIntegration);
-    card.classList.toggle('border-amber-200', installed && isIntegration);
+    card.classList.toggle('erp-hub-card--on', installed);
 
     const badge = card.querySelector('[data-module-badge]');
     if (badge) {
       badge.textContent = installed ? 'Açık' : 'Kapalı';
-      badge.className = 'text-[10px] font-bold px-2 py-0.5 rounded-lg h-fit '
-        + (installed ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500');
+      badge.classList.toggle('erp-hub-card__badge--on', installed);
     }
 
-    const btn = card.querySelector('[data-module-toggle]');
-    if (btn && data.can_toggle !== false) {
-      btn.textContent = installed ? 'Kapat' : 'Aç';
-      btn.classList.toggle('text-red-600', installed);
-      btn.classList.toggle('text-emerald-700', !installed);
-      btn.disabled = false;
-      btn.removeAttribute('aria-busy');
+    const toggle = card.querySelector('[data-module-toggle]');
+    if (toggle && data.can_toggle !== false) {
+      if (toggle.type === 'checkbox') {
+        toggle.checked = installed;
+      } else {
+        toggle.textContent = installed ? 'Kapat' : 'Aç';
+        toggle.classList.toggle('text-red-600', installed);
+        toggle.classList.toggle('text-emerald-700', !installed);
+      }
+      toggle.disabled = false;
+      toggle.removeAttribute('aria-busy');
+    }
+
+    const particles = card.querySelector('[data-particles-block]');
+    if (particles) {
+      particles.classList.toggle('is-disabled', !installed);
     }
 
     const actions = card.querySelector('[data-module-actions]');
@@ -60,10 +69,8 @@
       if (!openLink) {
         openLink = document.createElement('a');
         openLink.dataset.moduleOpen = '1';
-        openLink.className = isIntegration
-          ? 'px-3 py-1.5 bg-amber-500 text-white rounded-lg text-xs font-bold hover:bg-amber-600'
-          : 'px-3 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold';
-        openLink.textContent = isIntegration ? 'Kullan' : 'Aç';
+        openLink.className = 'erp-hub-card__cta';
+        openLink.textContent = isIntegration ? 'Kullan' : 'Modüle git';
         actions.insertBefore(openLink, actions.firstChild);
       }
       openLink.href = data.open_url;
@@ -76,19 +83,29 @@
       if (!permHint) {
         permHint = document.createElement('span');
         permHint.dataset.modulePermHint = '1';
-        permHint.className = 'text-xs text-amber-700 font-semibold';
+        permHint.className = 'erp-hub-card__hint';
         permHint.textContent = 'Rol izni gerekir';
         actions.insertBefore(permHint, actions.firstChild);
       }
     } else if (permHint) {
       permHint.remove();
     }
+
+    card.querySelectorAll('[data-particle-row]').forEach(function (row) {
+      const ptoggle = row.querySelector('[data-particle-toggle]');
+      const wrap = row.closest('form[data-particle-toggle-form]');
+      if (wrap) wrap.classList.toggle('is-disabled', !installed);
+      if (!installed) {
+        applyParticleRow(row, { enabled: false });
+      }
+      if (ptoggle) ptoggle.disabled = !installed;
+    });
   }
 
   function updateCounters(data) {
     const hubCount = document.querySelector('[data-module-installed-count]');
     if (hubCount && data.installed_count != null) {
-      hubCount.textContent = data.installed_count + ' açık';
+      hubCount.textContent = String(data.installed_count);
     }
     const capCount = document.querySelector('[data-capabilities-enabled-count]');
     if (capCount && data.capabilities_enabled != null) {
@@ -101,10 +118,14 @@
     if (!slug || btn.disabled) return;
 
     const card = findCard(btn);
+    const isCheckbox = btn.type === 'checkbox';
+    const prevChecked = isCheckbox ? !btn.checked : null;
+    const prevLabel = isCheckbox ? null : btn.textContent;
     btn.disabled = true;
     btn.setAttribute('aria-busy', 'true');
-    const prevLabel = btn.textContent;
-    btn.textContent = '…';
+    if (!isCheckbox) {
+      btn.textContent = '…';
+    }
 
     try {
       const body = new URLSearchParams();
@@ -126,7 +147,8 @@
 
       if (!res.ok || !data.ok) {
         toast(data.error || 'İşlem başarısız.', 'error');
-        btn.textContent = prevLabel;
+        if (isCheckbox && prevChecked != null) btn.checked = prevChecked;
+        else if (!isCheckbox && prevLabel != null) btn.textContent = prevLabel;
         btn.disabled = false;
         btn.removeAttribute('aria-busy');
         return;
@@ -138,28 +160,142 @@
       });
       updateCounters(data);
       toast(data.message, data.level || 'success');
-      window.setTimeout(function () { window.location.reload(); }, 450);
     } catch (err) {
       toast('Bağlantı hatası — tekrar deneyin.', 'error');
-      btn.textContent = prevLabel;
+      if (isCheckbox && prevChecked != null) btn.checked = prevChecked;
+      else if (!isCheckbox && prevLabel != null) btn.textContent = prevLabel;
       btn.disabled = false;
       btn.removeAttribute('aria-busy');
     }
+  }
+
+  function applyParticleRow(row, data) {
+    const enabled = !!data.enabled;
+    row.dataset.particleEnabled = enabled ? '1' : '0';
+    const dot = row.querySelector('[data-particle-dot]');
+    if (dot) {
+      dot.classList.toggle('is-on', enabled);
+    }
+    const btn = row.querySelector('[data-particle-toggle]');
+    if (btn) {
+      if (btn.type === 'checkbox') {
+        btn.checked = enabled;
+      } else {
+        btn.textContent = enabled ? 'Kapat' : 'Aç';
+        btn.classList.toggle('text-red-600', enabled);
+        btn.classList.toggle('text-emerald-700', !enabled);
+      }
+      btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+    }
+  }
+
+  function syncParticleRows(slug, data) {
+    document.querySelectorAll('[data-particle-row][data-particle-slug="' + slug + '"]').forEach(function (row) {
+      applyParticleRow(row, data);
+    });
+  }
+
+  function applyParticlesList(particles) {
+    if (!particles || !particles.length) return;
+    particles.forEach(function (p) {
+      document.querySelectorAll('[data-particle-row][data-particle-slug="' + p.slug + '"]').forEach(function (row) {
+        applyParticleRow(row, { enabled: !!p.enabled });
+      });
+    });
+  }
+
+  async function toggleParticle(btn) {
+    const slug = btn.dataset.particleSlug;
+    if (!slug || btn.disabled) return;
+
+    const row = btn.closest('[data-particle-row]');
+    const form = btn.closest('form[data-particle-toggle-form]');
+    const isCheckbox = btn.type === 'checkbox';
+    const prevChecked = isCheckbox ? !btn.checked : null;
+    btn.disabled = true;
+    btn.setAttribute('aria-busy', 'true');
+
+    try {
+      const body = new URLSearchParams();
+      body.set('particle_slug', slug);
+      if (form) {
+        const csrfInp = form.querySelector('input[name="csrfmiddlewaretoken"]');
+        if (csrfInp && csrfInp.value) body.set('csrfmiddlewaretoken', csrfInp.value);
+      }
+
+      const res = await fetch(global.MODULE_TOGGLE_URL || '/panel/moduller/toggle/', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRFToken': csrfToken(),
+          'Accept': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+        body: body.toString(),
+      });
+
+      const data = await res.json().catch(function () { return { ok: false, error: 'Yanıt okunamadı.' }; });
+
+      if (!res.ok || !data.ok) {
+        toast(data.error || 'İşlem başarısız.', 'error');
+        if (isCheckbox) btn.checked = prevChecked;
+        btn.disabled = false;
+        btn.removeAttribute('aria-busy');
+        return;
+      }
+
+      if (row) applyParticleRow(row, data);
+      syncParticleRows(slug, data);
+      if (data.particles) applyParticlesList(data.particles);
+      updateCounters(data);
+      toast(data.message, data.level || 'success');
+    } catch (err) {
+      toast('Bağlantı hatası — tekrar deneyin.', 'error');
+      if (isCheckbox) btn.checked = prevChecked;
+      btn.disabled = false;
+      btn.removeAttribute('aria-busy');
+    }
+  }
+
+  function bindParticleForms(root) {
+    (root || document).querySelectorAll('form[data-particle-toggle-form]').forEach(function (form) {
+      if (form.dataset.particleFormBound) return;
+      form.dataset.particleFormBound = '1';
+      form.addEventListener('submit', function (e) {
+        const btn = form.querySelector('[data-particle-toggle]');
+        if (!btn || btn.disabled) return;
+        e.preventDefault();
+        toggleParticle(btn);
+      });
+    });
   }
 
   function bind(root) {
     (root || document).querySelectorAll('[data-module-toggle]').forEach(function (btn) {
       if (btn.dataset.moduleToggleBound) return;
       btn.dataset.moduleToggleBound = '1';
-      btn.addEventListener('click', function (e) {
+      const evt = btn.type === 'checkbox' ? 'change' : 'click';
+      btn.addEventListener(evt, function (e) {
         e.preventDefault();
         toggleModule(btn);
+      });
+    });
+    (root || document).querySelectorAll('[data-particle-toggle]').forEach(function (btn) {
+      if (btn.dataset.particleToggleBound) return;
+      btn.dataset.particleToggleBound = '1';
+      const evt = btn.type === 'checkbox' ? 'change' : 'click';
+      btn.addEventListener(evt, function (e) {
+        e.preventDefault();
+        toggleParticle(btn);
       });
     });
   }
 
   document.addEventListener('DOMContentLoaded', function () {
     bind(document);
+    bindParticleForms(document);
     document.querySelectorAll('form[data-preserve-scroll]').forEach(function (form) {
       form.addEventListener('submit', function () {
         try { sessionStorage.setItem('moduleHubScrollY', String(window.scrollY)); } catch (e) { /* ignore */ }
@@ -174,5 +310,5 @@
     } catch (e) { /* ignore */ }
   });
 
-  global.ModuleToggle = { bind: bind, toggle: toggleModule };
+  global.ModuleToggle = { bind: bind, toggle: toggleModule, toggleParticle: toggleParticle };
 })(window);

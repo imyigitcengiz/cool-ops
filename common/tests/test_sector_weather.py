@@ -51,7 +51,7 @@ class SectorCatalogTests(TestCase):
 
         slugs = sector_preset_all_slugs('montaj_saha')
         self.assertEqual(set(slugs), set(lean_kobi_slugs()))
-        for optional in ('supplier_payables', 'multi_cash', 'integration_weather', 'outreach'):
+        for optional in ('p.accounting.payables', 'p.accounting.multi_cash', 'integration_weather', 'outreach'):
             self.assertNotIn(optional, slugs)
 
 

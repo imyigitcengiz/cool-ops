@@ -1,6 +1,8 @@
 from django.urls import path
+from django.views.generic import RedirectView
 
 from common.csv_import_views import CsvImportWizardView, csv_import_execute_api, csv_import_preview_api
+
 from core_settings.finance_feature_views import (
     AccountingPayablesView,
     AccountingCashAccountsView,
@@ -13,10 +15,9 @@ from core_settings.finance_feature_views import (
 from core_settings.views import (
     AccountingHubView, AccountingReportsHubView, AccountingPayrollView,
     AccountingPayrollReportsView, AccountingPayrollExportView, AccountingFinanceView,
-    AccountingPersonnelView, AccountingPayrollReportsPrintView, AccountingPayrollImportCsvView,
+    AccountingPayrollReportsPrintView, AccountingPayrollImportCsvView,
     AccountingPayrollLedgerExportView,
     AccountingFinanceExportView, AccountingFinanceImportCsvView, AccountingFinancePrintView,
-    AccountingDataExchangeView,
     AccountingCashView,
     AccountingReceivablesView,
     AccountingStockView,
@@ -51,12 +52,12 @@ urlpatterns = [
     path('stok/', AccountingStockView.as_view(), name='accounting_stock'),
     path('alacaklar/', AccountingReceivablesView.as_view(), name='accounting_receivables'),
     path('raporlar/', AccountingReportsHubView.as_view(), name='accounting_reports'),
-    path('veri-alisverisi/', AccountingDataExchangeView.as_view(), name='accounting_data_exchange'),
-    path('veri-alisverisi/csv/', CsvImportWizardView.as_view(), name='csv_import_wizard'),
-    path('veri-alisverisi/csv/onizle/', csv_import_preview_api, name='csv_import_preview'),
-    path('veri-alisverisi/csv/ice-aktar/', csv_import_execute_api, name='csv_import_execute'),
+    path('veri-alisverisi/', RedirectView.as_view(pattern_name='tools_csv_hub', permanent=False), name='accounting_data_exchange'),
+    path('veri-alisverisi/csv/', CsvImportWizardView.as_view()),
+    path('veri-alisverisi/csv/onizle/', csv_import_preview_api),
+    path('veri-alisverisi/csv/ice-aktar/', csv_import_execute_api),
     path('maas-avans/', AccountingPayrollView.as_view(), name='accounting_payroll'),
-    path('personel/', AccountingPersonnelView.as_view(), name='accounting_personnel'),
+    path('personel/', RedirectView.as_view(pattern_name='contact_personnel', permanent=False), name='accounting_personnel'),
     path('maas-avans/raporlar/', AccountingPayrollReportsView.as_view(), name='accounting_payroll_reports'),
     path('maas-avans/raporlar/yazdir/', AccountingPayrollReportsPrintView.as_view(), name='accounting_payroll_reports_print'),
     path('maas-avans/raporlar/export-hareketler/', AccountingPayrollLedgerExportView.as_view(), name='accounting_payroll_ledger_export'),

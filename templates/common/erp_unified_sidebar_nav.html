@@ -1,0 +1,25 @@
+{# Sol menü — bölümlü, okunaklı gezinme #}
+<div class="erp-sidebar-section">
+    <p class="erp-sidebar-section__label">Genel</p>
+    {% include 'common/nav_home_link.html' %}
+</div>
+
+<div class="erp-sidebar-section">
+    <p class="erp-sidebar-section__label">Platform</p>
+    {% include 'common/erp_platform_nav.html' %}
+</div>
+
+<div class="erp-sidebar-section erp-sidebar-section--modules">
+    <p class="erp-sidebar-section__label">Modüller</p>
+    {% for mod in erp_sidebar_modules %}
+    {% include 'common/erp_sidebar_module_block.html' with mod=mod %}
+    {% endfor %}
+</div>
+
+<div class="erp-sidebar-section erp-sidebar-section--system">
+    <p class="erp-sidebar-section__label">Sistem</p>
+    {% include 'common/erp_sidebar_settings_block.html' %}
+    {% if erp_sidebar_tools %}
+    {% include 'common/erp_sidebar_tools_block.html' %}
+    {% endif %}
+</div>

@@ -47,12 +47,16 @@ def _pct(part: int, whole: int) -> float:
     return round(part / whole * 100, 1)
 
 
-def build_service_dashboard_report():
+def build_service_dashboard_report(request=None):
     ensure_default_statuses()
     today = timezone.localdate()
     month_start, _ = _month_bounds(today.year, today.month)
 
     all_services = ServiceRecord.objects.select_related('status', 'priority', 'customer')
+    if request is not None:
+        from common.brand_scope import filter_services
+
+        all_services = filter_services(all_services, request)
     total_services = all_services.count()
 
     active_count = all_services.filter(ACTIVE_Q).count()

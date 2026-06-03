@@ -13,6 +13,7 @@ LEAN_KOBI_MODULES: tuple[str, ...] = (
     'accounting',
     'settings',
     'integration_whatsapp_bridge',
+    'integration_csv_exchange',
 )
 
 # Temel parçacıklar (personel, maaş, gelir-gider, satış, kasa)
@@ -20,7 +21,7 @@ LEAN_KOBI_PARTICLES: tuple[str, ...] = (
     'p.contact.customers',
     'p.contact.firms',
     'p.contact.teams',
-    'p.accounting.personnel',
+    'p.contact.personnel',
     'p.accounting.payroll',
     'p.accounting.finance',
     'p.accounting.sales',
@@ -31,14 +32,14 @@ LEAN_KOBI_PARTICLES: tuple[str, ...] = (
 LEGACY_BLOATED_MODULES: frozenset[str] = frozenset({
     'contact', 'services', 'accounting', 'outreach', 'settings',
     'supplier_payables', 'e_invoice_bridge', 'project_costing', 'multi_cash',
-    'projects', 'timesheet',
+    'projects', 'timesheet',  # eski ayrı modül slug'ları (artık parçacık)
     'integration_data_harvest', 'integration_whatsapp_bridge',
     'integration_whatsapp_api', 'integration_media', 'integration_weather',
 })
 
 LEGACY_BLOATED_PARTICLES: frozenset[str] = frozenset({
     'p.contact.customers', 'p.contact.firms', 'p.contact.teams',
-    'p.accounting.personnel', 'p.accounting.payroll',
+    'p.contact.personnel', 'p.accounting.payroll',
     'p.accounting.finance', 'p.accounting.sales',
     'p.accounting.cash', 'p.accounting.receivables', 'p.accounting.stock',
     'p.accounting.payables', 'p.accounting.multi_cash', 'p.accounting.project_costing',
@@ -52,10 +53,9 @@ def lean_kobi_slugs() -> list[str]:
 
 
 def full_finance_extension_slugs() -> list[str]:
-    """Testler ve genişletilmiş kurulumlar — tüm finans uzantıları açık."""
+    """Testler ve genişletilmiş kurulumlar — tüm finans parçacıkları açık."""
     return lean_kobi_slugs() + [
-        'supplier_payables', 'e_invoice_bridge', 'project_costing', 'multi_cash',
-        'projects', 'timesheet', 'integration_weather',
+        'e_invoice_bridge', 'integration_weather',
         'p.accounting.receivables', 'p.accounting.stock',
         'p.accounting.payables', 'p.accounting.multi_cash', 'p.accounting.project_costing',
         'p.accounting.e_export', 'p.accounting.timesheet', 'p.accounting.projects',

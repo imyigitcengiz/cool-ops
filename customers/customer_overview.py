@@ -44,11 +44,19 @@ def build_customer_overview(customer: Customer) -> dict:
     }
 
 
-def build_rehber_hub_stats() -> dict:
+def build_rehber_hub_stats(request=None) -> dict:
     """Rehber özeti için üst düzey KPI."""
     from services.models import ServiceRecord
 
-    customer_count = Customer.objects.count()
+    customers = Customer.objects.all()
+    services = ServiceRecord.objects.all()
+    if request is not None:
+        from common.brand_scope import filter_customers, filter_services
+
+        customers = filter_customers(customers, request)
+        services = filter_services(services, request)
+
+    customer_count = customers.count()
     receivable = Decimal('0')
     leads = SalesLead.objects.annotate(
         _interim_total=Coalesce(
@@ -66,7 +74,7 @@ def build_rehber_hub_stats() -> dict:
 
     return {
         'customer_count': customer_count,
-        'open_service_count': ServiceRecord.objects.count(),
+        'open_service_count': services.count(),
         'total_receivable': receivable,
         'receivable_leads': SalesLead.objects.count(),
     }

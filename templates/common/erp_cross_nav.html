@@ -1,30 +1,26 @@
-{# Modül katalogu — sol menüde diğer modüller (entegrasyonlar hariç) #}
-{% with inactive_class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800" %}
-{% with active_class="flex items-center gap-3 px-3 py-2 rounded-xl bg-slate-700 text-white" %}
+{# Diğer modüller — Ana panel ve hub linkleri sidebar footer'da (erp_sidebar_footer) #}
+{% with inactive_class="erp-nav-link" %}
+{% with active_class="erp-nav-link erp-nav-link--active" %}
 
+{% if show_home %}
 <a href="{% url 'home' %}" class="{% if request.resolver_match.url_name == 'home' %}{{ active_class }}{% else %}{{ inactive_class }}{% endif %}">
-    <i data-lucide="layout-grid" class="w-4 h-4"></i><span class="font-medium text-sm">{{ gy.ana_panel }}</span>
+    <i data-lucide="layout-grid" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">{{ gy.ana_panel }}</span>
 </a>
+{% endif %}
 
 {% for group in profile_sidebar.groups %}
 {% if group.items %}
-<p class="px-3 pt-3 text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ group.name }}</p>
+{% if show_group_labels|default:True %}
+<p class="erp-nav-group-label">{{ group.name }}</p>
+{% endif %}
 {% for app in group.items %}
 {% if not skip_platform_module or app.panel_section != skip_platform_module and skip_platform_module not in app.platform_modules %}
 <a href="{{ app.url }}" class="{% if app.active %}{{ active_class }}{% else %}{{ inactive_class }}{% endif %}">
-    <i data-lucide="{{ app.icon }}" class="w-4 h-4"></i><span class="font-medium text-sm">{{ app.name }}</span>
+    <i data-lucide="{{ app.icon }}" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">{{ app.name }}</span>
 </a>
 {% endif %}
 {% endfor %}
 {% endif %}
 {% endfor %}
-
-<a href="{% url 'capabilities_hub' %}" class="{% if request.resolver_match.url_name == 'capabilities_hub' %}{{ active_class }}{% else %}{{ inactive_class }}{% endif %} mt-2">
-    <i data-lucide="zap" class="w-4 h-4"></i><span class="font-medium text-sm">{{ gy.entegrasyon_merkezi }}</span>
-</a>
-
-<a href="{% url 'module_hub' %}" class="{% if request.resolver_match.url_name == 'module_hub' %}{{ active_class }}{% else %}{{ inactive_class }}{% endif %} mt-1">
-    <i data-lucide="puzzle" class="w-4 h-4"></i><span class="font-medium text-sm">{{ gy.modul_merkezi }}</span>
-</a>
 
 {% endwith %}{% endwith %}

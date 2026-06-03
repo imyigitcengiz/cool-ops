@@ -84,7 +84,7 @@ INTRODUCER_JOURNEYS: tuple[dict, ...] = (
                 demo_screens=(
                     _screen('Rehber özeti', 'contact_hub', 'Hub istatistikleri'),
                     _screen('Müşteri listesi', 'customers', '360° linki örnek müşteriden'),
-                    _screen('Personel', 'accounting_personnel', 'Departman / ünvan sütunları'),
+                    _screen('Personel', 'contact_personnel', 'Departman / ünvan sütunları'),
                 ),
                 checklist=('En az bir dolu müşteri kartı hazır olsun.', '360° ekranında en az bir satış ve bir servis kaydı görünsün.'),
             ),

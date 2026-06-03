@@ -1,0 +1,73 @@
+{% extends 'common/erp_unified_shell.html' %}
+{% block title %}CSV içe / dışa aktarım{% endblock %}
+{% block header_title %}<h1 class="erp-module-header__title truncate">CSV içe / dışa aktarım</h1>{% endblock %}
+{% block header_subtitle %}<p class="erp-module-header__subtitle truncate">Tüm modüller için tek merkez — indir, yükle, sütun eşleştir</p>{% endblock %}
+{% block shell_header_text_class %}{% endblock %}
+{% block content_wrapper_class %}erp-page-content erp-csv-hub-page mx-auto w-full max-w-5xl{% endblock %}
+{% block content %}
+<section class="erp-csv-hub-hero">
+    <div class="erp-csv-hub-hero__icon" aria-hidden="true"><i data-lucide="arrow-up-down"></i></div>
+    <div class="min-w-0 flex-1">
+        <p class="erp-csv-hub-hero__title">Veri alışverişi aracı</p>
+        <p class="erp-csv-hub-hero__desc">Dışa aktarma bağlantıları doğrudan indirir. İçe aktarmada dosyanızı yükleyip sütunları sistem alanlarıyla eşleştirirsiniz.</p>
+    </div>
+    <a href="{% url 'csv_import_wizard' %}?next={{ request.get_full_path|urlencode }}" class="erp-csv-hub-hero__cta">
+        <i data-lucide="upload" class="w-4 h-4"></i> Sihirbazı aç
+    </a>
+</section>
+
+{% if csv_import_report_url %}
+<section class="rounded-2xl border border-brand-200 bg-brand-50/60 px-4 py-3 flex flex-wrap items-center justify-between gap-3 text-sm">
+    <p class="text-brand-900">Son içe aktarmada atlanan satır veya kullanılmayan sütun olabilir.</p>
+    <a href="{{ csv_import_report_url }}" class="font-bold text-brand-700 hover:text-brand-800 underline">Ayrıntılı raporu aç</a>
+</section>
+{% endif %}
+
+{% if csv_hub_rows %}
+<div class="erp-csv-hub-list">
+    {% for row in csv_hub_rows %}
+    <article class="erp-csv-hub-card erp-csv-hub-card--{{ row.color }}{% if row.highlight %} erp-csv-hub-card--focus{% endif %}" id="csv-{{ row.slug }}">
+        <header class="erp-csv-hub-card__head">
+            <span class="erp-csv-hub-card__icon" aria-hidden="true"><i data-lucide="{{ row.icon }}"></i></span>
+            <div class="min-w-0 flex-1">
+                <h2 class="erp-csv-hub-card__title">{{ row.label }}</h2>
+                <p class="erp-csv-hub-card__hint font-mono">{{ row.hint }}</p>
+                {% if row.note %}
+                <p class="erp-csv-hub-card__note">{{ row.note }}</p>
+                {% endif %}
+            </div>
+        </header>
+        <footer class="erp-csv-hub-card__actions">
+            {% if row.export_url %}
+            <a href="{{ row.export_url }}" class="erp-csv-hub-btn erp-csv-hub-btn--download">
+                <i data-lucide="download" class="w-4 h-4"></i>
+                {% if row.export_label %}{{ row.export_label }}{% else %}CSV indir{% endif %}
+            </a>
+            {% endif %}
+            {% if row.export_extra %}
+            <a href="{{ row.export_extra.1 }}" class="erp-csv-hub-btn erp-csv-hub-btn--secondary">
+                <i data-lucide="file-spreadsheet" class="w-4 h-4"></i> {{ row.export_extra.0 }}
+            </a>
+            {% endif %}
+            <a href="{{ row.import_url }}" class="erp-csv-hub-btn erp-csv-hub-btn--upload">
+                <i data-lucide="upload" class="w-4 h-4"></i> CSV yükle
+            </a>
+        </footer>
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<p class="text-sm text-slate-500 text-center py-12">CSV işlemleri için yetkiniz yok.</p>
+{% endif %}
+
+<section class="erp-csv-hub-tips">
+    <p class="font-bold text-slate-800">İpuçları</p>
+    <ul>
+        <li>Ayraç otomatik algılanır (noktalı virgül veya virgül)</li>
+        <li>Müşteri ve satış CSV’lerinde <strong>Satın Aldığı Ürünler</strong> / <strong>Proje ürünleri</strong> sütunları | veya ; ile ayrılır</li>
+        <li>Satış kayıtlarında isteğe bağlı <strong>Ara ödeme tarihi</strong> ve <strong>Ara ödeme</strong> sütunları (satış raporu CSV ile aynı başlıklar)</li>
+        <li>Sütun eşleştirmede sistem alan adları, kartlardaki tablo alanlarıyla aynıdır</li>
+        <li>İçe aktarma mevcut kayıtları silmez; eşleşen kayıtlar güncellenir</li>
+    </ul>
+</section>
+{% endblock %}

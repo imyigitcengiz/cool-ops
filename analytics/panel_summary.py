@@ -25,11 +25,11 @@ def _month_label(period: date) -> str:
     return f'{months[period.month - 1]} {period.year}'
 
 
-def build_services_panel_context(user) -> dict:
+def build_services_panel_context(request) -> dict:
     """Yardım Masası panel bölümü — servis durum özeti."""
     today = timezone.localdate()
     period = today.replace(day=1)
-    report = build_service_dashboard_report()
+    report = build_service_dashboard_report(request)
     counts = report['service_counts']
 
     return {

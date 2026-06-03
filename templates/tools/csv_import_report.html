@@ -1,0 +1,120 @@
+{% extends 'common/erp_unified_shell.html' %}
+
+{% block title %}İçe aktarma raporu{% endblock %}
+{% block header_title %}<h1 class="erp-module-header__title truncate">İçe aktarma raporu — {{ report_label }}</h1>{% endblock %}
+{% block header_subtitle %}<p class="erp-module-header__subtitle truncate">Atlanan satırlar, uyarılar ve kullanılmayan CSV sütunları</p>{% endblock %}
+{% block content_wrapper_class %}erp-page-content mx-auto w-full max-w-5xl{% endblock %}
+
+{% block content %}
+{% if not report %}
+<p class="text-sm text-slate-500">Rapor bulunamadı.</p>
+{% else %}
+<div class="space-y-6">
+    <p class="text-sm">
+        <a href="{{ next_url }}" class="font-semibold text-brand-600 hover:text-brand-700">← CSV merkezine dön</a>
+    </p>
+
+    <section class="grid grid-cols-2 sm:grid-cols-{% if report.sales_created %}5{% else %}4{% endif %} gap-3">
+        <div class="rounded-2xl bg-emerald-50 border border-emerald-100 p-4">
+            <p class="text-[10px] font-bold uppercase text-emerald-700">Eklendi</p>
+            <p class="text-2xl font-black text-emerald-900">{{ report.created|default:0 }}</p>
+        </div>
+        {% if report.sales_created %}
+        <div class="rounded-2xl bg-amber-50 border border-amber-100 p-4">
+            <p class="text-[10px] font-bold uppercase text-amber-700">Satış eklendi</p>
+            <p class="text-2xl font-black text-amber-900">{{ report.sales_created }}</p>
+        </div>
+        {% endif %}
+        <div class="rounded-2xl bg-sky-50 border border-sky-100 p-4">
+            <p class="text-[10px] font-bold uppercase text-sky-700">Güncellendi</p>
+            <p class="text-2xl font-black text-sky-900">{{ report.updated|default:0 }}</p>
+        </div>
+        <div class="rounded-2xl bg-amber-50 border border-amber-100 p-4">
+            <p class="text-[10px] font-bold uppercase text-amber-700">Atlanan satır</p>
+            <p class="text-2xl font-black text-amber-900">{{ report.skipped|default:0 }}</p>
+        </div>
+        <div class="rounded-2xl bg-slate-50 border border-slate-200 p-4">
+            <p class="text-[10px] font-bold uppercase text-slate-600">Toplam satır</p>
+            <p class="text-2xl font-black text-slate-900">{{ report.total_rows|default:"—" }}</p>
+        </div>
+    </section>
+
+    {% if report.use_auto_mapping is not None %}
+    <p class="text-sm text-slate-600">
+        Otomatik eşleştirme: <strong>{% if report.use_auto_mapping %}Açık{% else %}Kapalı — yalnızca sizin seçimleriniz{% endif %}</strong>
+    </p>
+    {% endif %}
+
+    {% if report.mapped_field_lines %}
+    <section class="bg-white rounded-3xl border border-slate-200 p-5">
+        <h2 class="font-bold text-slate-900 mb-3">Kullanılan eşleştirmeler</h2>
+        <ul class="text-sm text-slate-700 space-y-1 list-disc pl-5">
+            {% for line in report.mapped_field_lines %}
+            <li class="font-mono text-xs sm:text-sm">{{ line }}</li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+
+    {% if report.skipped_field_lines %}
+    <section class="bg-amber-50 rounded-3xl border border-amber-200 p-5">
+        <h2 class="font-bold text-amber-900 mb-2">Eşleştirilmeyen tablo alanları</h2>
+        <p class="text-sm text-amber-800 mb-2">Bu alanlar için CSV sütunu seçilmedi — veri aktarılmadı.</p>
+        <ul class="text-sm list-disc pl-5 text-amber-900">
+            {% for label in report.skipped_field_lines %}
+            <li>{{ label }}</li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+
+    {% if report.unmapped_columns %}
+    <section class="bg-slate-50 rounded-3xl border border-slate-200 p-5">
+        <h2 class="font-bold text-slate-900 mb-2">Kullanılmayan CSV sütunları</h2>
+        <p class="text-sm text-slate-600 mb-2">Dosyada vardı ama hiçbir tablo alanına bağlanmadı.</p>
+        <p class="font-mono text-sm text-slate-800">{{ report.unmapped_columns|join:" · " }}</p>
+    </section>
+    {% endif %}
+
+    {% if report.skipped_rows %}
+    <section class="bg-white rounded-3xl border border-red-100 p-5">
+        <h2 class="font-bold text-red-800 mb-3">Atlanan satırlar ({{ report.skipped_rows|length }})</h2>
+        <div class="overflow-x-auto max-h-80 overflow-y-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-red-50 sticky top-0">
+                    <tr>
+                        <th class="px-3 py-2 text-left font-bold text-red-900">Satır</th>
+                        <th class="px-3 py-2 text-left font-bold text-red-900">Neden</th>
+                        <th class="px-3 py-2 text-left font-bold text-red-900">Önizleme</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-red-50">
+                    {% for item in report.skipped_rows %}
+                    <tr>
+                        <td class="px-3 py-2 font-mono">{{ item.row }}</td>
+                        <td class="px-3 py-2 text-red-900">{{ item.reason }}</td>
+                        <td class="px-3 py-2 text-slate-600 font-mono text-xs">{{ item.preview }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </section>
+    {% endif %}
+
+    {% if report.warnings %}
+    <section class="bg-white rounded-3xl border border-amber-200 p-5">
+        <h2 class="font-bold text-amber-900 mb-3">Uyarılar ({{ report.warnings|length }})</h2>
+        <ul class="space-y-2 text-sm">
+            {% for w in report.warnings %}
+            <li class="rounded-xl bg-amber-50 border border-amber-100 px-3 py-2">
+                <span class="font-mono text-xs text-amber-800">Satır {{ w.row }}</span> — {{ w.message }}
+                {% if w.preview %}<span class="block text-xs text-slate-500 mt-0.5">{{ w.preview }}</span>{% endif %}
+            </li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}

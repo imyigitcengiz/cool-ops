@@ -28,6 +28,21 @@ class FinanceExtensionsTests(TestCase):
             self.user.role = role
             self.user.save()
         self.client.force_login(self.user)
+        from common.brand_scope import system_default_brand
+        from core_settings.models import BrandMembership
+
+        self.brand = system_default_brand()
+        if self.brand:
+            BrandMembership.objects.get_or_create(
+                user=self.user,
+                brand=self.brand,
+                defaults={'role': BrandMembership.ROLE_OWNER, 'is_default': True},
+            )
+
+    def _brand_kwargs(self):
+        if self.brand:
+            return {'brand_id': self.brand.pk}
+        return {}
 
     def test_payables_page_ok(self):
         response = self.client.get('/muhasebe/borclar/')
@@ -69,7 +84,7 @@ class FinanceExtensionsTests(TestCase):
         from core_settings.models import FinanceRecord
         from django.utils import timezone
 
-        customer = Customer.objects.create(name='Test Müşteri')
+        customer = Customer.objects.create(name='Test Müşteri', **self._brand_kwargs())
         lead = SalesLead.objects.create(
             customer=customer,
             sale_date=timezone.localdate(),
@@ -84,6 +99,7 @@ class FinanceExtensionsTests(TestCase):
             record_date=timezone.localdate(),
             sales_lead=lead,
             recorded_by=self.user,
+            **self._brand_kwargs(),
         )
         costing = self.client.get('/muhasebe/proje-karlilik/')
         self.assertEqual(costing.status_code, 200)
@@ -97,7 +113,7 @@ class FinanceExtensionsTests(TestCase):
         from django.utils import timezone
 
         account = CashAccount.objects.create(name='Test Banka', account_type='bank', opening_balance=0)
-        customer = Customer.objects.create(name='CSV Müşteri')
+        customer = Customer.objects.create(name='CSV Müşteri', **self._brand_kwargs())
         lead = SalesLead.objects.create(
             customer=customer,
             sale_date=timezone.localdate(),
@@ -113,6 +129,7 @@ class FinanceExtensionsTests(TestCase):
             cash_account=account,
             sales_lead=lead,
             recorded_by=self.user,
+            **self._brand_kwargs(),
         )
         period = timezone.localdate().strftime('%Y-%m')
         response = self.client.get(f'/muhasebe/gelir-gider/export-csv/?period={period}')

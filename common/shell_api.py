@@ -21,7 +21,7 @@ from users.notifications import (
 def quick_search_api(request):
     q = (request.GET.get('q') or '').strip()
     pages = build_quick_search_results(request.user, q, limit=12)
-    records = search_entities(request.user, q, limit=6) if len(q) >= 2 else []
+    records = search_entities(request.user, q, limit=6, request=request) if len(q) >= 2 else []
     return JsonResponse({'ok': True, 'pages': pages, 'records': records})
 
 

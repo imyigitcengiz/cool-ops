@@ -52,18 +52,26 @@ class ModuleGateTests(TestCase):
         self.assertEqual(response.status_code, 302)
 
     def test_whatsapp_bridge_works_without_outreach(self):
+        role = Role.objects.filter(slug='admin').first()
+        if role:
+            self.user.role = role
+            self.user.save()
         settings = SiteSettings.objects.first()
         settings.enabled_module_slugs = lean_kobi_slugs()
         settings.save()
         self.assertTrue(module_route_allowed('integration_whatsapp_bridge'))
         response = self.client.get('/tools/whatsapp-baglan/')
-        self.assertNotEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 200)
 
-    def test_sub_app_closed_blocks_payables_route(self):
+    def test_payables_particle_closed_blocks_route(self):
+        from common.kobi_lean_preset import lean_kobi_slugs
+
         settings = SiteSettings.objects.first()
-        settings.enabled_module_slugs = self._slugs_without('supplier_payables')
+        slugs = [s for s in lean_kobi_slugs() if s != 'p.accounting.payables']
+        if 'accounting' not in slugs:
+            slugs.append('accounting')
+        settings.enabled_module_slugs = slugs
         settings.save()
-        self.assertFalse(module_route_allowed('supplier_payables'))
         response = self.client.get('/muhasebe/borclar/')
         self.assertEqual(response.status_code, 302)
 

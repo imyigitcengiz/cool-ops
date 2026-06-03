@@ -17,21 +17,23 @@ from common.module_catalog import (
     module_by_slug,
     route_prefix_to_module_slug,
 )
-from common.module_particles import LEGACY_MODULE_ALIASES, particle_by_slug
+from common.module_particles import LEGACY_MODULE_ALIASES, particle_by_slug, resolve_particle_slug
 
-MODULE_PARTICLE_FALLBACK: dict[str, str] = {
-    'projects': 'p.accounting.projects',
+# Eski ayrı uygulama slug → muhasebe parçacığı (Modül Merkezi migrasyonu)
+LEGACY_APP_MODULE_TO_PARTICLE: dict[str, str] = {
     'supplier_payables': 'p.accounting.payables',
     'project_costing': 'p.accounting.project_costing',
     'multi_cash': 'p.accounting.multi_cash',
-    'e_invoice_bridge': 'p.accounting.e_export',
+    'projects': 'p.accounting.projects',
     'timesheet': 'p.accounting.timesheet',
 }
 
-_EXTENSION_MODULE_SLUGS = frozenset({
-    'supplier_payables', 'e_invoice_bridge', 'project_costing',
-    'multi_cash', 'projects', 'timesheet',
-})
+MODULE_PARTICLE_FALLBACK: dict[str, str] = {
+    **LEGACY_APP_MODULE_TO_PARTICLE,
+    'e_invoice_bridge': 'p.accounting.e_export',
+}
+
+_EXTENSION_MODULE_SLUGS = frozenset({'e_invoice_bridge'})
 
 LEGACY_PROFILE_TO_MODULE: dict[str, str | None] = {
     'app.kobi.customers': 'contact',
@@ -87,6 +89,27 @@ def _site_settings():
     return SiteSettings.objects.first()
 
 
+def _migrate_legacy_app_modules_in_storage() -> None:
+    """Eski eklenti modül slug'larını parçacık slug'ına çevir."""
+    settings = _site_settings()
+    if not settings or not settings.enabled_module_slugs:
+        return
+    raw = list(settings.enabled_module_slugs)
+    changed = False
+    out: list[str] = []
+    for slug in raw:
+        particle = LEGACY_APP_MODULE_TO_PARTICLE.get(slug)
+        if particle:
+            if particle not in out:
+                out.append(particle)
+            changed = True
+            continue
+        out.append(slug)
+    if changed:
+        settings.enabled_module_slugs = out
+        settings.save(update_fields=['enabled_module_slugs'])
+
+
 def _known_module_slugs() -> set[str]:
     return {
         m['slug'] for m in MODULES
@@ -132,6 +155,7 @@ def _normalize_stored_slugs(raw: list | tuple | None) -> list[str]:
 
 
 def get_enabled_module_slugs() -> list[str]:
+    _migrate_legacy_app_modules_in_storage()
     settings = _site_settings()
     if settings and settings.enabled_module_slugs:
         return _normalize_stored_slugs(settings.enabled_module_slugs)
@@ -145,36 +169,46 @@ def is_module_installed(slug: str) -> bool:
     return slug in get_enabled_module_slugs()
 
 
+def _particle_allowed_when_parent_installed(slug: str) -> bool:
+    """Parçacık — üst modül kapalıysa sayılmaz."""
+    p = particle_by_slug(slug)
+    if not p:
+        return False
+    parent = p.get('parent_module')
+    if parent and not is_module_installed(parent):
+        return False
+    return True
+
+
 def get_enabled_particle_slugs() -> list[str]:
-    slugs: set[str] = set()
+    _migrate_legacy_app_modules_in_storage()
     settings = _site_settings()
     raw = list(settings.enabled_module_slugs) if settings and settings.enabled_module_slugs else []
 
     explicit_particles = {
-        slug for slug in raw
+        resolve_particle_slug(slug)
+        for slug in raw
         if slug.startswith('p.') and not slug.startswith('p.agency')
     }
+
     if explicit_particles:
-        slugs.update(explicit_particles)
-
-    for mod_slug in get_enabled_module_slugs():
-        mod = module_by_slug(mod_slug)
-        if not mod:
-            continue
-        if mod_slug in _EXTENSION_MODULE_SLUGS or mod_slug in MODULE_PARTICLE_FALLBACK:
+        slugs = set(explicit_particles)
+    else:
+        slugs = set()
+        for mod_slug in get_enabled_module_slugs():
+            mod = module_by_slug(mod_slug)
+            if not mod or mod_slug not in _EXTENSION_MODULE_SLUGS:
+                continue
             for p in mod.get('particle_slugs', ()):
                 if not p.startswith('p.agency'):
                     slugs.add(p)
-        elif not explicit_particles and raw:
-            for p in mod.get('particle_slugs', ()):
-                if not p.startswith('p.agency'):
-                    slugs.add(p)
+        if not slugs:
+            from common.module_particles import default_enabled_particle_slugs
+            for pslug in default_enabled_particle_slugs():
+                if _particle_allowed_when_parent_installed(pslug):
+                    slugs.add(pslug)
 
-    if not slugs:
-        from common.module_particles import default_enabled_particle_slugs
-        slugs.update(default_enabled_particle_slugs())
-
-    return list(slugs)
+    return [s for s in slugs if _particle_allowed_when_parent_installed(s)]
 
 
 def is_module_enabled(slug: str) -> bool:
@@ -189,19 +223,17 @@ def is_module_enabled(slug: str) -> bool:
 
 
 def is_particle_enabled(slug: str) -> bool:
-    return slug in get_enabled_particle_slugs()
+    return resolve_particle_slug(slug) in get_enabled_particle_slugs()
 
 
 def is_particle_enabled_for_nav(slug: str) -> bool:
+    slug = resolve_particle_slug(slug)
     p = particle_by_slug(slug)
     if not p or not is_particle_enabled(slug):
         return False
     parent = p.get('parent_module')
     if parent and not is_module_installed(parent):
         return False
-    for app_slug, particle_slug in MODULE_PARTICLE_FALLBACK.items():
-        if slug == particle_slug and not is_module_installed(app_slug):
-            return False
     return True
 
 
@@ -277,7 +309,7 @@ def build_particles_nav_short(user) -> dict[str, bool]:
         'p.contact.firms': 'contact_firms',
         'p.contact.teams': 'contact_teams',
         'p.contact.freelancers': 'contact_freelancers',
-        'p.accounting.personnel': 'accounting_personnel',
+        'p.contact.personnel': 'contact_personnel',
         'p.accounting.payroll': 'accounting_payroll',
         'p.accounting.finance': 'accounting_finance',
         'p.accounting.sales': 'accounting_sales',
@@ -292,10 +324,12 @@ def build_particles_nav_short(user) -> dict[str, bool]:
         'p.accounting.projects': 'accounting_projects',
         'p.outreach.campaigns': 'outreach_campaigns',
     }
-    return {
+    flags = {
         short: is_particle_enabled_for_nav(full)
         for full, short in mapping.items()
     }
+    flags['accounting_personnel'] = flags.get('contact_personnel', False)
+    return flags
 
 
 def _hub_url(url_name: str | None) -> str | None:
@@ -445,24 +479,20 @@ def build_module_hub_context(user, *, query: str = '') -> dict:
         if m['status'] == MODULE_STATUS_ROADMAP and not m['slug'].startswith('agency_')
     ]
 
-    from common.sector_catalog import sector_hub_cards, normalize_sector_slug
-    from core_settings.models import SiteSettings
+    module_app_groups = enrich_module_hub_groups(module_app_groups)
 
-    site = SiteSettings.objects.first()
-    current_sector = normalize_sector_slug(
-        site.primary_vertical_slug if site else 'montaj_saha'
-    )
+    catalog_count = len(apps) + len(integrations)
+    installed_count = sum(1 for a in apps + integrations if a['installed'])
 
     return {
         'module_app_groups': module_app_groups,
         'module_integrations': integrations,
         'module_catalog_roadmap': roadmap,
-        'module_installed_count': sum(1 for a in apps + integrations if a['installed']),
+        'module_installed_count': installed_count,
+        'module_catalog_count': catalog_count,
         'module_roadmap_count': len(roadmap),
         'module_search_query': query,
         'enabled_module_slugs': get_enabled_module_slugs(),
-        'sector_profiles': sector_hub_cards(current_sector=current_sector),
-        'active_sector_slug': current_sector,
     }
 
 
@@ -558,6 +588,260 @@ def reset_enabled_modules_to_defaults() -> list[str]:
         from core_settings.models import SiteSettings
         settings = SiteSettings.objects.create()
     return list(apply_sector_preset(settings, 'montaj_saha'))
+
+
+MAIN_NAV_MODULE_SLUGS = frozenset({
+    'contact', 'services', 'accounting', 'outreach',
+})
+
+def _integration_visible_in_tools(user, mod: dict) -> bool:
+    """Araçlar menüsü — üst modül kapalı olsa da kurulu entegrasyonları listele."""
+    if mod['kind'] != MODULE_KIND_INTEGRATION:
+        return False
+    return module_available_for_nav(user, mod['slug'])
+
+
+def _sidebar_module_entry(user, request, mod: dict) -> dict | None:
+    path = getattr(request, 'path', '') or ''
+    match = getattr(request, 'resolver_match', None)
+    url_name = match.url_name if match else None
+    url = _hub_url(mod.get('hub_url_name'))
+    if not url:
+        return None
+    return {
+        'slug': mod['slug'],
+        'name': mod['name'],
+        'icon': mod.get('icon', 'puzzle'),
+        'url': url,
+        'active': _module_is_active(mod, path, url_name),
+    }
+
+
+def _sidebar_feature_items(sidebar: dict, section: str, user, request) -> list[dict]:
+    """Eklenti uygulamaları — katalog + sidebar grupları."""
+    items: list[dict] = []
+    seen: set[str] = set()
+    for group in sidebar.get('groups', []):
+        if group.get('slug') != section:
+            continue
+        for entry in group.get('items', []):
+            slug = entry.get('slug')
+            if slug in MAIN_NAV_MODULE_SLUGS or slug in seen:
+                continue
+            seen.add(slug)
+            items.append(entry)
+    for mod in MODULES:
+        if mod['kind'] != MODULE_KIND_APP:
+            continue
+        slug = mod['slug']
+        if slug in MAIN_NAV_MODULE_SLUGS or slug in seen:
+            continue
+        if section == 'accounting' and slug in _EXTENSION_MODULE_SLUGS:
+            continue
+        mod_section = mod.get('panel_section') or 'other'
+        if mod_section != section:
+            continue
+        if not module_available_for_nav(user, slug):
+            continue
+        entry = _sidebar_module_entry(user, request, mod)
+        if entry:
+            seen.add(slug)
+            items.append(entry)
+    items.sort(key=lambda row: (row.get('name') or '').lower())
+    return items
+
+
+def build_particles_by_parent_module() -> dict[str, list[dict]]:
+    """Modül merkezi — ana modül kartlarında parçacık listesi."""
+    from common.module_particles import PARTICLES
+
+    buckets: dict[str, list[dict]] = {s: [] for s in MAIN_NAV_MODULE_SLUGS}
+    for particle in PARTICLES:
+        parent = particle.get('parent_module')
+        if parent not in buckets:
+            continue
+        buckets[parent].append({
+            'slug': particle['slug'],
+            'name': particle['name'],
+            'summary': particle.get('summary', ''),
+            'enabled': is_particle_enabled(particle['slug']),
+            'sort': particle.get('sort', 99),
+        })
+    for rows in buckets.values():
+        rows.sort(key=lambda r: r.get('sort', 99))
+    return buckets
+
+
+def enrich_module_hub_groups(module_app_groups: list[dict]) -> list[dict]:
+    """Ana modül kartlarına parçacık ve eklenti modül listesi ekle."""
+    particles = build_particles_by_parent_module()
+    for group in module_app_groups:
+        mains = [a for a in group['items'] if a['slug'] in MAIN_NAV_MODULE_SLUGS]
+        extensions = [a for a in group['items'] if a['slug'] not in MAIN_NAV_MODULE_SLUGS]
+        for app in mains:
+            app['particles'] = particles.get(app['slug'], [])
+            app['extension_modules'] = extensions
+    return module_app_groups
+
+
+def build_erp_sidebar_modules(user, request, *, active_slug: str | None) -> list[dict]:
+    """Sol menü — açılır modül blokları ve eklenti özellikleri."""
+    from django.urls import NoReverseMatch, reverse
+
+    if not user.is_authenticated:
+        return []
+
+    sidebar = build_module_sidebar(user, request)
+    nav_flags = build_modules_nav_flags(user)
+
+    defs = (
+        ('contact', 'contact_hub', 'book-user', 'common/erp_contact_nav.html', None),
+        ('services', 'dashboard', 'headphones', 'common/erp_module_own_nav.html', 'services'),
+        ('accounting', 'accounting_hub', 'calculator', 'common/erp_module_own_nav.html', 'accounting'),
+        ('outreach', 'outreach_hub', 'messages-square', 'common/erp_outreach_nav.html', None),
+    )
+
+    blocks: list[dict] = []
+    for slug, hub_name, icon, nav_template, nav_module in defs:
+        if not nav_flags.get(slug):
+            continue
+        mod = module_by_slug(slug)
+        if not mod:
+            continue
+        if slug == 'accounting':
+            if not (
+                user.is_superuser
+                or user.has_perm_codename('access.accounting')
+                or user.has_perm_codename('contact.personnel')
+                or user.has_perm_codename('contact.payroll')
+            ):
+                continue
+        elif not user_can_access_module(user, mod):
+            continue
+        hub_url_name = hub_name
+        if slug == 'contact' and not user.has_perm_codename('access.contact'):
+            if user.has_perm_codename('contact.personnel'):
+                hub_url_name = 'contact_personnel'
+        try:
+            hub_url = reverse(hub_url_name)
+        except NoReverseMatch:
+            continue
+        blocks.append({
+            'slug': slug,
+            'name': mod['name'],
+            'icon': icon,
+            'hub_url': hub_url,
+            'nav_template': nav_template,
+            'nav_module': nav_module,
+            'expanded': active_slug == slug,
+            'features': _sidebar_feature_items(sidebar, slug, user, request),
+        })
+    return blocks
+
+
+def _sidebar_tools_items(user, request) -> list[dict]:
+    """Tüm entegrasyon linkleri — Araçlar menüsü (üst modül şartı yok)."""
+    items: list[dict] = []
+    seen: set[str] = set()
+    for mod in MODULES:
+        if not _integration_visible_in_tools(user, mod):
+            continue
+        entry = _sidebar_module_entry(user, request, mod)
+        if not entry:
+            continue
+        url = entry.get('url') or ''
+        if url in seen:
+            continue
+        seen.add(url)
+        items.append(entry)
+    items.sort(key=lambda row: (row.get('name') or '').lower())
+    return items
+
+
+_NAV_PIN_MODULES = frozenset({'contact', 'services', 'accounting', 'outreach'})
+_CUSTOMER_NAV_PREFIX = '/contact/musteriler/'
+
+
+def _path_is_integration_route(path: str) -> bool:
+    for mod in MODULES:
+        if mod.get('kind') != MODULE_KIND_INTEGRATION:
+            continue
+        for prefix in mod.get('route_prefixes', ()):
+            if prefix and _path_matches(path, prefix):
+                return True
+    return False
+
+
+def _sync_nav_module_pin(request, path: str) -> str | None:
+    """Yardım masasından müşteriye gidince Rehber menüsü açılmasın (nav_module=services)."""
+    if not getattr(request, 'session', None):
+        return None
+    raw = (request.GET.get('nav_module') or '').strip()
+    if raw in _NAV_PIN_MODULES:
+        request.session['erp_nav_expand_module'] = raw
+        return raw
+    if _path_is_integration_route(path):
+        return None
+    if path.startswith('/services-dashboard/'):
+        request.session['erp_nav_expand_module'] = 'services'
+    elif path.startswith('/muhasebe/'):
+        request.session['erp_nav_expand_module'] = 'accounting'
+    elif path.startswith('/iletisim/'):
+        request.session['erp_nav_expand_module'] = 'outreach'
+    elif path.startswith('/contact/') and not path.startswith(_CUSTOMER_NAV_PREFIX):
+        request.session['erp_nav_expand_module'] = 'contact'
+    pinned = request.session.get('erp_nav_expand_module')
+    if pinned in _NAV_PIN_MODULES and path.startswith(_CUSTOMER_NAV_PREFIX):
+        return pinned
+    return None
+
+
+def resolve_sidebar_expand_slug(path: str, path_slug: str | None, request=None) -> str | None:
+    """Sidebar’da hangi blok açık — entegrasyon ve nav_module iğnesi."""
+    if request is not None:
+        pinned = _sync_nav_module_pin(request, path)
+        if pinned:
+            return pinned
+    if path.startswith('/tools/') or _path_is_integration_route(path):
+        return 'tools'
+    mod = module_by_slug(path_slug) if path_slug else None
+    if mod and mod.get('kind') == MODULE_KIND_INTEGRATION:
+        return 'tools'
+    return path_slug
+
+
+def build_erp_sidebar_tools(user, request, *, expand_slug: str | None) -> dict | None:
+    from django.urls import NoReverseMatch, reverse
+
+    if not user.is_authenticated:
+        return None
+    items = _sidebar_tools_items(user, request)
+    show_hub = user.is_superuser or user.has_perm_codename('access.tools')
+    can_manage_modules = user.is_superuser or user.has_perm_codename('access.settings')
+    if not items and not show_hub and not can_manage_modules:
+        return None
+    hub_url = None
+    if show_hub:
+        try:
+            hub_url = reverse('tools_hub')
+        except NoReverseMatch:
+            show_hub = False
+    if not hub_url and items:
+        hub_url = items[0]['url']
+    if not hub_url:
+        try:
+            hub_url = reverse('capabilities_hub')
+        except NoReverseMatch:
+            hub_url = '#'
+    return {
+        'slug': 'tools',
+        'name': 'Araçlar',
+        'icon': 'hammer',
+        'hub_url': hub_url,
+        'expanded': expand_slug == 'tools',
+        'items': items,
+        'show_hub': bool(show_hub and hub_url),
+    }
 
 
 # Geriye dönük isimler

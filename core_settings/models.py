@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.db import models
 
 from common.currency import CURRENCY_CODE_CHOICES, DEFAULT_CURRENCY_CODE, currency_from_settings
@@ -144,6 +145,108 @@ class SiteSettings(models.Model):
     @property
     def currency_label(self) -> str:
         return currency_from_settings(self).label
+
+
+def business_brand_logo_upload_to(instance, filename):
+    from pathlib import Path
+
+    slug = (instance.slug or 'marka').replace('/', '-')
+    ext = Path(filename).suffix.lower()
+    if ext not in {'.jpg', '.jpeg', '.png', '.webp', '.gif'}:
+        ext = '.jpg'
+    return f'brands/{slug}/logo{ext}'
+
+
+class BusinessBrand(models.Model):
+    """Çalışma markası / firma — veriler marka bazında ayrılır."""
+
+    name = models.CharField(max_length=255, verbose_name='Marka / firma adı')
+    slug = models.SlugField(max_length=80, unique=True)
+    legal_name = models.CharField(max_length=255, blank=True, default='', verbose_name='Ticari ünvan')
+    logo = models.ImageField(
+        upload_to=business_brand_logo_upload_to,
+        null=True,
+        blank=True,
+        verbose_name='Logo',
+    )
+    phone = models.CharField(max_length=50, blank=True, default='', verbose_name='Telefon')
+    address = models.TextField(blank=True, default='', verbose_name='Adres')
+    currency_code = models.CharField(
+        max_length=3,
+        choices=CURRENCY_CODE_CHOICES,
+        default=DEFAULT_CURRENCY_CODE,
+        verbose_name='Para birimi',
+    )
+    is_default = models.BooleanField(
+        default=False,
+        verbose_name='Sistem varsayılanı',
+        help_text='Eski kayıtlar ve üyeliksiz kullanıcılar için.',
+    )
+    is_active = models.BooleanField(default=True, verbose_name='Aktif')
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_brands',
+        verbose_name='Oluşturan',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Marka / firma'
+        verbose_name_plural = 'Markalar / firmalar'
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            from django.utils.text import slugify
+
+            base = slugify(self.name) or 'marka'
+            slug = base
+            n = 1
+            while BusinessBrand.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                n += 1
+                slug = f'{base}-{n}'
+            self.slug = slug
+        super().save(*args, **kwargs)
+
+
+class BrandMembership(models.Model):
+    ROLE_OWNER = 'owner'
+    ROLE_MEMBER = 'member'
+    ROLE_CHOICES = (
+        (ROLE_OWNER, 'Sahip'),
+        (ROLE_MEMBER, 'Üye'),
+    )
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='brand_memberships',
+    )
+    brand = models.ForeignKey(
+        BusinessBrand,
+        on_delete=models.CASCADE,
+        related_name='memberships',
+    )
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default=ROLE_OWNER)
+    is_default = models.BooleanField(default=False, verbose_name='Varsayılan marka')
+    joined_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Marka üyeliği'
+        verbose_name_plural = 'Marka üyelikleri'
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'brand'], name='uniq_brand_membership_user_brand'),
+        ]
+
+    def __str__(self):
+        return f'{self.user_id} → {self.brand.name}'
 
 
 class WorkSchedulePlan(models.Model):
@@ -405,6 +508,14 @@ class PersonnelDepartment(models.Model):
 
 
 class ServicePersonnel(models.Model):
+    brand = models.ForeignKey(
+        BusinessBrand,
+        on_delete=models.PROTECT,
+        related_name='personnel',
+        null=True,
+        blank=True,
+        verbose_name='Marka / firma',
+    )
     name = models.CharField(max_length=120, verbose_name='Ad Soyad')
     department = models.ForeignKey(
         PersonnelDepartment,
@@ -532,6 +643,14 @@ class PersonnelPayment(models.Model):
 
 
 class FinanceRecord(models.Model):
+    brand = models.ForeignKey(
+        BusinessBrand,
+        on_delete=models.PROTECT,
+        related_name='finance_records',
+        null=True,
+        blank=True,
+        verbose_name='Marka / firma',
+    )
     TYPE_INCOME = 'income'
     TYPE_EXPENSE = 'expense'
     TYPE_CHOICES = (
@@ -807,6 +926,14 @@ class StockMovement(models.Model):
 
 
 class SolutionPartner(models.Model):
+    brand = models.ForeignKey(
+        BusinessBrand,
+        on_delete=models.PROTECT,
+        related_name='solution_partners',
+        null=True,
+        blank=True,
+        verbose_name='Marka / firma',
+    )
     name = models.CharField(max_length=120, verbose_name='Ad')
     partner_type = models.ForeignKey(
         SolutionPartnerType,

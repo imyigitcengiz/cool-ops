@@ -1,0 +1,54 @@
+{# Araçlar — entegrasyonlar #}
+
+<div class="erp-sidebar-module erp-sidebar-module--tools{% if erp_sidebar_tools.expanded %} erp-sidebar-module--expanded{% endif %}"
+
+     data-erp-sidebar-module="tools">
+
+    <div class="erp-sidebar-module__hub-row">
+
+        <a href="{{ erp_sidebar_tools.hub_url }}"
+
+           class="erp-sidebar-module__hub{% if erp_sidebar_tools.expanded %} erp-sidebar-module__hub--current{% endif %}">
+
+            <span class="erp-sidebar-module__icon-wrap" aria-hidden="true">
+
+                <i data-lucide="{{ erp_sidebar_tools.icon }}" class="erp-sidebar-module__icon"></i>
+
+            </span>
+
+            <span class="erp-sidebar-module__label">
+
+                <span class="erp-sidebar-module__title">{{ gy.araclar }}</span>
+
+            </span>
+
+        </a>
+
+        <button type="button"
+
+                class="erp-sidebar-module__toggle"
+
+                data-erp-module-toggle
+
+                aria-expanded="{% if erp_sidebar_tools.expanded %}true{% else %}false{% endif %}"
+
+                aria-controls="erp-sidebar-menu-tools"
+
+                aria-label="Araçlar alt menüsü">
+
+            <i data-lucide="panel-right-open" class="erp-sidebar-module__toggle-icon"></i>
+
+        </button>
+
+    </div>
+
+    <div id="erp-sidebar-menu-tools" class="erp-sidebar-module__menu" data-erp-module-menu role="region" aria-label="Araçlar menüsü">
+
+        <p class="erp-sidebar-menu-heading">{{ gy.araclar }}</p>
+
+        {% include 'common/erp_tools_nav.html' %}
+
+    </div>
+
+</div>
+

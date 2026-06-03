@@ -1,129 +1,78 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ gy.ana_panel }} | {{ site_settings.site_name }}</title>
-    {% load static %}
-    {% include 'common/erp_head_assets.html' %}
-</head>
-<body class="erp-app erp-theme-sky min-h-screen bg-slate-100 text-slate-900">
-    {% include 'common/impersonation_banner.html' %}
-    <div class="min-h-screen flex flex-col">
-        <header class="erp-module-header home-mobile-header">
-            <div class="erp-module-header__inner">
-                <div class="erp-module-header__top">
-                    <div class="erp-module-header__lead">
-                        <div class="erp-module-header__text min-w-0 flex items-center gap-3">
-                            {% if site_settings.logo %}
-                            <img src="{{ site_settings.logo.url }}" alt="" class="h-9 w-9 rounded-xl object-contain shrink-0">
-                            {% else %}
-                            <span class="h-9 w-9 rounded-xl bg-brand-600 text-white flex items-center justify-center font-bold text-base shrink-0">{{ site_settings.site_name.0|upper }}</span>
-                            {% endif %}
-                            <div class="min-w-0">
-                                <h1 class="erp-module-header__title truncate">{{ site_settings.site_name }}</h1>
-                                <p class="erp-module-header__subtitle truncate">{{ user_profile_card.display_name }}</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="erp-module-header__tools home-mobile-header__actions flex-wrap justify-end">
-                        {% include 'common/erp_global_bar.html' %}
-                        {% if user_access.admin_panel %}
-                        <a href="{% url 'admin_dashboard' %}" class="erp-touch-target px-2.5 py-2 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 whitespace-nowrap">Admin</a>
-                        {% endif %}
-                        <a href="{% url 'profile_settings' %}" class="erp-touch-target p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700" title="Profil" aria-label="Profil">
-                            {% if user_profile_card.avatar_url %}
-                            <img src="{{ user_profile_card.avatar_url }}" alt="" class="w-7 h-7 rounded-full object-cover">
-                            {% else %}
-                            <span class="w-7 h-7 rounded-full bg-brand-100 text-brand-700 text-[10px] font-bold flex items-center justify-center">{{ user_profile_card.initials }}</span>
-                            {% endif %}
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </header>
-
-        <main class="flex-1 max-w-6xl mx-auto w-full px-4 md:px-6 py-8 md:py-12">
-            {% include 'common/toast_messages.html' %}
-            <div class="mb-8">
-                <h2 class="text-xl sm:text-2xl font-bold text-slate-900">Hoş geldiniz, {{ user_profile_card.display_name }}</h2>
-                <p class="text-slate-600 mt-2">Kurulu modüllere ve açık entegrasyonlara hızlı erişin.</p>
-            </div>
-
-            <nav class="home-platform-nav mb-10" aria-label="Platform">
-                {% if can_manage_modules %}
-                <a href="{% url 'module_hub' %}" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-700 hover:border-violet-300 hover:text-violet-700">
-                    <i data-lucide="puzzle" class="w-4 h-4"></i> {{ gy.modul_merkezi }}
-                </a>
-                {% endif %}
-                {% if panel_integrations or can_manage_modules %}
-                <a href="{% url 'capabilities_hub' %}" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-amber-200 text-sm font-semibold text-amber-800 hover:bg-amber-50">
-                    <i data-lucide="zap" class="w-4 h-4"></i> {{ gy.entegrasyon_merkezi }}
-                </a>
-                {% endif %}
-                <a href="{% url 'introducer_knowledge_base' %}" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-violet-200 text-sm font-semibold text-violet-800 hover:bg-violet-50">
-                    <i data-lucide="book-open" class="w-4 h-4"></i> Bilgi bankası
-                </a>
-                {% if user_access.settings %}
-                <a href="{% url 'settings_genel' %}" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-700 hover:border-amber-300">
-                    <i data-lucide="sliders-horizontal" class="w-4 h-4"></i> {{ gy.site_ayarlari }}
-                </a>
-                {% endif %}
-            </nav>
-
-            {% include 'common/panel_profile_apps.html' %}
-
-            {% if contact_show_panel %}
-            {% include 'common/panel_rehber_section.html' %}
-            {% endif %}
-
-            {% if services_show_panel %}
-            <section class="mb-10">
-                {% include 'common/panel_services_section.html' %}
-            </section>
-            {% endif %}
-
-            {% if accounting_show_payroll or accounting_show_finance or accounting_show_reports or accounting_show_sales %}
-            <section class="mb-10">
-                {% include 'common/accounting_panel_section.html' with section_title=gy.muhasebe show_hub_link=True show_hub_card=False card_layout='wide' highlight_payroll=False %}
-            </section>
-            {% endif %}
-
-            {% if outreach_show_panel %}
-            {% include 'common/panel_outreach_section.html' %}
-            {% endif %}
-
-            {% include 'common/panel_capabilities.html' %}
-
-            {% if user_access.settings %}
-            <section class="mb-10">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4">Sistem</h3>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-md">
-                    <a href="{% url 'settings_genel' %}" class="group block bg-white rounded-3xl border border-amber-200 shadow-sm hover:shadow-lg p-6">
-                        <div class="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-4"><i data-lucide="sliders-horizontal" class="w-6 h-6"></i></div>
-                        <h4 class="text-lg font-bold text-slate-900">{{ gy.site_ayarlari }}</h4>
-                        <p class="text-sm text-slate-500 mt-2">Katalog, roller, firma bilgileri.</p>
-                    </a>
-                    {% if can_manage_modules %}
-                    <a href="{% url 'module_hub' %}" class="group block bg-white rounded-3xl border border-violet-200 shadow-sm hover:shadow-lg p-6">
-                        <div class="w-12 h-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mb-4"><i data-lucide="layout-grid" class="w-6 h-6"></i></div>
-                        <h4 class="text-lg font-bold text-slate-900">{{ gy.modul_merkezi }}</h4>
-                        <p class="text-sm text-slate-500 mt-2">Modülleri aç/kapa.</p>
-                    </a>
+{% extends 'common/erp_unified_shell.html' %}
+{% block title %}{{ gy.ana_panel }}{% endblock %}
+{% block body_class %} bg-slate-100{% endblock %}
+{% block shell_header %}
+<header class="erp-module-header home-mobile-header">
+    <div class="erp-module-header__inner">
+        <div class="erp-module-header__top">
+            <div class="erp-module-header__lead">
+                {% include 'common/erp_sidebar_toggle.html' %}
+                <div class="erp-module-header__text min-w-0 flex items-center gap-3">
+                    {% if site_settings.logo %}
+                    <img src="{{ site_settings.logo.url }}" alt="" class="h-9 w-9 rounded-xl object-contain shrink-0">
+                    {% else %}
+                    <span class="h-9 w-9 rounded-xl bg-brand-600 text-white flex items-center justify-center font-bold text-base shrink-0">{{ site_settings.site_name.0|upper }}</span>
                     {% endif %}
+                    <div class="min-w-0">
+                        <h1 class="erp-module-header__title truncate">{{ site_settings.site_name }}</h1>
+                        <p class="erp-module-header__subtitle truncate">{{ user_profile_card.display_name }}</p>
+                    </div>
                 </div>
-            </section>
-            {% endif %}
-
-            {% if not panel_has_content %}
-            <div class="p-6 rounded-2xl bg-amber-50 border border-amber-100 text-amber-800 text-sm">
-                Açık uygulama yok veya rol izniniz tanımlı değil. Yöneticinizle iletişime geçin.
             </div>
-            {% endif %}
-        </main>
+            <div class="erp-module-header__tools home-mobile-header__actions flex-wrap justify-end">
+                {% include 'common/erp_global_bar.html' %}
+                {% if user_access.admin_panel %}
+                <a href="{% url 'admin_dashboard' %}" class="erp-touch-target px-2.5 py-2 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 whitespace-nowrap">Admin</a>
+                {% endif %}
+                <a href="{% url 'profile_settings' %}" class="erp-touch-target p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700" title="Profil" aria-label="Profil">
+                    {% if user_profile_card.avatar_url %}
+                    <img src="{{ user_profile_card.avatar_url }}" alt="" class="w-7 h-7 rounded-full object-cover">
+                    {% else %}
+                    <span class="w-7 h-7 rounded-full bg-brand-100 text-brand-700 text-[10px] font-bold flex items-center justify-center">{{ user_profile_card.initials }}</span>
+                    {% endif %}
+                </a>
+            </div>
+        </div>
     </div>
-    {% include 'common/erp_shell_extras.html' %}
-    {% include 'common/team_chat_widget.html' %}
-    <script>if (window.lucide) lucide.createIcons();</script>
-</body>
-</html>
+</header>
+{% endblock %}
+{% block content_wrapper_class %}erp-page-content mx-auto w-full max-w-6xl py-8 md:py-12{% endblock %}
+{% block content %}
+<section class="erp-panel-hero mb-8 md:mb-10">
+    <h2 class="erp-panel-hero__title">Hoş geldiniz, {{ user_profile_card.display_name }}</h2>
+    <p class="erp-panel-hero__lead">Soldan renkli modül kısayollarına tıklayın; yalnızca içinde olduğunuz modülün menüsü açılır.</p>
+</section>
+
+{% include 'common/erp_platform_quick_links.html' %}
+
+{% include 'common/panel_profile_apps.html' %}
+
+{% if contact_show_panel %}
+{% include 'common/panel_rehber_section.html' %}
+{% endif %}
+
+{% if services_show_panel %}
+<section class="mb-10">
+    {% include 'common/panel_services_section.html' %}
+</section>
+{% endif %}
+
+{% if accounting_show_payroll or accounting_show_finance or accounting_show_reports or accounting_show_sales %}
+<section class="mb-10">
+    {% include 'common/accounting_panel_section.html' with section_title=gy.muhasebe show_hub_link=True show_hub_card=False card_layout='wide' highlight_payroll=False %}
+</section>
+{% endif %}
+
+{% if outreach_show_panel %}
+{% include 'common/panel_outreach_section.html' %}
+{% endif %}
+
+{% include 'common/panel_capabilities.html' %}
+
+{% if not panel_has_content %}
+<div class="erp-empty-state" role="status">
+    <i data-lucide="info" class="erp-empty-state__icon"></i>
+    <p class="erp-empty-state__text">Açık uygulama yok veya rol izniniz tanımlı değil. Yöneticinizle iletişime geçin.</p>
+</div>
+{% endif %}
+{% endblock %}

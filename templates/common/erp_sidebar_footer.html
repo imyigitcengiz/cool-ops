@@ -1,0 +1,16 @@
+{# Alt menü — ayarlar, bilgi bankası, yönetim #}
+<div class="erp-sidebar-footer">
+    {% if user_access.home %}
+    <a href="{% url 'introducer_knowledge_base' %}" class="erp-nav-link erp-nav-link--compact {% if request.resolver_match.url_name == 'introducer_knowledge_base' %}erp-nav-link--active{% endif %}">
+        <i data-lucide="book-open" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">Bilgi bankası</span>
+    </a>
+    {% endif %}
+    {% if user_access.settings and erp_active_module != 'settings' %}
+    {% include 'common/settings_nav_link.html' %}
+    {% endif %}
+    {% if user.is_superuser %}
+    <a href="{% url 'admin_dashboard' %}" class="erp-nav-link erp-nav-link--compact {% if request.resolver_match.url_name == 'admin_dashboard' %}erp-nav-link--active{% else %}erp-nav-link--danger{% endif %}">
+        <i data-lucide="shield" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">Süper Admin</span>
+    </a>
+    {% endif %}
+</div>

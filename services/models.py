@@ -5,6 +5,14 @@ from core_settings.models import ServiceTypeOption, ProductOption, StatusOption,
 from django.utils import timezone
 
 class ServiceRecord(models.Model):
+    brand = models.ForeignKey(
+        'core_settings.BusinessBrand',
+        on_delete=models.PROTECT,
+        related_name='service_records',
+        null=True,
+        blank=True,
+        verbose_name='Marka / firma',
+    )
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='service_records')
     solution_partner = models.ForeignKey(
         SolutionPartner,

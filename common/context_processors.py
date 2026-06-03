@@ -16,6 +16,7 @@ def gy_branding(request):
         'gy': {
             'app_name': ml.APP_NAME,
             'ana_panel': ml.ANA_PANEL,
+            'ozellikler': ml.OZELLIKLER,
             'modul_merkezi': ml.MODUL_MERKEZI,
             'entegrasyon_merkezi': ml.ENTEGRASYON_MERKEZI,
             'araclar': ml.ARACLAR,
@@ -66,8 +67,11 @@ def gy_branding(request):
 
 
 def module_install_context(request):
+    from common.erp_shell import build_erp_shell_context
+
     user = getattr(request, 'user', None)
     if not user or not user.is_authenticated:
+        shell = build_erp_shell_context(request)
         return {
             'modules_installed': {},
             'modules_nav': {},
@@ -75,8 +79,12 @@ def module_install_context(request):
             'module_sidebar': {'groups': [], 'capabilities': [], 'integrations': [], 'integrations_by_section': {}},
             'profile_sidebar': {'groups': [], 'capabilities': [], 'integrations': [], 'integrations_by_section': {}},
             'capabilities_hub_url': None,
+            'can_manage_modules': False,
+            'panel_integrations': [],
+            **shell,
         }
     from common.request_cache import cache_get
+    from common.module_runtime import build_panel_integrations
 
     enabled_slugs = cache_get(request, 'enabled_module_slugs', get_enabled_module_slugs)
     installed = {slug: slug in enabled_slugs for slug in _all_module_slugs()}
@@ -85,6 +93,12 @@ def module_install_context(request):
         'module_sidebar',
         lambda: build_module_sidebar(user, request),
     )
+    can_manage_modules = user.is_superuser or user.has_perm_codename('access.settings')
+    panel_integrations = cache_get(
+        request,
+        'panel_integrations',
+        lambda: build_panel_integrations(user),
+    )
     return {
         'modules_installed': installed,
         'modules_nav': cache_get(request, 'modules_nav', lambda: build_modules_nav_flags(user)),
@@ -92,6 +106,30 @@ def module_install_context(request):
         'module_sidebar': sidebar,
         'profile_sidebar': sidebar,
         'capabilities_hub_url': resolve_capabilities_hub_url(),
+        'can_manage_modules': can_manage_modules,
+        'panel_integrations': panel_integrations,
+        **build_erp_shell_context(request),
+    }
+
+
+def active_brand_context(request):
+    from common.brand_scope import get_active_brand, user_brands, user_memberships
+
+    user = getattr(request, 'user', None)
+    if not user or not user.is_authenticated:
+        return {
+            'active_brand': None,
+            'user_brands': [],
+            'user_brand_memberships': [],
+            'has_multiple_brands': False,
+        }
+    brands = list(user_brands(user))
+    active = get_active_brand(request)
+    return {
+        'active_brand': active,
+        'user_brands': brands,
+        'user_brand_memberships': list(user_memberships(user)),
+        'has_multiple_brands': len(brands) > 1,
     }
 
 

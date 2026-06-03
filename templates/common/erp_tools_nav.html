@@ -1,0 +1,17 @@
+{# Araçlar & entegrasyonlar — modül menülerinden ayrı #}
+{% with url_name=request.resolver_match.url_name %}
+{% if erp_sidebar_tools.show_hub %}
+<a href="{% url 'tools_hub' %}" class="erp-nav-link {% if url_name == 'tools_hub' %}erp-nav-link--active{% endif %}">
+    <i data-lucide="layout-grid" class="erp-nav-link__icon"></i>
+    <span class="erp-nav-link__text">Araçlar özeti</span>
+</a>
+{% endif %}
+{% for app in erp_sidebar_tools.items %}
+<a href="{{ app.url }}" class="erp-nav-link {% if app.active %}erp-nav-link--active{% endif %}">
+    <i data-lucide="{{ app.icon }}" class="erp-nav-link__icon"></i>
+    <span class="erp-nav-link__text">{{ app.name }}</span>
+</a>
+{% empty %}
+<p class="erp-nav-link erp-nav-link--muted text-xs px-3 py-2">Kurulu entegrasyon yok — {{ gy.entegrasyon_merkezi }} veya Modül merkezinden açın.</p>
+{% endfor %}
+{% endwith %}

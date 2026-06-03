@@ -6,6 +6,7 @@ from datetime import date
 from django.utils import timezone
 from django.shortcuts import redirect, get_object_or_404
 from django.contrib import messages
+from common.brand_scope import assign_brand, filter_by_brand, filter_finance
 from .models import (
     SiteSettings, ServiceTypeOption, ProductOption, ProductColorOption, StatusOption, PriorityOption,
     WhatsAppTemplate, SolutionPartner, SolutionPartnerType, ServiceTeam, ServicePersonnel,
@@ -479,7 +480,7 @@ class SolutionNetworkView(TemplateView):
         t = self.request.GET.get('type', '').strip()
         active = self.request.GET.get('active', '').strip()
 
-        partners = SolutionPartner.objects.all().order_by('name')
+        partners = filter_by_brand(SolutionPartner.objects.all().order_by('name'), self.request)
         if q:
             partners = partners.filter(
                 Q(name__icontains=q) | Q(phone__icontains=q) | Q(notes__icontains=q)
@@ -494,15 +495,18 @@ class SolutionNetworkView(TemplateView):
         context['solution_partner_form'] = SolutionPartnerForm()
         context['solution_partners'] = partners
         context['partner_types'] = SolutionPartnerType.objects.order_by('name')
-        context['active_count'] = SolutionPartner.objects.filter(is_active=True).count()
-        context['total_count'] = SolutionPartner.objects.count()
+        scoped = filter_by_brand(SolutionPartner.objects.all(), self.request)
+        context['active_count'] = scoped.filter(is_active=True).count()
+        context['total_count'] = scoped.count()
         return context
 
     def post(self, request, *args, **kwargs):
         if 'add_solution_partner' in request.POST:
             form = SolutionPartnerForm(request.POST)
             if form.is_valid():
-                form.save()
+                obj = form.save(commit=False)
+                assign_brand(obj, request)
+                obj.save()
                 messages.success(request, "Çözüm ortağı eklendi.")
             else:
                 messages.error(request, "Geçersiz çözüm ortağı verisi.")
@@ -558,14 +562,75 @@ class TeamNetworkView(TemplateView):
         return redirect('team_network')
 
 
-class PersonnelNetworkView(RedirectView):
-    """Personel yönetimi Muhasebe modülüne taşındı."""
-    pattern_name = 'accounting_personnel'
-    permanent = False
+class PersonnelNetworkView(TemplateView):
+    """Personel ağı — saha personeli listesi (Rehber)."""
+    template_name = 'crm/personnel_network.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        if not can_manage_personnel(request.user):
+            messages.error(request, 'Personel kayıtları için yetkiniz yok.')
+            return redirect('home')
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        q = self.request.GET.get('q', '').strip()
+        team = self.request.GET.get('team', '').strip()
+        personnel = filter_by_brand(
+            ServicePersonnel.objects.select_related('team', 'department')
+            .prefetch_related('product_groups')
+            .order_by('name'),
+            self.request,
+        )
+        if q:
+            personnel = personnel.filter(
+                Q(name__icontains=q)
+                | Q(company_phone__icontains=q)
+                | Q(notes__icontains=q),
+            )
+        if team and team.isdigit():
+            personnel = personnel.filter(team_id=int(team))
+        context.update({
+            'personnel_form': ServicePersonnelForm(),
+            'teams': ServiceTeam.objects.filter(is_active=True).order_by('name'),
+            'personnel_list': personnel,
+        })
+        return context
+
+    def post(self, request, *args, **kwargs):
+        if not can_manage_personnel(request.user):
+            messages.error(request, 'Personel kayıtları için yetkiniz yok.')
+            return redirect('personnel_network')
+        if 'add_personnel' in request.POST:
+            form = ServicePersonnelForm(request.POST)
+            if form.is_valid():
+                person = form.save(commit=False)
+                assign_brand(person, request)
+                person.save()
+                form.save_m2m()
+                messages.success(request, f'{person.name} eklendi.')
+            else:
+                messages.error(request, 'Personel eklenemedi.')
+        elif 'update_personnel' in request.POST:
+            obj = get_object_or_404(ServicePersonnel, pk=request.POST.get('id'))
+            obj.name = (request.POST.get('name') or '').strip()
+            team_id = request.POST.get('team')
+            obj.team_id = int(team_id) if team_id else None
+            obj.company_phone = (request.POST.get('company_phone') or '').strip()
+            obj.notes = (request.POST.get('notes') or '').strip()
+            obj.is_active = request.POST.get('is_active') == 'on'
+            obj.save()
+            obj.product_groups.set(request.POST.getlist('product_groups'))
+            messages.success(request, f'{obj.name} güncellendi.')
+        elif 'delete_personnel' in request.POST:
+            ServicePersonnel.objects.filter(id=request.POST.get('id')).delete()
+            messages.info(request, 'Personel silindi.')
+        return redirect('personnel_network')
 
 
 class AccountingPersonnelView(TemplateView):
-    template_name = 'muhasebe/personnel.html'
+    """Personel yönetimi — departman, ünvan, dönem özeti (Rehber)."""
+    template_name = 'crm/personnel_manage.html'
 
     def dispatch(self, request, *args, **kwargs):
         if not can_manage_payroll_personnel(request.user):
@@ -584,7 +649,10 @@ class AccountingPersonnelView(TemplateView):
         period = parse_period(self.request.GET.get('period'))
         show_skills = self._show_product_groups()
 
-        personnel = ServicePersonnel.objects.select_related('team', 'department').prefetch_related('product_groups').order_by('name')
+        personnel = filter_by_brand(
+            ServicePersonnel.objects.select_related('team', 'department').prefetch_related('product_groups').order_by('name'),
+            self.request,
+        )
         if q:
             personnel = personnel.filter(
                 Q(name__icontains=q)
@@ -632,7 +700,7 @@ class AccountingPersonnelView(TemplateView):
     def post(self, request, *args, **kwargs):
         if not can_manage_payroll_personnel(request.user):
             messages.error(request, 'Personel yönetimi için yetkiniz yok.')
-            return redirect('accounting_personnel')
+            return redirect('contact_personnel')
 
         period_qs = ''
         if request.GET.get('period'):
@@ -670,7 +738,10 @@ class AccountingPersonnelView(TemplateView):
         elif 'add_personnel' in request.POST:
             form = AccountingPersonnelForm(request.POST, show_product_groups=show_skills)
             if form.is_valid():
-                person = form.save()
+                person = form.save(commit=False)
+                assign_brand(person, request)
+                person.save()
+                form.save_m2m()
                 self._apply_pay_date(person, form)
                 messages.success(request, f'{person.name} eklendi.')
             else:
@@ -687,7 +758,7 @@ class AccountingPersonnelView(TemplateView):
         elif 'delete_personnel' in request.POST:
             ServicePersonnel.objects.filter(id=request.POST.get('id')).delete()
             messages.info(request, 'Personel silindi.')
-        return redirect(f"{reverse('accounting_personnel')}{period_qs}")
+        return redirect(f"{reverse('contact_personnel')}{period_qs}")
 
 
 class AccountingHubView(TemplateView):
@@ -703,7 +774,7 @@ class AccountingHubView(TemplateView):
         from core_settings.accounting_summary import build_accounting_panel_context
 
         context = super().get_context_data(**kwargs)
-        context.update(build_accounting_panel_context(self.request.user))
+        context.update(build_accounting_panel_context(self.request))
         return context
 
 
@@ -1044,9 +1115,9 @@ class AccountingPayrollLedgerExportView(View):
     def get(self, request, *args, **kwargs):
         if not can_manage_payroll(request.user):
             messages.error(request, 'Dışa aktarma için yetkiniz yok.')
-            return redirect('accounting_data_exchange')
+            return redirect('tools_csv_hub')
         from common.csv_io import csv_response
-        from core_settings.csv_exchange import export_payroll_payments_rows
+        from core_settings.csv_exchange import PAYROLL_CSV_HEADER, export_payroll_payments_rows
 
         default_from, default_to = default_report_range()
         period_from = parse_period(request.GET.get('period_from') or default_from.strftime('%Y-%m'))
@@ -1059,7 +1130,7 @@ class AccountingPayrollLedgerExportView(View):
         return csv_response(
             f'maas-avans-hareketleri-{period_from.strftime("%Y-%m")}.csv',
             rows,
-            header=['DÖNEM', 'PERSONEL', 'TÜR', 'TUTAR', 'TARİH', 'NOT'],
+            header=PAYROLL_CSV_HEADER,
         )
 
 
@@ -1084,13 +1155,13 @@ class AccountingPayrollImportCsvView(View):
     def post(self, request, *args, **kwargs):
         if not can_manage_payroll(request.user):
             messages.error(request, 'İçe aktarma için yetkiniz yok.')
-            return redirect('accounting_data_exchange')
+            return redirect('tools_csv_hub')
         from core_settings.csv_exchange import import_payroll_csv
 
         uploaded = request.FILES.get('file')
         if not uploaded:
             messages.error(request, 'CSV dosyası seçin.')
-            return redirect('accounting_data_exchange')
+            return redirect('tools_csv_hub')
         try:
             result = import_payroll_csv(uploaded, user=request.user)
             messages.success(request, f'{result["created"]} ödeme kaydı içe aktarıldı.')
@@ -1098,7 +1169,7 @@ class AccountingPayrollImportCsvView(View):
                 messages.warning(request, f'{result["skipped"]} satır atlandı (personel/tür bulunamadı).')
         except Exception as exc:
             messages.error(request, f'İçe aktarma başarısız: {exc}')
-        return redirect('accounting_data_exchange')
+        return redirect('tools_csv_hub')
 
 
 class AccountingFinanceExportView(View):
@@ -1124,13 +1195,13 @@ class AccountingFinanceImportCsvView(View):
     def post(self, request, *args, **kwargs):
         if not can_manage_finance(request.user):
             messages.error(request, 'İçe aktarma için yetkiniz yok.')
-            return redirect('accounting_data_exchange')
+            return redirect('tools_csv_hub')
         from core_settings.csv_exchange import import_finance_csv
 
         uploaded = request.FILES.get('file')
         if not uploaded:
             messages.error(request, 'CSV dosyası seçin.')
-            return redirect('accounting_data_exchange')
+            return redirect('tools_csv_hub')
         try:
             result = import_finance_csv(uploaded, user=request.user)
             messages.success(request, f'{result["created"]} gelir/gider kaydı içe aktarıldı.')
@@ -1223,11 +1294,14 @@ class AccountingFinanceView(TemplateView):
             period = period_start(today)
         month_start, month_end = _month_bounds(period)
 
-        records = FinanceRecord.objects.select_related(
-            'recorded_by', 'cash_account', 'sales_lead__customer', 'operational_project',
-        ).filter(
-            record_date__gte=month_start,
-            record_date__lte=month_end,
+        records = filter_finance(
+            FinanceRecord.objects.select_related(
+                'recorded_by', 'cash_account', 'sales_lead__customer', 'operational_project',
+            ).filter(
+                record_date__gte=month_start,
+                record_date__lte=month_end,
+            ),
+            self.request,
         )
         if record_type in (FinanceRecord.TYPE_INCOME, FinanceRecord.TYPE_EXPENSE):
             records = records.filter(record_type=record_type)
@@ -1272,6 +1346,7 @@ class AccountingFinanceView(TemplateView):
             form = FinanceRecordForm(post)
             if form.is_valid():
                 record = form.save(commit=False)
+                assign_brand(record, request)
                 if request.user.is_authenticated:
                     record.recorded_by = request.user
                 if not record.cash_account_id:

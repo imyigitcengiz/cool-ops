@@ -22,6 +22,14 @@ def customer_media_upload_path(instance, filename):
 
 
 class Customer(models.Model):
+    brand = models.ForeignKey(
+        'core_settings.BusinessBrand',
+        on_delete=models.PROTECT,
+        related_name='customers',
+        null=True,
+        blank=True,
+        verbose_name='Marka / firma',
+    )
     name = models.CharField(max_length=255, verbose_name="Müşteri Adı")
     phone = models.CharField(max_length=100, verbose_name="Telefon", blank=True, null=True)
     region = models.CharField(max_length=255, verbose_name="Bölge", blank=True, null=True)

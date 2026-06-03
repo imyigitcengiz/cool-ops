@@ -23,6 +23,26 @@ class UserLoginForm(AuthenticationForm):
     )
 
 
+class BusinessBrandCreateForm(forms.Form):
+    name = forms.CharField(
+        max_length=255,
+        label='Marka / firma adı',
+        widget=forms.TextInput(attrs={'class': INPUT, 'placeholder': 'Örn: Cool Teknoloji'}),
+    )
+    legal_name = forms.CharField(
+        required=False,
+        max_length=255,
+        label='Ticari ünvan',
+        widget=forms.TextInput(attrs={'class': INPUT, 'placeholder': 'Opsiyonel'}),
+    )
+    phone = forms.CharField(
+        required=False,
+        max_length=50,
+        label='Telefon',
+        widget=forms.TextInput(attrs={'class': INPUT, 'placeholder': '+90 ...'}),
+    )
+
+
 class UserProfileForm(forms.ModelForm):
     first_name = forms.CharField(
         required=False,

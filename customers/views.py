@@ -20,6 +20,8 @@ from services.whatsapp_status_prompt import (
     queue_whatsapp_status_prompts,
 )
 
+from common.brand_scope import assign_brand, filter_customers
+
 from .models import Customer
 from .forms import CustomerForm
 from .return_url import get_safe_return_url
@@ -34,14 +36,15 @@ class CustomerListView(PermissionRequiredMixin, ListView):
     ordering = []
 
     def get_queryset(self):
-        queryset = (
+        queryset = filter_customers(
             Customer.objects.prefetch_related('products', 'sales_leads')
             .annotate(
                 sales_count=Count('sales_leads', distinct=True),
                 last_sale_date=Max('sales_leads__sale_date'),
                 service_count=Count('service_records', distinct=True),
             )
-            .order_by('-last_sale_date', 'name')
+            .order_by('-last_sale_date', 'name'),
+            self.request,
         )
         q = self.request.GET.get('q')
         if q:
@@ -67,6 +70,7 @@ class CustomerCreateView(PermissionRequiredMixin, CreateView):
     success_url = reverse_lazy('customers')
 
     def form_valid(self, form):
+        assign_brand(form.instance, self.request)
         response = super().form_valid(form)
         prompt = build_whatsapp_customer_created_prompt(self.object)
         queue_whatsapp_status_prompts(self.request, prompt)
@@ -375,21 +379,27 @@ class CustomerExportCsvView(PermissionRequiredMixin, View):
     def get(self, request):
         from common.csv_io import csv_response
 
-        qs = Customer.objects.all().order_by('name')
+        qs = Customer.objects.prefetch_related('products').order_by('name')
         q = (request.GET.get('q') or '').strip()
         if q:
             qs = qs.filter(Q(name__icontains=q) | Q(phone__icontains=q) | Q(region__icontains=q))
         rows = []
         for c in qs:
+            product_names = ' | '.join(p.name for p in c.products.all())
             rows.append([
                 c.name,
                 c.phone or '',
                 c.region or '',
                 c.address or '',
+                c.location_link or '',
                 c.contract_date.strftime('%d.%m.%Y') if c.contract_date else '',
+                product_names,
             ])
         return csv_response(
             'musteriler.csv',
             rows,
-            header=['AD SOYAD', 'TELEFON', 'YER', 'ADRES', 'SÖZLEŞME TARİHİ'],
+            header=[
+                'Müşteri Adı', 'Telefon', 'Bölge', 'Adres', 'Konum Linki',
+                'Sözleşme Tarihi', 'Satın Aldığı Ürünler',
+            ],
         )

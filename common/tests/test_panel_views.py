@@ -47,7 +47,11 @@ class PanelViewsTests(TestCase):
         settings = SiteSettings.objects.first()
         settings.enabled_module_slugs = [
             s for s in get_enabled_module_slugs()
-            if s not in ('supplier_payables', 'projects', 'multi_cash', 'project_costing')
+            if s not in (
+                'supplier_payables', 'projects', 'multi_cash', 'project_costing', 'timesheet',
+                'p.accounting.payables', 'p.accounting.projects', 'p.accounting.multi_cash',
+                'p.accounting.project_costing', 'p.accounting.timesheet',
+            )
         ]
         settings.save()
         self.client.force_login(self.user)

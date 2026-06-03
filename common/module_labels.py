@@ -3,6 +3,7 @@
 APP_NAME = 'CoolOPS'
 
 ANA_PANEL = 'Ana Panel'
+OZELLIKLER = 'Özellikler'
 MODUL_MERKEZI = 'Modül Merkezi'
 ENTEGRASYON_MERKEZI = 'Entegrasyon Merkezi'
 ARACLAR = 'Araçlar'

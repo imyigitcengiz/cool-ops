@@ -40,8 +40,8 @@ PERMISSIONS = [
      'Firma kazı, firma listesi.'),
     ('contact.teams', 'Ekip yönetimi', 'Rehber', PERMISSION_KIND_ACTION, 240,
      'Servis ekiplerini tanımlama, düzenleme ve silme.'),
-    ('contact.personnel', 'Personel kayıtları', 'Muhasebe', PERMISSION_KIND_ACTION, 245,
-     'Personel tanımlama, maaş tarihi ve ekip ataması (/muhasebe/personel/).'),
+    ('contact.personnel', 'Personel kayıtları', 'Rehber', PERMISSION_KIND_ACTION, 245,
+     'Personel ağı ve yönetimi — departman, ünvan, ekip (/contact/personel/).'),
     ('contact.payroll', 'Maaş & avans kayıtları', 'Muhasebe', PERMISSION_KIND_ACTION, 250,
      'Personel maaş ve avans ödemesi ekleme ve silme.'),
     ('accounting.finance', 'Gelir & gider kayıtları', 'Muhasebe', PERMISSION_KIND_ACTION, 255,
@@ -175,6 +175,22 @@ ROUTE_PERMISSIONS = [
     ('/muhasebe/gelir-gider/export-csv/', 'accounting.finance'),
     ('/muhasebe/gelir-gider/yazdir/', 'accounting.finance'),
     ('/muhasebe/gelir-gider/', 'accounting.finance'),
+    ('/tools/csv/yukle/onizle/', (
+        'access.tools', 'access.accounting', 'contact.payroll', 'accounting.finance',
+        'sales.manage', 'sales.export', 'contact.customers', 'contact.firms',
+    )),
+    ('/tools/csv/yukle/ice-aktar/', (
+        'access.tools', 'access.accounting', 'contact.payroll', 'accounting.finance',
+        'sales.manage', 'sales.export', 'contact.customers', 'contact.firms',
+    )),
+    ('/tools/csv/yukle/', (
+        'access.tools', 'access.accounting', 'contact.payroll', 'accounting.finance',
+        'sales.manage', 'sales.export', 'contact.customers', 'contact.firms',
+    )),
+    ('/tools/csv/', (
+        'access.tools', 'access.accounting', 'contact.payroll', 'accounting.finance',
+        'sales.manage', 'sales.export', 'sales.reports', 'contact.customers', 'contact.firms',
+    )),
     ('/muhasebe/veri-alisverisi/csv/onizle/', (
         'access.accounting', 'contact.payroll', 'accounting.finance',
         'sales.manage', 'sales.export', 'contact.customers', 'contact.firms',
@@ -200,6 +216,7 @@ ROUTE_PERMISSIONS = [
     ('/muhasebe/maas-avans/raporlar/', 'contact.payroll'),
     ('/muhasebe/maas-avans/', 'contact.payroll'),
     ('/muhasebe/personel/', ('contact.personnel', 'contact.payroll')),
+    ('/contact/personel/yonetim/', ('contact.personnel', 'contact.payroll')),
     ('/muhasebe/', 'access.accounting'),
     ('/contact/firma-bul/', 'contact.firms'),
     ('/contact/firma-kazi/', 'contact.firms'),

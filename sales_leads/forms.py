@@ -47,19 +47,19 @@ class SalesLeadForm(forms.Form):
     use_existing_customer = forms.BooleanField(
         required=False,
         initial=False,
-        label='Mevcut müşteriye yeni proje ekle',
-        widget=forms.CheckboxInput(attrs={'class': 'w-4 h-4 accent-amber-600 rounded'}),
+        widget=forms.HiddenInput(),
     )
     existing_customer = forms.ModelChoiceField(
         queryset=Customer.objects.order_by('name'),
         required=False,
-        label='Mevcut müşteri',
+        label='Müşteri seçin',
+        empty_label='Müşteri seçin…',
         widget=forms.Select(attrs={'class': INPUT}),
     )
 
-    name = forms.CharField(required=False, label='Ad Soyad', widget=forms.TextInput(attrs={'class': INPUT}))
+    name = forms.CharField(required=False, label='Müşteri Adı', widget=forms.TextInput(attrs={'class': INPUT}))
     phone = forms.CharField(required=False, label='Telefon', widget=forms.TextInput(attrs={'class': INPUT}))
-    region = forms.CharField(required=False, label='Yer', widget=forms.TextInput(attrs={'class': INPUT}))
+    region = forms.CharField(required=False, label='Bölge', widget=forms.TextInput(attrs={'class': INPUT}))
     address = forms.CharField(required=False, label='Adres', widget=forms.Textarea(attrs={'class': INPUT, 'rows': 2}))
     location_link = forms.URLField(
         required=False,
@@ -115,11 +115,22 @@ class SalesLeadForm(forms.Form):
         }),
     )
 
-    def __init__(self, *args, instance=None, add_project_for_customer=None, **kwargs):
+    def __init__(self, *args, instance=None, add_project_for_customer=None, request=None, **kwargs):
         self.instance = instance
         self.add_project_for_customer = add_project_for_customer
+        self.request = request
         super().__init__(*args, **kwargs)
         _apply_currency_field_labels(self, {'sale_amount': 'Toplam', 'down_payment': 'Peşinat'})
+
+        if request and getattr(request, 'user', None) and request.user.is_authenticated:
+            from common.brand_scope import filter_customers
+
+            self.fields['existing_customer'].queryset = filter_customers(
+                Customer.objects.order_by('name'),
+                request,
+            )
+
+        self.fields['use_existing_customer'].widget = forms.HiddenInput()
 
         if instance:
             customer = instance.customer
@@ -142,15 +153,11 @@ class SalesLeadForm(forms.Form):
             self.fields['notes'].initial = instance.notes
         elif add_project_for_customer:
             self.fields['use_existing_customer'].initial = True
-            self.fields['use_existing_customer'].widget = forms.HiddenInput()
             self.fields['existing_customer'].initial = add_project_for_customer.pk
             self.fields['existing_customer'].widget = forms.HiddenInput()
-            self.fields['name'].initial = add_project_for_customer.name
-            self.fields['phone'].initial = add_project_for_customer.phone
-            self.fields['region'].initial = add_project_for_customer.region
-            self.fields['address'].initial = add_project_for_customer.address
-            self.fields['location_link'].initial = add_project_for_customer.location_link
-            self.fields['contract_date'].initial = add_project_for_customer.contract_date
+            for field_name in ('name', 'phone', 'region', 'address', 'location_link', 'contract_date'):
+                self.fields[field_name].widget = forms.HiddenInput()
+                self.fields[field_name].initial = getattr(add_project_for_customer, field_name, None)
 
     @property
     def interim_payments_initial(self):
@@ -180,23 +187,30 @@ class SalesLeadForm(forms.Form):
 
     def clean(self):
         cleaned = super().clean()
-        use_existing = cleaned.get('use_existing_customer')
-        existing = cleaned.get('existing_customer')
+        existing = cleaned.get('existing_customer') or self.add_project_for_customer
+        manual_name = (cleaned.get('name') or '').strip()
 
         if self.instance:
-            if not (cleaned.get('name') or '').strip():
-                self.add_error('name', 'Ad soyad zorunludur.')
-        elif use_existing and existing:
+            if not manual_name:
+                self.add_error('name', 'Müşteri adı zorunludur.')
+        elif self.add_project_for_customer or (existing and not manual_name):
+            if self.add_project_for_customer:
+                existing = self.add_project_for_customer
+            cleaned['existing_customer'] = existing
+            cleaned['use_existing_customer'] = True
             cleaned['name'] = existing.name
             cleaned['phone'] = existing.phone
             cleaned['region'] = existing.region
             cleaned['address'] = existing.address
             cleaned['location_link'] = existing.location_link
             cleaned['contract_date'] = existing.contract_date
-        elif use_existing and not existing:
-            self.add_error('existing_customer', 'Mevcut müşteri seçin.')
-        elif not cleaned.get('name'):
-            self.add_error('name', 'Ad soyad zorunludur.')
+        elif manual_name:
+            cleaned['use_existing_customer'] = False
+        else:
+            self.add_error(
+                'existing_customer',
+                'Rehberden müşteri seçin veya + ile yeni müşteri bilgisi girin.',
+            )
 
         project = (cleaned.get('project') or '').strip()
         if not project:
@@ -261,40 +275,37 @@ class SalesLeadForm(forms.Form):
         return lines
 
     def save(self):
-        use_existing = self.cleaned_data.get('use_existing_customer')
-        is_new_project = self.instance is None
+        existing = self.cleaned_data.get('existing_customer')
+        is_new_lead = self.instance is None
 
-        if use_existing and self.cleaned_data.get('existing_customer'):
-            customer = self.cleaned_data['existing_customer']
+        if self.add_project_for_customer:
+            customer = self.add_project_for_customer
+        elif existing and is_new_lead:
+            customer = existing
         elif self.instance:
             customer = self.instance.customer
+            customer.name = self.cleaned_data['name']
+            customer.phone = self.cleaned_data.get('phone') or None
+            customer.region = self.cleaned_data.get('region') or None
+            customer.address = self.cleaned_data.get('address') or None
+            customer.location_link = self.cleaned_data.get('location_link') or None
+            customer.contract_date = self.cleaned_data.get('contract_date') or None
+            customer.save()
         else:
-            customer = Customer()
+            customer = Customer(
+                name=self.cleaned_data['name'],
+                phone=self.cleaned_data.get('phone') or None,
+                region=self.cleaned_data.get('region') or None,
+                address=self.cleaned_data.get('address') or None,
+                location_link=self.cleaned_data.get('location_link') or None,
+                contract_date=self.cleaned_data.get('contract_date') or None,
+            )
+            customer.save()
+            if self.request is not None:
+                from common.brand_scope import assign_brand
 
-        if is_new_project and not use_existing:
-            customer.name = self.cleaned_data['name']
-            customer.phone = self.cleaned_data.get('phone') or None
-            customer.region = self.cleaned_data.get('region') or None
-            customer.address = self.cleaned_data.get('address') or None
-            customer.location_link = self.cleaned_data.get('location_link') or None
-            customer.contract_date = self.cleaned_data.get('contract_date') or None
-            customer.save()
-        elif self.instance:
-            customer.name = self.cleaned_data['name']
-            customer.phone = self.cleaned_data.get('phone') or None
-            customer.region = self.cleaned_data.get('region') or None
-            customer.address = self.cleaned_data.get('address') or None
-            customer.location_link = self.cleaned_data.get('location_link') or None
-            customer.contract_date = self.cleaned_data.get('contract_date') or None
-            customer.save()
-        elif not use_existing:
-            customer.name = self.cleaned_data['name']
-            customer.phone = self.cleaned_data.get('phone') or None
-            customer.region = self.cleaned_data.get('region') or None
-            customer.address = self.cleaned_data.get('address') or None
-            customer.location_link = self.cleaned_data.get('location_link') or None
-            customer.contract_date = self.cleaned_data.get('contract_date') or None
-            customer.save()
+                assign_brand(customer, self.request)
+                customer.save(update_fields=['brand_id'])
 
         lead = self.instance or SalesLead(customer=customer)
         lead.customer = customer

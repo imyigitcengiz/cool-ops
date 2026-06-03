@@ -38,14 +38,17 @@ def _sales_collections_total() -> Decimal:
     return down + interim
 
 
-def build_cash_snapshot() -> CashSnapshot:
+def build_cash_snapshot(request=None) -> CashSnapshot:
     settings = get_cash_settings()
-    finance_income = FinanceRecord.objects.filter(
-        record_type=FinanceRecord.TYPE_INCOME,
-    ).aggregate(t=Sum('amount'))['t'] or Decimal('0')
-    finance_expense = FinanceRecord.objects.filter(
-        record_type=FinanceRecord.TYPE_EXPENSE,
-    ).aggregate(t=Sum('amount'))['t'] or Decimal('0')
+    income_qs = FinanceRecord.objects.filter(record_type=FinanceRecord.TYPE_INCOME)
+    expense_qs = FinanceRecord.objects.filter(record_type=FinanceRecord.TYPE_EXPENSE)
+    if request is not None:
+        from common.brand_scope import filter_finance
+
+        income_qs = filter_finance(income_qs, request)
+        expense_qs = filter_finance(expense_qs, request)
+    finance_income = income_qs.aggregate(t=Sum('amount'))['t'] or Decimal('0')
+    finance_expense = expense_qs.aggregate(t=Sum('amount'))['t'] or Decimal('0')
 
     payroll_out = Decimal('0')
     if settings.include_payroll_in_balance:

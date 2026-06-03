@@ -1,116 +1,27 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{{ gy.rehber }}{% endblock %} | {{ site_settings.site_name }}</title>
-    {% load static %}
-    {% include 'common/erp_head_assets.html' %}
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.10/build/css/intlTelInput.css">
-    <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.10/build/js/intlTelInput.min.js"></script>
-    <style>.iti { width: 100%; }</style>
-    {% block extra_head %}{% endblock %}
-</head>
-<body class="erp-app erp-theme-violet flex h-screen overflow-hidden bg-slate-100">
-    {% include 'common/impersonation_banner.html' %}
-    {% include 'common/erp_mobile_sidebar_start.html' %}
-        <div class="p-6">
-            <a href="{% url 'contact_hub' %}" class="text-xl font-bold text-white flex items-center gap-2">
-                <span class="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center text-white">
-                    <i data-lucide="book-user" class="w-5 h-5"></i>
-                </span>
-                {{ gy.rehber }}
-            </a>
-            <p class="text-xs text-slate-500 mt-2">{{ site_settings.site_name }}</p>
-        </div>
-        <nav class="flex-1 px-4 py-2 space-y-1 overflow-y-auto">
-            {% include 'common/nav_home_link.html' %}
-            <a href="{% url 'contact_hub' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl {% if request.resolver_match.url_name == 'contact_hub' %}bg-brand-600 text-white{% else %}text-slate-400 hover:text-white hover:bg-slate-800{% endif %}">
-                <i data-lucide="layout-grid" class="w-5 h-5"></i>
-                <span class="font-medium text-sm">{{ gy.rehber_ozet }}</span>
-            </a>
-            <p class="px-3 pt-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Müşteriler</p>
-            {% if user_perms.contact_customers_view or user_perms.contact_customers %}
-            <a href="{% url 'customers' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl {% if request.resolver_match.url_name == 'customers' or request.resolver_match.url_name == 'customer_create' or request.resolver_match.url_name == 'customer_update' %}bg-brand-600 text-white{% else %}text-slate-400 hover:text-white hover:bg-slate-800{% endif %}">
-                <i data-lucide="users" class="w-5 h-5"></i>
-                <span class="font-medium text-sm">{{ gy.rehber_musteriler }}</span>
-            </a>
-            {% endif %}
-            {% if user_perms.contact_firms %}
-            <p class="px-3 pt-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Firmalar</p>
-            <a href="{% url 'contact_firmalar' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl {% if request.resolver_match.url_name == 'contact_firmalar' or request.resolver_match.url_name == 'contact_firma_bul' %}bg-brand-600 text-white{% else %}text-slate-400 hover:text-white hover:bg-slate-800{% endif %}">
-                <i data-lucide="building-2" class="w-5 h-5"></i>
-                <span class="font-medium text-sm">{{ gy.rehber_firmalar }}</span>
-            </a>
-            {% endif %}
-            {% if modules_nav.outreach and user_access.outreach %}
-            <p class="px-3 pt-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ gy.iletisim_merkezi }}</p>
-            <a href="{% url 'outreach_hub' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800">
-                <i data-lucide="messages-square" class="w-5 h-5"></i>
-                <span class="font-medium text-sm">{{ gy.iletisim_merkezi }}</span>
-            </a>
-            {% endif %}
-            {% if user_perms.contact_teams %}
-            <p class="px-3 pt-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Ekip</p>
-            <a href="{% url 'team_network' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl {% if request.resolver_match.url_name == 'team_network' %}bg-brand-600 text-white{% else %}text-slate-400 hover:text-white hover:bg-slate-800{% endif %}">
-                <i data-lucide="users-round" class="w-5 h-5"></i>
-                <span class="font-medium text-sm">{{ gy.rehber_ekipler }}</span>
-            </a>
-            {% endif %}
-            {% if user_perms.contact_personnel %}
-            <p class="px-3 pt-4 text-[10px] font-bold uppercase tracking-wider text-emerald-500/90">{{ gy.muhasebe }}</p>
-            <a href="{% url 'accounting_personnel' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl {% if request.resolver_match.url_name == 'accounting_personnel' %}bg-emerald-600 text-white{% else %}text-slate-400 hover:text-white hover:bg-slate-800{% endif %}">
-                <i data-lucide="id-card" class="w-5 h-5"></i>
-                <span class="font-medium text-sm">{{ gy.mh_personel }}</span>
-            </a>
-            {% endif %}
-            {% include 'common/erp_module_integrations_nav.html' with section='contact' %}
-            <div class="pt-4 mt-4 border-t border-slate-800">
-                <p class="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Diğer modüller</p>
-                {% include 'common/erp_cross_nav.html' with skip_platform_module='contact' %}
-            </div>
-            {% include 'common/settings_nav_link.html' %}
-        </nav>
-        {% include 'common/profile_sidebar_card.html' %}
-    {% include 'common/erp_mobile_sidebar_end.html' %}
-    <main class="flex-1 overflow-y-auto min-w-0">
-        {% include 'common/toast_messages.html' %}
-        <header class="erp-module-header">
-            <div class="erp-module-header__inner erp-module-header__inner--inline-actions">
-                <div class="erp-module-header__top">
-                    <div class="erp-module-header__lead">
-                        {% include 'common/erp_sidebar_toggle.html' %}
-                        <div class="erp-module-header__text min-w-0">
-                            {% block header_title %}<h1 class="erp-module-header__title truncate">{{ gy.rehber }}</h1>{% endblock %}
-                            {% block header_subtitle %}<p class="erp-module-header__subtitle truncate">{{ site_settings.site_name }}</p>{% endblock %}
-                        </div>
-                    </div>
-                    <div class="erp-module-header__tools">
-                        {% include 'common/erp_module_header_tools.html' %}
-                    </div>
-                </div>
-                {% block header_actions %}{% endblock %}
-            </div>
-        </header>
-        <div class="p-4 md:p-8 max-w-[1600px] mx-auto">
-            {% block content %}{% endblock %}
-        </div>
-    </main>
-    <script>
-        window.CONTACT_BASE = '/contact';
-        window.CUSTOMER_API_BASE = '/contact';
-        window.CRM_BASE = window.CONTACT_BASE;
-        window.SD_BASE = '/services-dashboard';
-        window.AYARLAR_BASE = '/ayarlar';
-        {% if user.is_authenticated %}window.GY_USER_ID = {{ user.id }};{% endif %}
-    </script>
-    <script src="{% static 'js/live-sync.js' %}" defer></script>
-    {% block extra_js %}{% endblock %}
-    {% if user_perms.tools_whatsapp %}{% include 'services_dashboard/partials/whatsapp_modal.html' %}{% endif %}
-    {% include 'common/whatsapp_scenario_prompt_assets.html' %}
-    {% include 'common/team_chat_widget.html' %}
-    {% include 'common/erp_shell_extras.html' %}
-    {% include 'common/erp_mobile_sidebar_script.html' %}
-    <script>if (window.lucide) lucide.createIcons();</script>
-</body>
-</html>
+{% extends 'common/erp_unified_shell.html' %}
+{% block title %}{{ gy.rehber }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.10/build/css/intlTelInput.css">
+<script src="https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.10/build/js/intlTelInput.min.js"></script>
+<style>.iti { width: 100%; }</style>
+{% endblock %}
+{% block header_title %}<h1 class="erp-module-header__title truncate">{{ gy.rehber }}</h1>{% endblock %}
+{% block header_subtitle %}<p class="erp-module-header__subtitle truncate">{{ site_settings.site_name }}</p>{% endblock %}
+{% block shell_scripts %}
+<script>
+    window.CONTACT_BASE = '/contact';
+    window.CUSTOMER_API_BASE = '/contact';
+    window.CRM_BASE = window.CONTACT_BASE;
+    window.SD_BASE = '/services-dashboard';
+    window.AYARLAR_BASE = '/ayarlar';
+    {% if user.is_authenticated %}window.GY_USER_ID = {{ user.id }};{% endif %}
+</script>
+{% load static %}
+<script src="{% static 'js/live-sync.js' %}" defer></script>
+{% endblock %}
+{% block extra_js %}{% endblock %}
+{% block shell_includes %}
+{{ block.super }}
+{% if user_perms.tools_whatsapp %}{% include 'services_dashboard/partials/whatsapp_modal.html' %}{% endif %}
+{% include 'common/whatsapp_scenario_prompt_assets.html' %}
+{% endblock %}

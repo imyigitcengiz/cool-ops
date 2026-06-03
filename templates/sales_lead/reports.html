@@ -8,7 +8,7 @@
 
 {% block header_title %}
 <h1 class="text-lg font-bold text-slate-900">Satış raporu</h1>
-<p class="text-sm text-slate-500">Ödeme planı detaylı tablo — dinamik ara ödeme sütunları</p>
+<p class="text-sm text-slate-500">Ödeme planı detaylı tablo — dinamik ara ödeme sütunları · Güncelleme: {{ report_generated_at|date:"d.m.Y H:i" }}</p>
 {% endblock %}
 
 {% block header_actions %}
@@ -41,7 +41,7 @@
         <a href="{% url 'sales_lead_reports_print' %}{% if report_status_filter %}?status={{ report_status_filter }}{% endif %}" target="_blank" class="erp-touch-target inline-flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-xl hover:bg-brand-700 text-sm font-semibold whitespace-nowrap">
             <i data-lucide="printer" class="w-4 h-4"></i> Yazdır
         </a>
-        <a href="{% url 'accounting_data_exchange' %}" class="erp-touch-target inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 whitespace-nowrap">
+        <a href="{% url 'tools_csv_hub' %}" class="erp-touch-target inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50 whitespace-nowrap">
             <i data-lucide="arrow-up-down" class="w-4 h-4"></i> İçe/dışa aktar
         </a>
     </div>

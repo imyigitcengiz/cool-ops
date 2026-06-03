@@ -1,0 +1,32 @@
+{# Modül satırı — hub + alt menü #}
+<div class="erp-sidebar-module erp-sidebar-module--{{ mod.slug }}{% if mod.expanded %} erp-sidebar-module--expanded{% endif %}"
+     data-erp-sidebar-module="{{ mod.slug }}">
+    <div class="erp-sidebar-module__hub-row">
+        <a href="{{ mod.hub_url }}"
+           class="erp-sidebar-module__hub{% if mod.expanded %} erp-sidebar-module__hub--current{% endif %}">
+            <span class="erp-sidebar-module__icon-wrap" aria-hidden="true">
+                <i data-lucide="{{ mod.icon }}" class="erp-sidebar-module__icon"></i>
+            </span>
+            <span class="erp-sidebar-module__label">
+                <span class="erp-sidebar-module__title">{{ mod.name }}</span>
+            </span>
+        </a>
+        <button type="button"
+                class="erp-sidebar-module__toggle"
+                data-erp-module-toggle
+                aria-expanded="{% if mod.expanded %}true{% else %}false{% endif %}"
+                aria-controls="erp-sidebar-menu-{{ mod.slug }}"
+                aria-label="{{ mod.name }} alt menüsü">
+            <i data-lucide="panel-right-open" class="erp-sidebar-module__toggle-icon"></i>
+        </button>
+    </div>
+    <div id="erp-sidebar-menu-{{ mod.slug }}" class="erp-sidebar-module__menu" data-erp-module-menu role="region" aria-label="{{ mod.name }} menüsü">
+        <p class="erp-sidebar-menu-heading">{{ mod.name }}</p>
+        {% if mod.nav_template == 'common/erp_module_own_nav.html' %}
+        {% include mod.nav_template with module=mod.nav_module %}
+        {% else %}
+        {% include mod.nav_template %}
+        {% endif %}
+        {% include 'common/erp_module_features_nav.html' with features=mod.features %}
+    </div>
+</div>

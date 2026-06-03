@@ -1,62 +1,10 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{{ gy.muhasebe }}{% endblock %} | {{ site_settings.site_name }}</title>
-    {% load static %}
-    {% include 'common/erp_head_assets.html' %}
-    <link rel="stylesheet" href="{% static 'css/accounting-ui.css' %}">
-    {% block extra_head %}{% endblock %}
-</head>
-<body class="erp-app erp-theme-emerald flex h-screen overflow-hidden bg-slate-50">
-    {% include 'common/impersonation_banner.html' %}
-    {% include 'common/erp_mobile_sidebar_start.html' with sidebar_width='w-60' %}
-        <div class="p-5 border-b border-slate-800">
-            <a href="{% if user_access.accounting %}{% url 'accounting_hub' %}{% else %}{% url 'accounting_personnel' %}{% endif %}" class="text-lg font-bold text-white flex items-center gap-2">
-                <span class="w-9 h-9 bg-brand-600 rounded-xl flex items-center justify-center">
-                    <i data-lucide="calculator" class="w-5 h-5"></i>
-                </span>
-                {{ gy.muhasebe }}
-            </a>
-            <p class="text-[11px] text-slate-500 mt-2">{{ gy.mh_tagline }}</p>
-        </div>
-        <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto text-sm">
-            {% include 'common/nav_home_link.html' %}
-            {% include 'common/erp_module_own_nav.html' with module='accounting' %}
-            <div class="pt-4 mt-2 border-t border-slate-800">
-                <p class="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Diğer modüller</p>
-                {% include 'common/erp_cross_nav.html' with skip_platform_module='accounting' %}
-            </div>
-        </nav>
-        {% include 'common/profile_sidebar_card.html' %}
-    {% include 'common/erp_mobile_sidebar_end.html' %}
-    <main class="flex-1 overflow-y-auto min-w-0">
-        {% include 'common/toast_messages.html' %}
-        <header class="erp-module-header">
-            <div class="erp-module-header__inner erp-module-header__inner--inline-actions">
-                <div class="erp-module-header__top">
-                    <div class="erp-module-header__lead">
-                        {% include 'common/erp_sidebar_toggle.html' %}
-                        <div class="erp-module-header__text min-w-0 erp-module-header__text--block">
-                            {% block header %}{% endblock %}
-                        </div>
-                    </div>
-                    <div class="erp-module-header__tools">
-                        {% include 'common/erp_module_header_tools.html' with show_media_library=False %}
-                    </div>
-                </div>
-                {% block header_actions %}{% endblock %}
-            </div>
-        </header>
-        <div class="p-4 md:p-6 max-w-[1500px] mx-auto">
-            {% block content %}{% endblock %}
-        </div>
-    </main>
-    {% include 'common/erp_shell_extras.html' %}
-    {% include 'common/team_chat_widget.html' %}
-    {% include 'common/erp_mobile_sidebar_script.html' %}
-    <script>if (window.lucide) lucide.createIcons();</script>
-    {% block extra_js %}{% endblock %}
-</body>
-</html>
+{% extends 'common/erp_unified_shell.html' %}
+{% load static %}
+{% block title %}{{ gy.muhasebe }}{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'css/accounting-ui.css' %}">
+{% endblock %}
+{% block header_tools %}
+{% include 'common/erp_module_header_tools.html' with show_media_library=False %}
+{% endblock %}
+{% block header %}{% endblock %}

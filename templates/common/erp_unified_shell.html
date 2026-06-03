@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ gy.ana_panel }}{% endblock %} | {{ site_settings.site_name }}</title>
+    {% load static %}
+    {% include 'common/erp_head_assets.html' %}
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="erp-app erp-unified-shell {{ erp_shell_theme|default:'erp-theme-sky' }} flex h-screen overflow-hidden bg-slate-50 text-slate-900{% block body_class %}{% endblock %}">
+    {% include 'common/impersonation_banner.html' %}
+    {% include 'common/erp_unified_sidebar.html' %}
+    {% if erp_sidebar_expand and erp_sidebar_expand != 'panel' %}
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      var block = document.querySelector('[data-erp-sidebar-module="{{ erp_sidebar_expand }}"]');
+      if (!block) return;
+      if (!window.matchMedia('(min-width: 1024px)').matches) {
+        block.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }
+    });
+    </script>
+    {% endif %}
+    <main class="flex-1 overflow-y-auto min-w-0 flex flex-col">
+        {% block main_prefix %}{% endblock %}
+        {% include 'common/toast_messages.html' %}
+        {% block shell_header %}
+        <header class="erp-module-header">
+            <div class="erp-module-header__inner{% block shell_header_inner_class %} erp-module-header__inner--inline-actions{% endblock %}">
+                <div class="erp-module-header__top">
+                    <div class="erp-module-header__lead">
+                        {% include 'common/erp_sidebar_toggle.html' %}
+                        <div class="erp-module-header__text min-w-0{% block shell_header_text_class %} erp-module-header__text--block{% endblock %}">
+                            {% block header %}
+                            {% block header_title %}{% endblock %}
+                            {% block header_subtitle %}{% endblock %}
+                            {% endblock %}
+                        </div>
+                    </div>
+                    <div class="erp-module-header__tools">
+                        {% block header_tools %}
+                        {% include 'common/erp_module_header_tools.html' with show_media_library=header_show_media_library|default:True %}
+                        {% endblock %}
+                    </div>
+                </div>
+                {% block header_actions %}{% endblock %}
+            </div>
+        </header>
+        {% endblock %}
+        <div class="{% block content_wrapper_class %}erp-page-content mx-auto w-full max-w-[1600px]{% endblock %}">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+    {% block shell_scripts %}{% endblock %}
+    {% block shell_includes %}
+    {% include 'common/erp_shell_extras.html' %}
+    {% include 'common/team_chat_widget.html' %}
+    {% endblock %}
+    {% include 'common/erp_mobile_sidebar_script.html' %}
+    {% block extra_js %}{% endblock %}
+    <script>if (window.lucide) lucide.createIcons();</script>
+</body>
+</html>

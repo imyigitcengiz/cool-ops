@@ -6,7 +6,7 @@
     </h3>
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {% if user_perms.contact_customers_view or user_perms.contact_customers %}
-        <a href="{% url 'customers' %}" class="group block bg-white rounded-3xl border border-violet-200 shadow-sm hover:shadow-lg hover:border-violet-300 transition-all p-6">
+        <a href="{% url 'customers' %}?nav_module=contact" class="group block bg-white rounded-3xl border border-violet-200 shadow-sm hover:shadow-lg hover:border-violet-300 transition-all p-6">
             <div class="w-12 h-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mb-4 group-hover:bg-violet-600 group-hover:text-white transition-colors"><i data-lucide="users" class="w-6 h-6"></i></div>
             <h4 class="text-lg font-bold text-slate-900">{{ gy.rehber_musteriler }}</h4>
             <p class="text-sm text-slate-500 mt-2">Müşteri kartları, ürünler ve sözleşme bilgileri.</p>
@@ -31,6 +31,18 @@
             <div class="w-12 h-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mb-4 group-hover:bg-violet-600 group-hover:text-white transition-colors"><i data-lucide="user-plus" class="w-6 h-6"></i></div>
             <h4 class="text-lg font-bold text-slate-900">Freelancer ağı</h4>
             <p class="text-sm text-slate-500 mt-2">Taşeron ve çözüm ortakları — ajans proje kadrosu.</p>
+        </a>
+        {% endif %}
+        {% if user_perms.contact_personnel and particles_nav.contact_personnel %}
+        <a href="{% url 'personnel_network' %}" class="group block bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-lg hover:border-violet-300 transition-all p-6">
+            <div class="w-12 h-12 rounded-2xl bg-violet-50 text-violet-600 flex items-center justify-center mb-4 group-hover:bg-violet-600 group-hover:text-white transition-colors"><i data-lucide="users" class="w-6 h-6"></i></div>
+            <h4 class="text-lg font-bold text-slate-900">Personel ağı</h4>
+            <p class="text-sm text-slate-500 mt-2">Saha personeli, ekip ve yetenek tanımları.</p>
+        </a>
+        <a href="{% url 'contact_personnel' %}" class="group block bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-lg hover:border-emerald-300 transition-all p-6">
+            <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4 group-hover:bg-emerald-600 group-hover:text-white transition-colors"><i data-lucide="id-card" class="w-6 h-6"></i></div>
+            <h4 class="text-lg font-bold text-slate-900">{{ gy.mh_personel }}</h4>
+            <p class="text-sm text-slate-500 mt-2">Departman, ünvan ve dönem özeti.</p>
         </a>
         {% endif %}
         {% if user_perms.contact_teams and particles_nav.contact_teams %}

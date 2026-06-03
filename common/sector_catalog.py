@@ -43,13 +43,13 @@ SECTOR_PRESETS: dict[str, dict[str, tuple[str, ...] | str]] = {
         'fit': FIT_YUKSEK,
         'modules': (
             'contact', 'services', 'accounting', 'outreach', 'settings',
-            'supplier_payables', 'multi_cash', 'e_invoice_bridge',
+            'e_invoice_bridge',
             'integration_data_harvest', 'integration_whatsapp_bridge',
-            'integration_media', 'integration_weather',
+            'integration_csv_exchange', 'integration_media', 'integration_weather',
         ),
         'particles': (
             'p.contact.customers', 'p.contact.firms', 'p.contact.teams',
-            'p.accounting.personnel', 'p.accounting.payroll',
+            'p.contact.personnel', 'p.accounting.payroll',
             'p.accounting.finance', 'p.accounting.sales',
             'p.accounting.cash', 'p.accounting.receivables', 'p.accounting.stock',
             'p.accounting.payables', 'p.accounting.multi_cash', 'p.accounting.e_export',
@@ -60,13 +60,13 @@ SECTOR_PRESETS: dict[str, dict[str, tuple[str, ...] | str]] = {
         'fit': FIT_YUKSEK,
         'modules': (
             'contact', 'services', 'accounting', 'outreach', 'settings',
-            'supplier_payables', 'project_costing', 'multi_cash', 'projects',
-            'timesheet', 'e_invoice_bridge',
-            'integration_whatsapp_bridge', 'integration_media', 'integration_weather',
+            'e_invoice_bridge',
+            'integration_whatsapp_bridge', 'integration_csv_exchange',
+            'integration_media', 'integration_weather',
         ),
         'particles': (
             'p.contact.customers', 'p.contact.firms', 'p.contact.teams',
-            'p.accounting.personnel', 'p.accounting.payroll',
+            'p.contact.personnel', 'p.accounting.payroll',
             'p.accounting.finance', 'p.accounting.sales',
             'p.accounting.cash', 'p.accounting.receivables', 'p.accounting.stock',
             'p.accounting.payables', 'p.accounting.multi_cash',
@@ -79,13 +79,13 @@ SECTOR_PRESETS: dict[str, dict[str, tuple[str, ...] | str]] = {
         'fit': FIT_ORTA,
         'modules': (
             'contact', 'accounting', 'outreach', 'settings',
-            'multi_cash', 'timesheet', 'e_invoice_bridge',
+            'e_invoice_bridge',
             'integration_whatsapp_bridge', 'integration_whatsapp_api',
-            'integration_media', 'integration_weather',
+            'integration_csv_exchange', 'integration_media', 'integration_weather',
         ),
         'particles': (
             'p.contact.customers', 'p.contact.firms',
-            'p.accounting.personnel', 'p.accounting.finance', 'p.accounting.sales',
+            'p.contact.personnel', 'p.accounting.finance', 'p.accounting.sales',
             'p.accounting.cash', 'p.accounting.receivables',
             'p.accounting.multi_cash', 'p.accounting.e_export', 'p.accounting.timesheet',
             'p.outreach.campaigns',
@@ -116,6 +116,8 @@ SECTOR_PRESETS: dict[str, dict[str, tuple[str, ...] | str]] = {
 
 # Modül → sektör uyumu (preset türetmesi + manuel tam/yüksek işaretleri)
 def _build_module_sector_map() -> dict[str, list[tuple[str, str]]]:
+    from common.module_catalog import MODULES
+
     out: dict[str, set[tuple[str, str]]] = {}
     for sector_slug, preset in SECTOR_PRESETS.items():
         fit = preset['fit']
@@ -123,6 +125,11 @@ def _build_module_sector_map() -> dict[str, list[tuple[str, str]]]:
             out.setdefault(mod, set()).add((sector_slug, fit))
         for part in preset['particles']:
             out.setdefault(part, set()).add((sector_slug, fit))
+    for mod in MODULES:
+        slug = mod['slug']
+        if slug in out or slug == 'settings' or not mod.get('default_enabled'):
+            continue
+        out.setdefault(slug, set()).add(('montaj_saha', FIT_ORTA))
     return {k: sorted(v, key=lambda x: x[0]) for k, v in out.items()}
 
 

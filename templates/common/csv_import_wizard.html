@@ -1,18 +1,20 @@
-{% extends 'muhasebe/base.html' %}
+{% extends 'common/erp_unified_shell.html' %}
 {% load static %}
 
 {% block title %}CSV içe aktarma{% if import_label %} — {{ import_label }}{% endif %}{% endblock %}
-
-{% block header %}
-<h1 class="text-lg font-bold text-slate-900">CSV içe aktarma</h1>
-<p class="text-sm text-slate-500">Dosyayı yükleyin, sütunları tablo alanlarıyla eşleştirin, ardından içe aktarın.</p>
-{% endblock %}
-
+{% block header_title %}<h1 class="erp-module-header__title truncate">CSV içe aktarma{% if import_label %} — {{ import_label }}{% endif %}</h1>{% endblock %}
+{% block header_subtitle %}<p class="erp-module-header__subtitle truncate">Dosyayı yükleyin, sütunları eşleştirin, içe aktarın</p>{% endblock %}
+{% block shell_header_text_class %}{% endblock %}
+{% block content_wrapper_class %}erp-page-content erp-csv-wizard-page mx-auto w-full max-w-5xl{% endblock %}
 {% block content %}
-<div class="max-w-5xl mx-auto space-y-6">
+<div class="space-y-6">
+    <p class="text-sm">
+        <a href="{% url 'tools_csv_hub' %}" class="font-semibold text-brand-600 hover:text-brand-700">← CSV merkezine dön</a>
+    </p>
+
     {% if not import_type %}
     <section class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6">
-        <h2 class="font-bold text-slate-900 mb-4">İçe aktarma türü seçin</h2>
+        <h2 class="font-bold text-slate-900 mb-4">İçe aktarma türü</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {% for item in import_types %}
             <a href="{% url 'csv_import_wizard' %}?type={{ item.slug }}&next={{ next_url|urlencode }}"
@@ -23,6 +25,17 @@
                 <div>
                     <p class="font-bold text-slate-900">{{ item.label }}</p>
                     <p class="text-xs text-slate-500 mt-1 font-mono">{{ item.sample_hint }}</p>
+                    {% if item.import_note %}
+                    <p class="text-xs text-amber-800 mt-1.5">{{ item.import_note }}</p>
+                    {% endif %}
+                    {% if item.import_interim_help %}
+                    <p class="text-xs text-violet-800 mt-1 flex items-center gap-1">
+                        <span class="erp-field-help shrink-0">
+                            <span class="erp-field-help__btn" aria-hidden="true">?</span>
+                        </span>
+                        Ara ödeme sütunları desteklenir (isteğe bağlı)
+                    </p>
+                    {% endif %}
                 </div>
             </a>
             {% empty %}
@@ -37,9 +50,22 @@
         <div class="flex items-start justify-between gap-4 flex-wrap">
             <div>
                 <h2 class="font-bold text-slate-900">{{ import_label }}</h2>
+                {% if import_model %}<p class="text-xs text-slate-500 mt-0.5">Model: <span class="font-mono">{{ import_model }}</span></p>{% endif %}
                 <p class="text-sm text-slate-500 mt-1 font-mono">{{ import_hint }}</p>
+                {% if import_note %}
+                <p class="mt-2 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">{{ import_note }}</p>
+                {% endif %}
+                {% if import_interim_help %}
+                <p class="mt-2 text-sm text-slate-700 flex items-start gap-2">
+                    <span class="erp-field-help shrink-0">
+                        <button type="button" class="erp-field-help__btn" aria-label="Ara ödeme sütunları hakkında" aria-describedby="csvInterimHelpUpload">?</button>
+                        <span id="csvInterimHelpUpload" class="erp-field-help__tip" role="tooltip">{{ interim_import_help_text|default:"Ara ödeme sütunları CSV'de ek alan olarak yazılır; sihirbazda ayrı eşleştirme gerekmez." }}</span>
+                    </span>
+                    <span><strong>Ara ödeme</strong> desteklenir — isteğe bağlı <span class="font-mono text-xs">Ara ödeme tarihi</span> ve <span class="font-mono text-xs">Ara ödeme</span> sütunları ekleyebilirsiniz.</span>
+                </p>
+                {% endif %}
             </div>
-            <a href="{% url 'csv_import_wizard' %}?next={{ next_url|urlencode }}" class="text-sm font-semibold text-slate-500 hover:text-brand-600">← Tür değiştir</a>
+            <a href="{% url 'csv_import_wizard' %}?next={{ next_url|urlencode }}" class="text-sm font-semibold text-slate-500 hover:text-brand-600">Tür değiştir</a>
         </div>
         <form method="post" enctype="multipart/form-data" class="space-y-4 pt-2">
             {% csrf_token %}
@@ -61,35 +87,89 @@
         <div class="flex items-start justify-between gap-4 flex-wrap">
             <div>
                 <h2 class="font-bold text-slate-900">Sütun eşleştirme</h2>
-                <p class="text-sm text-slate-500 mt-1">{{ row_count }} satır — CSV sütunlarını sistem alanlarıyla eşleştirin.</p>
+                {% if import_model %}<p class="text-xs text-slate-500">Tablo: <span class="font-mono">{{ import_model }}</span></p>{% endif %}
+                <p class="text-sm text-slate-500 mt-1">{{ row_count }} satır — alan adları veritabanı sütunlarıyla aynı olmalıdır</p>
+                {% if import_includes_sales %}
+                <p class="mt-2 text-sm text-brand-800 bg-brand-50 border border-brand-200 rounded-xl px-3 py-2">
+                    Satış sütunları (Proje, Tarih, Toplam vb.) eşlenirse aynı CSV satırından müşteri + satış kaydı oluşturulur.
+                </p>
+                {% endif %}
+                {% if import_note %}
+                <p class="mt-2 text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">{{ import_note }}</p>
+                {% endif %}
+                {% if import_interim_help %}
+                <div class="mt-2 flex flex-wrap items-center gap-2 text-sm text-slate-700">
+                    <span class="erp-field-help">
+                        <button type="button" class="erp-field-help__btn" aria-label="Ara ödeme sütunları hakkında" aria-describedby="csvInterimHelpMap">?</button>
+                        <span id="csvInterimHelpMap" class="erp-field-help__tip erp-field-help__tip--wide" role="tooltip">{{ interim_import_help_text }}</span>
+                    </span>
+                    <span><strong>Ara ödeme</strong> — eşleştirme dışı ek sütunlar</span>
+                    {% if interim_columns_detected %}
+                    <span class="text-xs font-semibold text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-2 py-0.5">CSV'de ara ödeme sütunu bulundu</span>
+                    {% else %}
+                    <span class="text-xs text-slate-500">Bu dosyada ara ödeme sütunu yok (isterseniz ekleyebilirsiniz)</span>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
-            <a href="{% url 'csv_import_wizard' %}?type={{ import_type }}&next={{ next_url|urlencode }}" class="text-sm font-semibold text-slate-500 hover:text-brand-600">← Dosyayı değiştir</a>
+            <a href="{% url 'csv_import_wizard' %}?type={{ import_type }}&next={{ next_url|urlencode }}" class="text-sm font-semibold text-slate-500 hover:text-brand-600">Dosyayı değiştir</a>
         </div>
 
-        <form method="post" class="space-y-5">
+        <form method="post" class="space-y-5" id="csvMappingForm">
             {% csrf_token %}
             <input type="hidden" name="type" value="{{ import_type }}">
             <input type="hidden" name="step" value="import">
             <input type="hidden" name="token" value="{{ preview_token }}">
             <input type="hidden" name="next" value="{{ next_url }}">
 
+            <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 space-y-3 text-sm">
+                <label class="flex items-start gap-3 cursor-pointer">
+                    <input type="checkbox" name="use_auto_mapping" value="1" checked class="mt-1 w-4 h-4 accent-brand-600 rounded" id="useAutoMapping">
+                    <span>
+                        <strong>Otomatik eşleştirme önerilerini kullan</strong>
+                        <span class="block text-xs text-slate-500 mt-0.5">Kapattığınızda yalnızca aşağıda seçtiğiniz sütunlar kullanılır; boş bıraktıklarınız atlanır (yanlış otomatik eşleşmeyi böyle engelleyebilirsiniz).</span>
+                    </span>
+                </label>
+                {% if unmapped_csv_columns %}
+                <p class="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    <strong>Kullanılmayan CSV sütunları:</strong> {{ unmapped_csv_columns|join:" · " }}
+                </p>
+                {% endif %}
+            </div>
+
             <div class="overflow-x-auto rounded-2xl border border-slate-200">
                 <table class="w-full text-sm">
                     <thead class="bg-slate-50 border-b border-slate-100">
                         <tr>
-                            <th class="px-4 py-3 text-left font-bold text-slate-700">Sistem alanı</th>
-                            <th class="px-4 py-3 text-left font-bold text-slate-700">CSV sütunu</th>
-                            <th class="px-4 py-3 text-left font-bold text-slate-700">Örnek değer</th>
+                            <th class="px-4 py-3 text-left font-bold text-slate-700">Tablo alanı</th>
+                            <th class="px-4 py-3 text-left font-bold text-slate-700">Kaynak</th>
+                            <th class="px-4 py-3 text-left font-bold text-slate-700">CSV sütunu (manuel seçim)</th>
+                            <th class="px-4 py-3 text-left font-bold text-slate-700">Örnek</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-slate-100">
                         {% for row in mapping_rows %}
-                        <tr>
+                        <tr class="{% if row.mapping_source == 'auto' or row.mapping_source == 'boosted' %}bg-brand-50/30{% elif row.mapping_source == 'manual' %}bg-emerald-50/20{% endif %}">
                             <td class="px-4 py-3 font-semibold text-slate-800">
                                 {{ row.label }}{% if row.required %}<span class="text-red-600">*</span>{% endif %}
+                                {% if import_type == 'customers' and row.key == 'products' %}
+                                <span class="text-xs font-normal text-violet-700 block">Ürün listesi — | veya ; ile ayırın</span>
+                                {% endif %}
+                                {% if row.auto_header and row.auto_header != row.selected_header %}
+                                <span class="text-[10px] text-slate-400 block">Öneri: {{ row.auto_header }}</span>
+                                {% endif %}
                             </td>
                             <td class="px-4 py-3">
-                                <select name="map_{{ row.key }}" class="w-full min-w-[180px] p-2 bg-white border border-slate-200 rounded-xl text-sm">
+                                <span class="inline-flex text-[10px] font-bold uppercase px-2 py-0.5 rounded-lg
+                                    {% if row.mapping_source == 'manual' %}bg-emerald-100 text-emerald-800
+                                    {% elif row.mapping_source == 'auto' or row.mapping_source == 'boosted' %}bg-brand-100 text-brand-800
+                                    {% elif row.mapping_source == 'skip' %}bg-slate-200 text-slate-600
+                                    {% else %}bg-amber-100 text-amber-800{% endif %}">
+                                    {{ row.mapping_source_label }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3">
+                                <select name="map_{{ row.key }}" class="csv-map-select w-full min-w-[160px] p-2 bg-white border border-slate-200 rounded-xl text-sm" data-auto-header="{{ row.auto_header|default:'' }}">
                                     <option value="">— Atla —</option>
                                     {% for header in csv_headers %}
                                     <option value="{{ header }}" {% if row.selected_header == header %}selected{% endif %}>{{ header }}</option>
@@ -99,13 +179,26 @@
                             <td class="px-4 py-3 text-slate-500 font-mono text-xs">{{ row.sample }}</td>
                         </tr>
                         {% endfor %}
+                        {% if import_interim_help and interim_csv_columns %}
+                        {% for col in interim_csv_columns %}
+                        <tr class="bg-violet-50/50">
+                            <td class="px-4 py-3 text-slate-700">
+                                <span class="font-semibold">{{ col.header }}</span>
+                                <span class="text-xs text-violet-700 block mt-0.5">{% if col.role == 'date' %}Ara ödeme tarihi{% else %}Ara ödeme tutarı{% endif %} — otomatik</span>
+                            </td>
+                            <td class="px-4 py-3"><span class="text-[10px] font-bold uppercase px-2 py-0.5 rounded-lg bg-violet-100 text-violet-800">Otomatik</span></td>
+                            <td class="px-4 py-3 text-slate-500 text-sm italic">Eşleştirme gerekmez</td>
+                            <td class="px-4 py-3 text-slate-500 font-mono text-xs">{{ col.header }}</td>
+                        </tr>
+                        {% endfor %}
+                        {% endif %}
                     </tbody>
                 </table>
             </div>
 
             {% if preview_matrix %}
             <div>
-                <p class="text-xs font-bold text-slate-600 uppercase mb-2">Önizleme (ilk satırlar)</p>
+                <p class="text-xs font-bold text-slate-600 uppercase mb-2">Önizleme</p>
                 <div class="overflow-x-auto rounded-2xl border border-slate-200">
                     <table class="w-full text-xs">
                         <thead class="bg-slate-50">
@@ -139,14 +232,5 @@
     </section>
     {% endif %}
     {% endif %}
-
-    <section class="rounded-2xl bg-slate-50 border border-slate-200 p-5 text-sm text-slate-600 space-y-2">
-        <p class="font-bold text-slate-800">İpuçları</p>
-        <ul class="list-disc pl-5 space-y-1">
-            <li>Ayraç: noktalı virgül (;) veya virgül (,) — otomatik algılanır</li>
-            <li>Zorunlu alanlar eşleştirilmezse ilgili satırlar atlanır</li>
-            <li>İçe aktarma mevcut kayıtları silmez; yeni kayıt ekler veya günceller</li>
-        </ul>
-    </section>
 </div>
 {% endblock %}

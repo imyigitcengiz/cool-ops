@@ -169,7 +169,11 @@ class SalesLeadCreateView(PermissionRequiredMixin, View):
         if customer:
             initial['use_existing_customer'] = True
             initial['existing_customer'] = customer.pk
-        form = SalesLeadForm(initial=initial, add_project_for_customer=customer)
+        form = SalesLeadForm(
+            initial=initial,
+            add_project_for_customer=customer,
+            request=request,
+        )
         return self._render(request, form, customer=customer)
 
     def post(self, request):
@@ -177,7 +181,7 @@ class SalesLeadCreateView(PermissionRequiredMixin, View):
         customer_id = request.POST.get('existing_customer') or request.GET.get('customer')
         if customer_id and str(customer_id).isdigit():
             customer = Customer.objects.filter(pk=int(customer_id)).first()
-        form = SalesLeadForm(request.POST, add_project_for_customer=customer)
+        form = SalesLeadForm(request.POST, add_project_for_customer=customer, request=request)
         if form.is_valid():
             lead = form.save()
             _flash_stock_warnings(request, lead)
@@ -214,13 +218,13 @@ class SalesLeadUpdateView(PermissionRequiredMixin, View):
 
     def get(self, request, pk):
         lead = get_object_or_404(SalesLead, pk=pk)
-        form = SalesLeadForm(instance=lead)
+        form = SalesLeadForm(instance=lead, request=request)
         return self._render(request, form, lead)
 
     def post(self, request, pk):
         lead = get_object_or_404(SalesLead, pk=pk)
         prev_status = lead.status
-        form = SalesLeadForm(request.POST, instance=lead)
+        form = SalesLeadForm(request.POST, instance=lead, request=request)
         if form.is_valid():
             lead = form.save()
             _flash_stock_warnings(request, lead)
@@ -296,7 +300,7 @@ class SalesLeadImportCsvView(PermissionRequiredMixin, View):
         uploaded = request.FILES.get('file')
         if not uploaded:
             messages.error(request, 'CSV dosyası seçin.')
-            return redirect('accounting_data_exchange')
+            return redirect('tools_csv_hub')
         try:
             result = import_sales_csv(uploaded, user=request.user)
             messages.success(request, f'{result["created"]} satış kaydı içe aktarıldı.')
@@ -304,7 +308,7 @@ class SalesLeadImportCsvView(PermissionRequiredMixin, View):
                 messages.warning(request, f'{result["skipped"]} satır atlandı.')
         except Exception as exc:
             messages.error(request, f'İçe aktarma başarısız: {exc}')
-        return redirect('accounting_data_exchange')
+        return redirect('tools_csv_hub')
 
 
 class SalesLeadExportCsvView(PermissionRequiredMixin, View):
@@ -325,28 +329,34 @@ class SalesLeadExportCsvView(PermissionRequiredMixin, View):
         max_interim = max((lead.interim_payments.count() for lead in leads), default=0)
         if report_mode:
             header = [
-                'AD SOYAD', 'TELEFON', 'YER', 'PROJE', 'TARİH',
-                'TOPLAM', 'PEŞİNAT',
+                'Müşteri Adı', 'Telefon', 'Bölge', 'Proje', 'Tarih',
+                'Toplam (₺)', 'Peşinat (₺)',
             ]
             for i in range(1, max(max_interim, 1) + 1):
-                header.append(f'ARA ÖDEME TARİH {i}' if max_interim > 1 else 'ARA ÖDEME TARİH')
-                header.append(f'ARA ÖDEME {i}' if max_interim > 1 else 'ARA ÖDEME')
-            header.extend(['KALAN', 'NOT', 'ÜRÜNLER'])
+                header.append(f'Ara ödeme tarihi {i}' if max_interim > 1 else 'Ara ödeme tarihi')
+                header.append(f'Ara ödeme {i}' if max_interim > 1 else 'Ara ödeme')
+            header.extend(['Kalan', 'Not', 'Proje ürünleri'])
             writer.writerow(header)
         else:
             writer.writerow([
-                'AD SOYAD', 'TELEFON', 'YER', 'PROJE', 'TARİH',
-                'TOPLAM', 'PEŞİNAT', 'ARA ÖDEME', 'KALAN', 'NOT', 'ÜRÜNLER',
+                'Müşteri Adı', 'Telefon', 'Bölge', 'Proje', 'Proje ürünleri', 'Tarih',
+                'Toplam (₺)', 'Peşinat (₺)', 'Not',
             ])
 
         for lead in leads:
             payments = list(lead.interim_payments.all())
-            product_desc = '; '.join(
+            product_names = ' | '.join(p.name for p in lead.products.all())
+            if not product_names:
+                product_names = ' | '.join(
+                    dict.fromkeys(line.product.name for line in lead.product_lines.all())
+                )
+            product_desc = product_names or '-'
+            detail_products = '; '.join(
                 f'{line.product.name}×{line.quantity}'
                 + (f' ({line.color.name})' if line.color else '')
                 + (f' — {line.note}' if line.note else '')
                 for line in lead.product_lines.all()
-            ) or '-'
+            ) or product_desc
 
             row = [
                 lead.customer.name,
@@ -367,11 +377,23 @@ class SalesLeadExportCsvView(PermissionRequiredMixin, View):
                         row.append('-')
                         row.append('-')
             else:
-                row.append(lead.interim_payments_total or '-')
+                row = [
+                    lead.customer.name,
+                    lead.customer.phone or '',
+                    lead.customer.region or '',
+                    lead.project_display,
+                    product_desc if product_desc != '-' else '',
+                    lead.sale_date.strftime('%d.%m.%Y'),
+                    lead.sale_amount if lead.sale_amount is not None else '',
+                    lead.down_payment if lead.down_payment is not None else '',
+                    lead.notes or '',
+                ]
+                writer.writerow(row)
+                continue
             row.extend([
                 lead.remaining_balance,
                 lead.notes or '-',
-                product_desc,
+                detail_products,
             ])
             writer.writerow(row)
         return response

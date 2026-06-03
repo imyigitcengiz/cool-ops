@@ -74,6 +74,66 @@
             </div>
         </section>
 
+        <section id="marka-firma" class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 md:p-8">
+            <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+                <div>
+                    <h3 class="text-lg font-bold text-slate-900 mb-1">Marka / Firma</h3>
+                    <p class="text-sm text-slate-500">Müşteri, servis ve muhasebe kayıtları seçili markaya göre ayrılır. Üst çubuktan aktif markayı değiştirebilirsiniz.</p>
+                </div>
+                {% if active_brand %}
+                <span class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-brand-50 text-brand-800 text-sm font-bold border border-brand-100 shrink-0">
+                    <i data-lucide="building-2" class="w-4 h-4"></i>
+                    Aktif: {{ active_brand.name }}
+                </span>
+                {% endif %}
+            </div>
+
+            {% if user_brands %}
+            <div class="mb-8">
+                <p class="text-xs font-bold uppercase text-slate-400 mb-3">Erişiminiz olan markalar</p>
+                <ul class="space-y-2">
+                    {% for b in user_brands %}
+                    <li class="flex items-center justify-between gap-3 p-3 rounded-xl border border-slate-100 bg-slate-50/50">
+                        <span class="font-semibold text-slate-800">{{ b.name }}</span>
+                        {% if active_brand and active_brand.pk == b.pk %}
+                        <span class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-lg">Seçili</span>
+                        {% else %}
+                        <form method="post" class="shrink-0">
+                            {% csrf_token %}
+                            <input type="hidden" name="form_action" value="brand_switch">
+                            <input type="hidden" name="brand_id" value="{{ b.pk }}">
+                            <button type="submit" class="text-xs font-bold text-brand-700 hover:underline">Seç</button>
+                        </form>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <h4 class="text-sm font-bold text-slate-800 mb-3">Yeni marka / firma ekle</h4>
+            <form method="post" class="space-y-4 max-w-lg">
+                {% csrf_token %}
+                <input type="hidden" name="form_action" value="brand_create">
+                <div>
+                    <label class="text-sm font-semibold text-slate-700">Marka / firma adı</label>
+                    <div class="mt-1.5">{{ brand_form.name }}</div>
+                </div>
+                <div>
+                    <label class="text-sm font-semibold text-slate-700">Ticari ünvan (opsiyonel)</label>
+                    <div class="mt-1.5">{{ brand_form.legal_name }}</div>
+                </div>
+                <div>
+                    <label class="text-sm font-semibold text-slate-700">Telefon (opsiyonel)</label>
+                    <div class="mt-1.5">{{ brand_form.phone }}</div>
+                </div>
+                <button type="submit" class="px-6 py-3 rounded-xl bg-brand-600 text-white font-bold hover:bg-brand-700 transition-colors inline-flex items-center gap-2">
+                    <i data-lucide="plus" class="w-4 h-4"></i>
+                    Marka ekle
+                </button>
+            </form>
+        </section>
+
         <section class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 md:p-8">
             <h3 class="text-lg font-bold text-slate-900 mb-1">Kişisel Bilgiler</h3>
             <p class="text-sm text-slate-500 mb-6">Ad, iletişim ve profil fotoğrafınızı güncelleyin.</p>

@@ -1,6 +1,6 @@
 {% if user_access.settings %}
-<a href="{% url 'settings_genel' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl transition-colors {% if request.resolver_match.url_name == 'site_general_settings' or request.resolver_match.url_name|slice:':9' == 'settings_' %}bg-amber-600 text-white{% else %}text-slate-400 hover:text-white hover:bg-slate-800{% endif %}">
-    <i data-lucide="sliders-horizontal" class="w-5 h-5"></i>
-    <span class="font-medium text-sm">Site Genel Ayarları</span>
+<a href="{% url 'settings_genel' %}" class="erp-nav-link erp-nav-link--compact {% if request.resolver_match.url_name == 'site_general_settings' or request.resolver_match.url_name|slice:':9' == 'settings_' %}erp-nav-link--active{% endif %}">
+    <i data-lucide="sliders-horizontal" class="erp-nav-link__icon"></i>
+    <span class="erp-nav-link__text">{{ gy.site_ayarlari }}</span>
 </a>
 {% endif %}

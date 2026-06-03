@@ -1,18 +1,21 @@
-{# Kurulu modüller — panel kısayolları (muhasebe/servis KPI tekrarı modül kartlarında) #}
+{# Kurulu modüller — panel kısayolları #}
 {% if panel_modules %}
-<section class="mb-10">
-    <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-4 flex items-center gap-2">
+<section class="erp-panel-section mb-10">
+    <h3 class="erp-panel-section__title">
         <i data-lucide="layout-grid" class="w-4 h-4"></i>
         Modüller
     </h3>
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div class="erp-panel-grid erp-panel-grid--modules">
         {% for mod in panel_modules %}
-        <a href="{{ mod.open_url }}" class="group block bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-lg hover:border-brand-300 transition-all p-6">
-            <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-600 flex items-center justify-center mb-4 group-hover:bg-brand-600 group-hover:text-white transition-colors">
+        <a href="{{ mod.open_url }}" class="erp-panel-card">
+            <span class="erp-panel-card__icon" aria-hidden="true">
                 <i data-lucide="{{ mod.icon }}" class="w-6 h-6"></i>
-            </div>
-            <h4 class="text-lg font-bold text-slate-900">{{ mod.name }}</h4>
-            <p class="text-sm text-slate-500 mt-2">{{ mod.summary }}</p>
+            </span>
+            <span class="erp-panel-card__body">
+                <span class="erp-panel-card__title">{{ mod.name }}</span>
+                <span class="erp-panel-card__desc">{{ mod.summary }}</span>
+            </span>
+            <i data-lucide="chevron-right" class="erp-panel-card__arrow w-5 h-5 text-slate-300"></i>
         </a>
         {% endfor %}
     </div>

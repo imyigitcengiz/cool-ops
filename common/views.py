@@ -16,7 +16,7 @@ class ContactHubView(TemplateView):
         from customers.customer_overview import build_rehber_hub_stats
 
         context = super().get_context_data(**kwargs)
-        context.update(build_rehber_hub_stats())
+        context.update(build_rehber_hub_stats(self.request))
         return context
 
 

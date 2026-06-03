@@ -42,7 +42,8 @@ def user_can_view_accounting_sales(user) -> bool:
     return user.has_any_perm_codename('sales.manage', 'sales.reports', 'sales.export')
 
 
-def build_accounting_panel_context(user) -> dict:
+def build_accounting_panel_context(request) -> dict:
+    user = request.user
     """Panel ve muhasebe özeti şablonları için ortak bağlam."""
     today = timezone.localdate()
     period = period_start(today)
@@ -64,7 +65,7 @@ def build_accounting_panel_context(user) -> dict:
             user_can_view_accounting_sales(user)
             and _particle_on('p.accounting.sales')
         ),
-        'accounting_show_personnel': _particle_on('p.accounting.personnel'),
+        'accounting_show_personnel': _particle_on('p.contact.personnel'),
     }
 
     if ctx['accounting_show_payroll']:
@@ -79,9 +80,14 @@ def build_accounting_panel_context(user) -> dict:
         })
 
     if ctx['accounting_show_finance']:
-        month_qs = FinanceRecord.objects.filter(
-            record_date__gte=month_start,
-            record_date__lte=month_end,
+        from common.brand_scope import filter_finance
+
+        month_qs = filter_finance(
+            FinanceRecord.objects.filter(
+                record_date__gte=month_start,
+                record_date__lte=month_end,
+            ),
+            request,
         )
         income = month_qs.filter(record_type=FinanceRecord.TYPE_INCOME).aggregate(
             t=Sum('amount'),
@@ -95,7 +101,7 @@ def build_accounting_panel_context(user) -> dict:
             'accounting_finance_net': income - expense,
         })
         from core_settings.cash import build_cash_snapshot
-        snap = build_cash_snapshot()
+        snap = build_cash_snapshot(request)
         ctx.update({
             'accounting_cash_balance': snap.current_balance,
             'accounting_cash_opening': snap.opening_balance,

@@ -1,0 +1,21 @@
+{% with url_name=request.resolver_match.url_name %}
+<a href="{% url 'outreach_hub' %}" class="erp-nav-link{% if url_name == 'outreach_hub' %} erp-nav-link--active{% endif %}">
+    <i data-lucide="layout-grid" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">{{ gy.iletisim_merkezi }}</span>
+</a>
+<a href="{% url 'outreach_campaigns' %}" class="erp-nav-link{% if url_name == 'outreach_campaigns' %} erp-nav-link--active{% endif %}">
+    <i data-lucide="megaphone" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">Kampanyalar</span>
+</a>
+<p class="erp-nav-group-label">Kayıtlar</p>
+<a href="{% url 'outreach_campaign_messages' %}" class="erp-nav-link{% if url_name == 'outreach_campaign_messages' %} erp-nav-link--active{% endif %}">
+    <i data-lucide="list" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">Kampanya mesajları</span>
+</a>
+<a href="{% url 'outreach_firm_messages' %}" class="erp-nav-link{% if url_name == 'outreach_firm_messages' %} erp-nav-link--active{% endif %}">
+    <i data-lucide="building-2" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">Firma mesajları</span>
+</a>
+<a href="{% url 'outreach_customer_messages' %}" class="erp-nav-link{% if url_name == 'outreach_customer_messages' %} erp-nav-link--active{% endif %}">
+    <i data-lucide="users" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">Müşteri mesajları</span>
+</a>
+<a href="{% url 'outreach_personnel_messages' %}" class="erp-nav-link{% if url_name == 'outreach_personnel_messages' %} erp-nav-link--active{% endif %}">
+    <i data-lucide="id-card" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">Personel mesajları</span>
+</a>
+{% endwith %}

@@ -15,6 +15,7 @@ from common.permissions import (
     SERVICES_PRINT_PERM,
     SERVICES_WHATSAPP_PERM,
 )
+from common.brand_scope import assign_brand, filter_by_brand, filter_services
 from users.mixins import PermissionRequiredMixin
 from .models import ServiceRecord, ServiceImage, ServiceHistory
 from .forms import ServiceRecordForm
@@ -273,7 +274,13 @@ class ServiceListView(PermissionRequiredMixin, ListView):
 
     def get_queryset(self):
         ensure_default_statuses()
-        queryset = super().get_queryset().select_related('status', 'priority', 'customer', 'solution_partner', 'service_personnel', 'service_personnel__team').prefetch_related('products', 'service_types')
+        queryset = filter_services(
+            super().get_queryset().select_related(
+                'status', 'priority', 'customer', 'solution_partner',
+                'service_personnel', 'service_personnel__team',
+            ).prefetch_related('products', 'service_types'),
+            self.request,
+        )
         q = self.request.GET.get('q')
         status = self.request.GET.get('status')
         priority = self.request.GET.get('priority')
@@ -346,7 +353,10 @@ class ServiceListView(PermissionRequiredMixin, ListView):
         context['priorities'] = PriorityOption.objects.all()
         context['service_types'] = ServiceTypeOption.objects.order_by('name')
         context['teams'] = ServiceTeam.objects.filter(is_active=True).order_by('name')
-        context['personnel_list'] = ServicePersonnel.objects.filter(is_active=True).select_related('team').order_by('name')
+        context['personnel_list'] = filter_by_brand(
+            ServicePersonnel.objects.filter(is_active=True).select_related('team').order_by('name'),
+            self.request,
+        )
         context['customer_regions'] = list(
             Customer.objects.exclude(Q(region__isnull=True) | Q(region=''))
             .values_list('region', flat=True)
@@ -449,7 +459,16 @@ class ServiceCreateView(PermissionRequiredMixin, CreateView):
             initial['customer'] = int(customer_id)
         return initial
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
+
     def form_valid(self, form):
+        assign_brand(form.instance, self.request)
+        customer = form.cleaned_data.get('customer')
+        if customer and customer.brand_id:
+            form.instance.brand_id = customer.brand_id
         with suppress_live_sync():
             response = super().form_valid(form)
         publish_live_event(
@@ -480,6 +499,11 @@ class ServiceUpdateView(PermissionRequiredMixin, UpdateView):
     form_class = ServiceRecordForm
     template_name = 'services_dashboard/services/service_form.html'
     success_url = reverse_lazy('services')
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['request'] = self.request
+        return kwargs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

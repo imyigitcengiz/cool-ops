@@ -6,7 +6,13 @@ from dataclasses import dataclass
 
 from django.urls import NoReverseMatch, reverse
 
-from common.module_runtime import is_module_installed, module_available_for_nav, module_route_allowed
+from common.module_runtime import (
+    MODULE_PARTICLE_FALLBACK,
+    is_module_installed,
+    is_particle_enabled_for_nav,
+    module_available_for_nav,
+    module_route_allowed,
+)
 
 
 @dataclass(frozen=True)
@@ -65,7 +71,8 @@ QUICK_SEARCH_ITEMS: tuple[QuickSearchItem, ...] = (
     _item('Yeni servis kaydı', 'Servis aç', 'plus', 'Yardım Masası', 'service_create', keywords=('yeni', 'aç'), perms_any=('services.manage',), module_slug='services', kind='action'),
     _item('Saha planı', 'Günlük randevu takvimi', 'calendar-days', 'Yardım Masası', 'service_schedule', keywords=('takvim', 'plan'), perms_any=('access.services',), module_slug='services'),
     _item('Muhasebe özeti', 'Finans hub', 'calculator', 'Muhasebe', 'accounting_hub', module_slug='accounting', perms_any=('access.accounting',)),
-    _item('Personel yönetimi', 'Departman, ekip, maaş', 'id-card', 'Muhasebe', 'accounting_personnel', keywords=('personel', 'kadro'), perms_any=('contact.personnel', 'access.accounting'), module_slug='accounting'),
+    _item('Personel ağı', 'Saha personeli listesi', 'users', 'Rehber', 'personnel_network', keywords=('personel', 'ağ'), perms_any=('contact.personnel',), module_slug='contact'),
+    _item('Personel yönetimi', 'Departman, ünvan, dönem özeti', 'id-card', 'Rehber', 'contact_personnel', keywords=('personel', 'kadro'), perms_any=('contact.personnel', 'contact.payroll'), module_slug='contact'),
     _item('Maaş & avans', 'Ödeme döngüsü', 'wallet', 'Muhasebe', 'accounting_payroll', keywords=('maaş', 'avans'), perms_any=('contact.payroll',), module_slug='accounting'),
     _item('Gelir & gider', 'Ofis giderleri', 'receipt', 'Muhasebe', 'accounting_finance', keywords=('gider', 'gelir'), perms_any=('accounting.finance',), module_slug='accounting'),
     _item('Kasa', 'Nakit özeti', 'landmark', 'Muhasebe', 'accounting_cash', keywords=('kasa', 'nakit'), perms_any=('accounting.finance',), module_slug='accounting'),
@@ -82,7 +89,7 @@ QUICK_SEARCH_ITEMS: tuple[QuickSearchItem, ...] = (
     _item('Teklifler', 'Teklif listesi', 'file-text', 'Muhasebe', 'sales_quote_list', keywords=('teklif',), perms_any=('sales.manage',), module_slug='accounting'),
     _item('Yeni teklif', 'Teklif hazırla', 'file-plus', 'Muhasebe', 'sales_quote_create', keywords=('teklif',), perms_any=('sales.manage',), module_slug='accounting', kind='action'),
     _item('Raporlar', 'Maaş ve satış raporları', 'bar-chart-3', 'Muhasebe', 'accounting_reports', keywords=('rapor',), perms_any=('contact.payroll', 'sales.reports', 'accounting.finance'), module_slug='accounting'),
-    _item('Veri alışverişi', 'CSV içe/dışa aktarım', 'arrow-up-down', 'Muhasebe', 'accounting_data_exchange', keywords=('csv', 'import'), perms_any=('contact.payroll', 'accounting.finance', 'sales.export'), module_slug='accounting'),
+    _item('CSV araçları', 'İçe / dışa aktarım merkezi', 'arrow-up-down', 'Araçlar', 'tools_csv_hub', keywords=('csv', 'import', 'export', 'veri'), perms_any=('access.tools', 'contact.payroll', 'accounting.finance', 'sales.export', 'contact.customers'), module_slug='integration_csv_exchange'),
     _item('İletişim Merkezi', 'Kampanya hub', 'messages-square', 'İletişim', 'outreach_hub', module_slug='outreach', perms_any=('access.outreach',)),
     _item('Kampanyalar', 'Toplu mesaj gönderimi', 'megaphone', 'İletişim', 'outreach_campaigns', keywords=('kampanya',), perms_any=('access.outreach',), module_slug='outreach'),
     _item('WhatsApp bağlan', 'Köprü ve senaryolar', 'message-circle', 'Araçlar', 'tools_whatsapp_baglan', keywords=('whatsapp',), perms_any=('tools.whatsapp',), module_slug='integration_whatsapp_bridge'),
@@ -105,6 +112,11 @@ def _user_can_see_item(user, item: QuickSearchItem) -> bool:
     if item.module_slug:
         if item.module_slug == 'settings':
             if not user.has_perm_codename('access.settings'):
+                return False
+        elif particle := MODULE_PARTICLE_FALLBACK.get(item.module_slug):
+            if not is_particle_enabled_for_nav(particle):
+                return False
+            if not is_module_installed('accounting'):
                 return False
         elif not module_route_allowed(item.module_slug):
             return False
@@ -157,7 +169,7 @@ def build_quick_search_results(user, query: str = '', *, limit: int = 20) -> lis
     return out
 
 
-def search_entities(user, query: str, *, limit: int = 5) -> list[dict]:
+def search_entities(user, query: str, *, limit: int = 5, request=None) -> list[dict]:
     q = (query or '').strip()
     if len(q) < 2:
         return []
@@ -167,7 +179,12 @@ def search_entities(user, query: str, *, limit: int = 5) -> list[dict]:
     if user.has_any_perm_codename('contact.customers_view', 'contact.customers'):
         from customers.models import Customer
 
-        for customer in Customer.objects.filter(name__icontains=q).order_by('name')[:limit]:
+        cust_qs = Customer.objects.filter(name__icontains=q).order_by('name')
+        if request:
+            from common.brand_scope import filter_customers
+
+            cust_qs = filter_customers(cust_qs, request)
+        for customer in cust_qs[:limit]:
             try:
                 url = reverse('customer_update', kwargs={'pk': customer.pk})
             except NoReverseMatch:
@@ -184,11 +201,14 @@ def search_entities(user, query: str, *, limit: int = 5) -> list[dict]:
     if user.has_perm_codename('access.services'):
         from services.models import ServiceRecord
 
-        for service in (
-            ServiceRecord.objects.select_related('customer')
-            .filter(customer__name__icontains=q)
-            .order_by('-updated_at')[:limit]
-        ):
+        svc_qs = ServiceRecord.objects.select_related('customer').filter(
+            customer__name__icontains=q,
+        ).order_by('-updated_at')
+        if request:
+            from common.brand_scope import filter_services
+
+            svc_qs = filter_services(svc_qs, request)
+        for service in svc_qs[:limit]:
             try:
                 url = reverse('service_update', kwargs={'pk': service.pk})
             except NoReverseMatch:

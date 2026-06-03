@@ -14,7 +14,10 @@
             <i data-lucide="download" class="w-4 h-4 shrink-0"></i> CSV indir
         </a>
         <a href="{% url 'csv_import_wizard' %}?type=customers&next={{ request.get_full_path|urlencode }}" class="erp-csv-io__btn erp-csv-io__btn--upload erp-touch-target">
-            <i data-lucide="upload" class="w-4 h-4 shrink-0"></i> CSV yükle
+            <i data-lucide="upload" class="w-4 h-4 shrink-0"></i> CSV içe aktar
+        </a>
+        <a href="{% url 'tools_csv_hub' %}?open=customers" class="erp-csv-io__btn erp-csv-io__btn--hub erp-touch-target">
+            <i data-lucide="arrow-up-down" class="w-4 h-4 shrink-0"></i> CSV araçları
         </a>
     </div>
     {% endif %}

@@ -16,10 +16,12 @@ from .admin_views import (
     SuperAdminDashboardView,
 )
 from .impersonation_views import ImpersonateStartView, ImpersonateStopView
+from .brand_views import BrandSwitchView
 from .views import ProfileSettingsView, UserLoginView, UserLogoutView
 
 urlpatterns = [
     path('profil/', ProfileSettingsView.as_view(), name='profile_settings'),
+    path('profil/marka/degist/', BrandSwitchView.as_view(), name='brand_switch'),
     path('profil/gecis/bitir/', ImpersonateStopView.as_view(), name='impersonate_stop'),
     path('giris/', UserLoginView.as_view(), name='login'),
     path('cikis/', UserLogoutView.as_view(), name='logout'),

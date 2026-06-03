@@ -6,7 +6,9 @@ from django.db import transaction
 from django.utils import timezone
 
 from common.csv_io import parse_date_tr, parse_decimal
+from common.csv_products import parse_product_names_cell, resolve_product_options
 from customers.models import Customer
+from sales_leads.csv_interim import parse_interim_payments_from_row
 from sales_leads.models import SalesLead, SalesLeadInterimPayment
 
 
@@ -23,18 +25,34 @@ def _mapped(row: dict, key: str, *legacy: str) -> str:
     return val or _cell(row, *legacy)
 
 
-def import_sales_rows(mapped_rows: list[dict], *, user=None, raw_rows: list[dict] | None = None) -> dict:
+def import_sales_rows(
+    mapped_rows: list[dict],
+    *,
+    user=None,
+    request=None,
+    raw_rows: list[dict] | None = None,
+) -> dict:
+    from common.csv_import_diagnostics import row_preview
+
     created = 0
     skipped = 0
-    errors: list[str] = []
+    interim_payments = 0
+    skipped_rows: list[dict] = []
+    warnings: list[dict] = []
     raw_rows = raw_rows or mapped_rows
 
     with transaction.atomic():
         for idx, row in enumerate(mapped_rows):
+            line_no = idx + 2
             raw = raw_rows[idx] if idx < len(raw_rows) else row
             name = _mapped(row, 'customer_name', 'AD SOYAD', 'MÜŞTERİ', 'MUSTERI', 'AD')
             if not name:
                 skipped += 1
+                skipped_rows.append({
+                    'row': line_no,
+                    'reason': 'Müşteri Adı boş — sütun eşlemesini kontrol edin.',
+                    'preview': row_preview(raw),
+                })
                 continue
             phone = _mapped(row, 'phone', 'TELEFON', 'TEL')
             region = _mapped(row, 'region', 'YER', 'BÖLGE', 'BOLGE')
@@ -43,15 +61,24 @@ def import_sales_rows(mapped_rows: list[dict], *, user=None, raw_rows: list[dict
             sale_amount = parse_decimal(_mapped(row, 'total', 'TOPLAM', 'TUTAR'))
             down_payment = parse_decimal(_mapped(row, 'down_payment', 'PEŞİNAT', 'PESINAT'))
 
-            customer, _ = Customer.objects.get_or_create(
-                name=name,
-                defaults={'phone': phone, 'region': region},
-            )
-            if phone and customer.phone != phone:
-                customer.phone = phone
-            if region and customer.region != region:
-                customer.region = region
-            customer.save()
+            customer = Customer.objects.filter(name__iexact=name).first()
+            if customer:
+                if phone and customer.phone != phone:
+                    customer.phone = phone
+                if region and customer.region != region:
+                    customer.region = region
+                customer.save()
+            else:
+                customer = Customer.objects.create(
+                    name=name,
+                    phone=phone or None,
+                    region=region or None,
+                )
+                if request is not None:
+                    from common.brand_scope import assign_brand
+
+                    assign_brand(customer, request)
+                    customer.save(update_fields=['brand_id'])
 
             lead = SalesLead.objects.create(
                 customer=customer,
@@ -64,31 +91,39 @@ def import_sales_rows(mapped_rows: list[dict], *, user=None, raw_rows: list[dict
                 assigned_to=user if user and user.is_authenticated else None,
             )
 
-            interim_cols = sorted(
-                [k for k in raw if k.upper().startswith('ARA ÖDEME') or k.upper().startswith('ARA ODEME')],
-                key=lambda x: x,
-            )
-            date_cols = [k for k in interim_cols if 'TARİH' in k.upper() or 'TARIH' in k.upper()]
-            amount_cols = [k for k in interim_cols if k not in date_cols]
-            if not amount_cols:
-                amount_cols = ['ARA ÖDEME']
-            order = 0
-            for col in amount_cols:
-                amt = parse_decimal(raw.get(col, ''))
-                if not (amt and amt > 0):
-                    continue
-                date_key = col.replace('ARA ÖDEME', 'ARA ÖDEME TARİH').replace('ARA ODEME', 'ARA ODEME TARIH')
-                pay_date = parse_date_tr(_cell(raw, date_key, f'{col} TARİH', f'{col} TARIH')) or sale_date
+            product_names = parse_product_names_cell(_mapped(row, 'products', 'ÜRÜN', 'URUN', 'URUNLER'))
+            if product_names:
+                options = resolve_product_options(product_names)
+                if options:
+                    lead.products.set(options)
+                    for product in options:
+                        customer.products.add(product)
+                else:
+                    warnings.append({
+                        'row': line_no,
+                        'message': f'Proje ürünleri bağlanamadı: {", ".join(product_names)}',
+                        'preview': name,
+                    })
+
+            for order, (amt, pay_date) in enumerate(
+                parse_interim_payments_from_row(raw, default_date=sale_date)
+            ):
                 SalesLeadInterimPayment.objects.create(
                     sales_lead=lead,
                     amount=amt,
                     payment_date=pay_date,
                     sort_order=order,
                 )
-                order += 1
+                interim_payments += 1
             created += 1
 
-    return {'created': created, 'skipped': skipped, 'errors': errors}
+    return {
+        'created': created,
+        'skipped': skipped,
+        'skipped_rows': skipped_rows,
+        'warnings': warnings,
+        'interim_payments': interim_payments,
+    }
 
 
 def import_sales_csv(uploaded_file, *, user=None, mapping=None) -> dict:

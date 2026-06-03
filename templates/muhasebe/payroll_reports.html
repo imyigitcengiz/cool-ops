@@ -16,7 +16,7 @@
             <a href="{% url 'accounting_payroll_export' %}?{{ export_query }}" class="erp-csv-io__btn erp-csv-io__btn--download erp-touch-target"><i data-lucide="download" class="w-4 h-4 shrink-0"></i><span>CSV indir</span></a>
             <a href="{% url 'csv_import_wizard' %}?type=payroll&next={{ request.get_full_path|urlencode }}" class="erp-csv-io__btn erp-csv-io__btn--upload erp-touch-target"><i data-lucide="upload" class="w-4 h-4 shrink-0"></i><span>CSV yükle</span></a>
         </div>
-        <a href="{% url 'accounting_data_exchange' %}" class="erp-touch-target px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 inline-flex items-center gap-2 whitespace-nowrap"><i data-lucide="arrow-up-down" class="w-4 h-4"></i> {{ gy.mh_veri_alisverisi }}</a>
+        <a href="{% url 'tools_csv_hub' %}" class="erp-touch-target px-4 py-2 border border-slate-200 rounded-xl text-sm font-semibold text-slate-700 hover:bg-slate-50 inline-flex items-center gap-2 whitespace-nowrap"><i data-lucide="arrow-up-down" class="w-4 h-4"></i> CSV araçları</a>
     </div>
 </div>
 {% endblock %}

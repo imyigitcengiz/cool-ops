@@ -1,156 +1,86 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{{ gy.yardim_masasi }}{% endblock %} | {{ site_settings.site_name }}</title>
-    {% load static %}
-    {% include 'common/erp_head_assets.html' %}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.10/build/css/intlTelInput.css">
-    <script src="https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.10/build/js/intlTelInput.min.js"></script>
-    <style>
-        .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
-        .iti { width: 100%; }
-    </style>
-    {% block extra_head %}{% endblock %}
-</head>
-<body class="erp-app erp-theme-sky flex h-screen overflow-hidden bg-slate-100">
-    {% include 'common/impersonation_banner.html' %}
-    {% include 'common/erp_mobile_sidebar_start.html' %}
-        <div class="p-6">
-            <a href="{% url 'home' %}" class="text-xl font-bold text-white flex items-center gap-2">
-                {% if site_settings.logo %}
-                    <img src="{{ site_settings.logo.url }}" class="w-8 h-8 rounded-lg object-contain">
-                {% else %}
-                    <span class="w-8 h-8 bg-brand-500 rounded-lg flex items-center justify-center text-white">
-                        {{ site_settings.site_name.0|upper }}
-                    </span>
-                {% endif %}
-                <span class="truncate">{{ site_settings.site_name }}</span>
-            </a>
-        </div>
-        
-        <nav class="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-            {% if user_access.home %}
-            <a href="{% url 'home' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl transition-colors text-slate-400 hover:text-white hover:bg-slate-800">
-                <i data-lucide="layout-grid" class="w-5 h-5"></i>
-                <span class="font-medium text-sm">{{ gy.ana_panel }}</span>
-            </a>
-            {% endif %}
-            {% include 'common/erp_module_own_nav.html' with module='services' %}
-            <div class="pt-4 mt-4 border-t border-slate-800">
-                <p class="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Diğer modüller</p>
-                {% include 'common/erp_cross_nav.html' with skip_platform_module='services' %}
-            </div>
-            {% include 'common/settings_nav_link.html' %}
-            {% if user.is_superuser %}
-            <a href="{% url 'admin_dashboard' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl transition-colors text-slate-400 hover:text-white hover:bg-red-900/40">
-                <i data-lucide="shield" class="w-5 h-5"></i>
-                <span class="font-medium text-sm">Süper Admin</span>
-            </a>
-            {% endif %}
-        </nav>
-
-        {% include 'common/profile_sidebar_card.html' %}
-    {% include 'common/erp_mobile_sidebar_end.html' %}
-
-    <!-- Main Content -->
-    <main class="flex-1 overflow-y-auto min-w-0">
-        {% include 'common/toast_messages.html' %}
-        {% if services_saturday_weather %}
-        <div class="mx-4 md:mx-8 mt-3 px-4 py-2.5 rounded-2xl bg-sky-50 border border-sky-100 text-sm text-sky-900 flex flex-wrap items-center gap-2">
-            <i data-lucide="cloud-sun" class="w-4 h-4 text-sky-600 shrink-0"></i>
-            <span class="font-semibold">Cumartesi {{ services_saturday_weather.date_label }}</span>
-            <span class="text-sky-800">{{ services_saturday_weather.city }}</span>
-            {% if services_saturday_weather.temp_max != None %}
-            <span>{{ services_saturday_weather.temp_min|floatformat:0 }}–{{ services_saturday_weather.temp_max|floatformat:0 }}°C</span>
-            {% endif %}
-            <span>· {{ services_saturday_weather.condition }}</span>
-            {% if services_saturday_weather.precip_probability != None %}
-            <span class="text-sky-700">· Yağış %{{ services_saturday_weather.precip_probability }}</span>
-            {% endif %}
-        </div>
-        {% endif %}
-        <header class="erp-module-header">
-            <div class="erp-module-header__inner erp-module-header__inner--inline-actions">
-                <div class="erp-module-header__top">
-                    <div class="erp-module-header__lead">
-                        {% include 'common/erp_sidebar_toggle.html' %}
-                        <div class="erp-module-header__text min-w-0">
-                            <h1 class="erp-module-header__title truncate">{{ gy.yardim_masasi }}</h1>
-                            <p class="erp-module-header__subtitle truncate hidden sm:block">{{ site_settings.site_name }}</p>
-                        </div>
-                    </div>
-                    <div class="erp-module-header__tools">
-                        {% include 'common/erp_module_header_tools.html' %}
-                    </div>
-                </div>
-                {% if user_perms.services_manage %}
-                <div class="erp-module-header__bottom erp-module-header__actions">
-                    <div class="relative inline-block text-left">
-                        <button id="newActionBtn" type="button" class="erp-touch-target inline-flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-xl hover:bg-brand-700 transition-all shadow-md shadow-brand-200/60 text-sm font-semibold whitespace-nowrap">
-                            <i data-lucide="plus" class="w-4 h-4"></i>
-                            <span>Yeni kayıt</span>
-                        </button>
-                        <div id="newActionDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden">
-                            <a href="{% url 'service_create' %}" class="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50">
-                                <i data-lucide="plus" class="w-4 h-4 text-brand-600"></i> Yeni servis kaydı
-                            </a>
-                        </div>
-                    </div>
-                </div>
-                {% endif %}
-            </div>
-            <script>
-                const btn = document.getElementById('newActionBtn');
-                const dropdown = document.getElementById('newActionDropdown');
-                if (btn && dropdown) {
-                    btn.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        dropdown.classList.toggle('hidden');
-                    });
-                    document.addEventListener('click', () => {
-                        dropdown.classList.add('hidden');
-                    });
-                }
-            </script>
-        </header>
-
-        <div class="p-4 md:p-8 max-w-[1600px] mx-auto">
-            {% block content %}{% endblock %}
-        </div>
-    </main>
-
-    <script>
-        window.SD_BASE = '/services-dashboard';
-        window.AYARLAR_BASE = '/ayarlar';
-        window.CUSTOMER_API_BASE = '/contact';
-        window.CRM_BASE = '/contact';
-        {% if user.is_authenticated %}window.GY_USER_ID = {{ user.id }};{% endif %}
-    </script>
-    {% load static %}
-    <script src="{% static 'js/gy-toast.js' %}" defer></script>
-    <script src="{% static 'js/product-service-type-sync.js' %}" defer></script>
-    <script src="{% static 'js/live-sync.js' %}" defer></script>
-    <script src="{% static 'js/quick-field-update.js' %}" defer></script>
-    {% if user_perms.services_manage %}
-    <script>
-        window.SERVICE_QUICK_UPDATE_URL = '{% url "service_quick_update" %}';
-        document.addEventListener('DOMContentLoaded', function () {
-            window.GyQuickFieldUpdate?.init();
-        });
-    </script>
+{% extends 'common/erp_unified_shell.html' %}
+{% block title %}{{ gy.yardim_masasi }}{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.10/build/css/intlTelInput.css">
+<script src="https://cdn.jsdelivr.net/npm/intl-tel-input@23.0.10/build/js/intlTelInput.min.js"></script>
+<style>
+    .glass { background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); }
+    .iti { width: 100%; }
+</style>
+{% endblock %}
+{% block main_prefix %}
+{% if services_saturday_weather %}
+<div class="mx-4 md:mx-8 mt-3 px-4 py-2.5 rounded-2xl bg-sky-50 border border-sky-100 text-sm text-sky-900 flex flex-wrap items-center gap-2">
+    <i data-lucide="cloud-sun" class="w-4 h-4 text-sky-600 shrink-0"></i>
+    <span class="font-semibold">Cumartesi {{ services_saturday_weather.date_label }}</span>
+    <span class="text-sky-800">{{ services_saturday_weather.city }}</span>
+    {% if services_saturday_weather.temp_max != None %}
+    <span>{{ services_saturday_weather.temp_min|floatformat:0 }}–{{ services_saturday_weather.temp_max|floatformat:0 }}°C</span>
     {% endif %}
-    {% block extra_js %}{% endblock %}
-    {% if user_perms.services_whatsapp and modules_nav.integration_whatsapp_bridge %}{% include 'services_dashboard/partials/whatsapp_modal.html' %}{% endif %}
-    {% include 'common/whatsapp_scenario_prompt_assets.html' %}
-    {% include 'common/team_chat_widget.html' %}
-    {% if user_perms.tools_ai and site_settings.ai_chat_enabled %}{% include 'services_dashboard/partials/ai_chat_widget.html' %}{% endif %}
-    <script>
-        if (window.lucide) lucide.createIcons();
-    </script>
-    {% include 'common/erp_shell_extras.html' %}
-    {% include 'common/erp_mobile_sidebar_script.html' %}
-</body>
-</html>
+    <span>· {{ services_saturday_weather.condition }}</span>
+    {% if services_saturday_weather.precip_probability != None %}
+    <span class="text-sky-700">· Yağış %{{ services_saturday_weather.precip_probability }}</span>
+    {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+{% block header_title %}<h1 class="erp-module-header__title truncate">{{ gy.yardim_masasi }}</h1>{% endblock %}
+{% block header_subtitle %}<p class="erp-module-header__subtitle truncate hidden sm:block">{{ site_settings.site_name }}</p>{% endblock %}
+{% block shell_header_text_class %}{% endblock %}
+{% block header_actions %}
+{% if user_perms.services_manage %}
+<div class="erp-module-header__bottom erp-module-header__actions">
+    <div class="relative inline-block text-left">
+        <button id="newActionBtn" type="button" class="erp-touch-target inline-flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-xl hover:bg-brand-700 transition-all shadow-md shadow-brand-200/60 text-sm font-semibold whitespace-nowrap">
+            <i data-lucide="plus" class="w-4 h-4"></i>
+            <span>Yeni kayıt</span>
+        </button>
+        <div id="newActionDropdown" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-slate-100 z-50 overflow-hidden">
+            <a href="{% url 'service_create' %}" class="flex items-center gap-3 px-4 py-3 text-sm text-slate-700 hover:bg-slate-50">
+                <i data-lucide="plus" class="w-4 h-4 text-brand-600"></i> Yeni servis kaydı
+            </a>
+        </div>
+    </div>
+</div>
+<script>
+    const btn = document.getElementById('newActionBtn');
+    const dropdown = document.getElementById('newActionDropdown');
+    if (btn && dropdown) {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdown.classList.toggle('hidden');
+        });
+        document.addEventListener('click', () => dropdown.classList.add('hidden'));
+    }
+</script>
+{% endif %}
+{% endblock %}
+{% block shell_scripts %}
+<script>
+    window.SD_BASE = '/services-dashboard';
+    window.AYARLAR_BASE = '/ayarlar';
+    window.CUSTOMER_API_BASE = '/contact';
+    window.CRM_BASE = '/contact';
+    {% if user.is_authenticated %}window.GY_USER_ID = {{ user.id }};{% endif %}
+</script>
+{% load static %}
+<script src="{% static 'js/gy-toast.js' %}" defer></script>
+<script src="{% static 'js/product-service-type-sync.js' %}" defer></script>
+<script src="{% static 'js/live-sync.js' %}" defer></script>
+<script src="{% static 'js/quick-field-update.js' %}" defer></script>
+{% if user_perms.services_manage %}
+<script>
+    window.SERVICE_QUICK_UPDATE_URL = '{% url "service_quick_update" %}';
+    document.addEventListener('DOMContentLoaded', function () {
+        window.GyQuickFieldUpdate?.init();
+    });
+</script>
+{% endif %}
+{% endblock %}
+{% block shell_includes %}
+{{ block.super }}
+{% if user_perms.services_whatsapp and modules_nav.integration_whatsapp_bridge %}{% include 'services_dashboard/partials/whatsapp_modal.html' %}{% endif %}
+{% include 'common/whatsapp_scenario_prompt_assets.html' %}
+{% if user_perms.tools_ai and site_settings.ai_chat_enabled %}{% include 'services_dashboard/partials/ai_chat_widget.html' %}{% endif %}
+{% endblock %}

@@ -1,0 +1,41 @@
+{% with url_name=request.resolver_match.url_name %}
+<a href="{% url 'contact_hub' %}" class="erp-nav-link{% if url_name == 'contact_hub' %} erp-nav-link--active{% endif %}">
+    <i data-lucide="layout-grid" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">{{ gy.rehber_ozet }}</span>
+</a>
+{% if user_perms.contact_customers_view or user_perms.contact_customers %}
+<a href="{% url 'customers' %}?nav_module=contact" class="erp-nav-link{% if url_name == 'customers' or url_name == 'customer_create' or url_name == 'customer_update' or url_name == 'customer_overview' %} erp-nav-link--active{% endif %}">
+    <i data-lucide="users" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">{{ gy.rehber_musteriler }}</span>
+</a>
+{% endif %}
+{% if user_perms.contact_firms %}
+<p class="erp-nav-group-label">{{ gy.rehber_firmalar }}</p>
+<a href="{% url 'contact_firmalar' %}" class="erp-nav-link{% if url_name == 'contact_firmalar' %} erp-nav-link--active{% endif %}">
+    <i data-lucide="building-2" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">{{ gy.rehber_firmalar }}</span>
+</a>
+{% endif %}
+{% if user_perms.contact_personnel or user_perms.contact_teams %}
+<p class="erp-nav-group-label">{{ gy.mh_personel }}</p>
+{% if user_perms.contact_personnel and particles_nav.contact_personnel %}
+<a href="{% url 'personnel_network' %}" class="erp-nav-link{% if url_name == 'personnel_network' %} erp-nav-link--active{% endif %}">
+    <i data-lucide="users" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">Personel ağı</span>
+</a>
+<a href="{% url 'contact_personnel' %}" class="erp-nav-link{% if url_name == 'contact_personnel' or url_name == 'accounting_personnel' %} erp-nav-link--active{% endif %}">
+    <i data-lucide="id-card" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">Personel yönetimi</span>
+</a>
+{% endif %}
+{% if user_perms.contact_teams and particles_nav.contact_teams %}
+<a href="{% url 'team_network' %}" class="erp-nav-link{% if url_name == 'team_network' %} erp-nav-link--active{% endif %}">
+    <i data-lucide="users-round" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">{{ gy.rehber_ekipler }}</span>
+</a>
+{% endif %}
+{% endif %}
+{% if modules_nav.outreach and user_access.outreach %}
+<p class="erp-nav-group-label">{{ gy.iletisim_merkezi }}</p>
+<a href="{% url 'outreach_hub' %}" class="erp-nav-link{% if url_name == 'outreach_hub' %} erp-nav-link--active{% endif %}">
+    <i data-lucide="messages-square" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">{{ gy.iletisim_merkezi }}</span>
+</a>
+<a href="{% url 'outreach_campaigns' %}" class="erp-nav-link{% if url_name == 'outreach_campaigns' %} erp-nav-link--active{% endif %}">
+    <i data-lucide="megaphone" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">Kampanyalar</span>
+</a>
+{% endif %}
+{% endwith %}

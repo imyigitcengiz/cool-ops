@@ -271,4 +271,170 @@
         loadNotifications();
         window.setInterval(loadNotifications, 120000);
     }
+
+    /* —— Sidebar: mobilde satır altı, masaüstünde hub yanında küçük popup —— */
+    const popoverMq = window.matchMedia('(min-width: 1024px)');
+    let hoverOpenTimer = null;
+    let hoverCloseTimer = null;
+
+    function clearPopoverPosition(menu) {
+        if (!menu) return;
+        menu.style.top = '';
+        menu.style.left = '';
+        menu.style.maxHeight = '';
+        menu.style.height = '';
+        menu.style.width = '';
+        menu.style.overflow = '';
+        menu.style.visibility = '';
+        menu.style.display = '';
+        menu.classList.remove('is-popover-ready');
+    }
+
+    function positionSidebarPopover(block) {
+        const row = block.querySelector('.erp-sidebar-module__hub-row');
+        const menu = block.querySelector('[data-erp-module-menu]');
+        if (!row || !menu) return;
+
+        const gap = 8;
+        const pad = 8;
+        const rowRect = row.getBoundingClientRect();
+        const width = Math.min(232, window.innerWidth * 0.32);
+        let left = rowRect.right + gap;
+
+        if (left + width > window.innerWidth - pad) {
+            left = Math.max(pad, rowRect.left - width - gap);
+        }
+
+        menu.style.width = `${width}px`;
+        menu.style.maxHeight = 'none';
+        menu.style.height = 'auto';
+        menu.style.overflow = 'visible';
+        menu.style.left = '-10000px';
+        menu.style.top = '0';
+        menu.style.visibility = 'hidden';
+        menu.style.display = 'block';
+
+        const menuHeight = menu.offsetHeight;
+        const viewportH = window.innerHeight;
+        let top = rowRect.top;
+
+        if (menuHeight > viewportH - pad * 2) {
+            top = pad;
+        } else if (top + menuHeight > viewportH - pad) {
+            top = Math.max(pad, viewportH - menuHeight - pad);
+        }
+        if (top < pad) {
+            top = pad;
+        }
+
+        menu.style.left = `${left}px`;
+        menu.style.top = `${top}px`;
+        menu.style.visibility = '';
+        menu.style.display = '';
+        menu.classList.add('is-popover-ready');
+    }
+
+    function closeAllSidebarModules() {
+        document.querySelectorAll('.erp-sidebar-module--expanded').forEach((block) => {
+            block.classList.remove('erp-sidebar-module--expanded');
+            const toggle = block.querySelector('[data-erp-module-toggle]');
+            if (toggle) toggle.setAttribute('aria-expanded', 'false');
+            clearPopoverPosition(block.querySelector('[data-erp-module-menu]'));
+        });
+    }
+
+    function openSidebarModule(block, btn) {
+        closeAllSidebarModules();
+        block.classList.add('erp-sidebar-module--expanded');
+        if (btn) btn.setAttribute('aria-expanded', 'true');
+        if (popoverMq.matches) {
+            positionSidebarPopover(block);
+            if (window.lucide) lucide.createIcons();
+        } else {
+            window.requestAnimationFrame(() => {
+                block.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            });
+        }
+    }
+
+    function cancelHoverTimers() {
+        window.clearTimeout(hoverOpenTimer);
+        window.clearTimeout(hoverCloseTimer);
+    }
+
+    function schedulePopoverOpen(block) {
+        if (!popoverMq.matches) return;
+        cancelHoverTimers();
+        hoverOpenTimer = window.setTimeout(() => {
+            const btn = block.querySelector('[data-erp-module-toggle]');
+            openSidebarModule(block, btn);
+        }, 160);
+    }
+
+    function schedulePopoverClose() {
+        if (!popoverMq.matches) return;
+        cancelHoverTimers();
+        hoverCloseTimer = window.setTimeout(closeAllSidebarModules, 220);
+    }
+
+    function wireSidebarPopoverHover(block) {
+        const menu = block.querySelector('[data-erp-module-menu]');
+        block.addEventListener('mouseenter', () => schedulePopoverOpen(block));
+        block.addEventListener('mouseleave', schedulePopoverClose);
+        if (menu) {
+            menu.addEventListener('mouseenter', cancelHoverTimers);
+            menu.addEventListener('mouseleave', schedulePopoverClose);
+        }
+    }
+
+    function handleSidebarModuleToggle(event) {
+        const btn = event.target.closest('[data-erp-module-toggle]');
+        if (!btn) return;
+        event.preventDefault();
+        event.stopPropagation();
+        const block = btn.closest('[data-erp-sidebar-module]');
+        if (!block) return;
+        cancelHoverTimers();
+        const wasOpen = block.classList.contains('erp-sidebar-module--expanded');
+        if (wasOpen) {
+            closeAllSidebarModules();
+        } else {
+            openSidebarModule(block, btn);
+        }
+    }
+
+    document.addEventListener('click', handleSidebarModuleToggle);
+
+    document.addEventListener('click', (event) => {
+        if (!popoverMq.matches) return;
+        const inside = event.target.closest('[data-erp-sidebar-module], [data-erp-module-menu]');
+        if (!inside) closeAllSidebarModules();
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') closeAllSidebarModules();
+    });
+
+    window.addEventListener('resize', () => {
+        if (!popoverMq.matches) {
+            document.querySelectorAll('[data-erp-module-menu]').forEach(clearPopoverPosition);
+            return;
+        }
+        const open = document.querySelector('.erp-sidebar-module--expanded');
+        if (open) positionSidebarPopover(open);
+    });
+
+    function initSidebarPopovers() {
+        document.querySelectorAll('[data-erp-sidebar-module]').forEach(wireSidebarPopoverHover);
+        if (popoverMq.matches) {
+            const expanded = document.querySelector('.erp-sidebar-module--expanded');
+            if (expanded) positionSidebarPopover(expanded);
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initSidebarPopovers);
+    } else {
+        initSidebarPopovers();
+    }
 })();
