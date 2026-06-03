@@ -3,6 +3,8 @@
     <h3 class="font-bold text-slate-900">{{ title }}</h3>
     {% if helper_text %}
     <p class="text-xs text-slate-500 -mt-2">{{ helper_text }}</p>
+    {% else %}
+    <p class="text-xs text-slate-500 -mt-2">Yeni kayıt ekleyin veya mevcut satırdaki «Düzenle» ile güncelleyin.</p>
     {% endif %}
     <details class="group rounded-2xl border border-slate-200 bg-slate-50">
         <summary class="list-none cursor-pointer p-4 flex items-center justify-between">

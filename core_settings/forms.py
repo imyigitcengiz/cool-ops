@@ -119,6 +119,23 @@ class ServiceTypeOptionForm(forms.ModelForm):
         widgets = {
             'name': forms.TextInput(attrs={'class': INPUT, 'placeholder': 'Örn: Montaj'}),
         }
+        error_messages = {
+            'name': {
+                'unique': 'Bu isimde bir arıza tipi zaten kayıtlı.',
+                'required': 'İsim zorunludur.',
+            },
+        }
+
+    def clean_name(self):
+        name = (self.cleaned_data.get('name') or '').strip()
+        if not name:
+            raise forms.ValidationError('İsim boş olamaz.')
+        qs = ServiceTypeOption.objects.filter(name__iexact=name)
+        if self.instance.pk:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError('Bu isimde bir arıza tipi zaten kayıtlı.')
+        return name
 
 
 class ProductOptionForm(ColorOptionForm):

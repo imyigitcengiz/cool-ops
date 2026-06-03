@@ -166,5 +166,14 @@ document.querySelectorAll('.day-work-toggle').forEach(function (cb) {
     cb.addEventListener('change', sync);
     sync();
 });
+
+document.querySelectorAll('form').forEach(function (form) {
+    if (!form.querySelector('input[name="save_work_schedule_plan"]')) return;
+    form.addEventListener('submit', function () {
+        form.querySelectorAll('.day-time').forEach(function (inp) {
+            inp.disabled = false;
+        });
+    });
+});
 </script>
 {% endblock %}

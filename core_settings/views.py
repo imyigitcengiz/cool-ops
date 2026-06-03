@@ -38,13 +38,26 @@ from common.permissions import (
 )
 from django.http import HttpResponse, JsonResponse
 from common.decorators import json_auth_required, permission_required
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.db.models import Q, Sum
 from django.db.models.deletion import ProtectedError
 from decimal import Decimal
 from core_settings.accounting_summary import _month_bounds
 import os
 import json
+
+
+def _form_errors_message(form, fallback='Geçersiz veri.'):
+    if not form.errors:
+        return fallback
+    parts = []
+    for field, errors in form.errors.items():
+        if field == '__all__':
+            parts.extend(str(e) for e in errors)
+            continue
+        for err in errors:
+            parts.append(str(err))
+    return ' '.join(parts) if parts else fallback
 
 
 def _update_color_option(request, model, label):
@@ -55,7 +68,11 @@ def _update_color_option(request, model, label):
         return
     obj.name = name
     obj.color = request.POST.get('color', obj.color)
-    obj.save()
+    try:
+        obj.save()
+    except IntegrityError:
+        messages.error(request, f"{label}: bu isim zaten kullanılıyor.")
+        return
     messages.success(request, f"{label} güncellendi.")
 
 
@@ -188,7 +205,7 @@ class SiteSettingsView(TemplateView):
     def post(self, request, *args, **kwargs):
         if 'save_work_schedule_plan' in request.POST:
             from core_settings.models import WorkSchedulePlan
-            from core_settings.work_schedule import set_default_plan, weekly_hours_from_request
+            from core_settings.work_schedule import set_default_plan, validate_weekly_hours_from_request
 
             name = (request.POST.get('plan_name') or '').strip()
             if not name:
@@ -196,7 +213,13 @@ class SiteSettingsView(TemplateView):
                 return self._redirect_after_post()
 
             plan_id = request.POST.get('plan_id')
-            weekly = weekly_hours_from_request(request.POST)
+            weekly, weekly_errors = validate_weekly_hours_from_request(request.POST)
+            if weekly_errors:
+                for err in weekly_errors:
+                    messages.error(request, err)
+                if plan_id and str(plan_id).isdigit():
+                    return redirect(f"{reverse('settings_work_schedule')}?plan={plan_id}")
+                return redirect('settings_work_schedule')
             notes = (request.POST.get('plan_notes') or '').strip()
             is_default = request.POST.get('plan_is_default') == 'on'
             is_active = request.POST.get('plan_is_active', 'on') == 'on'
@@ -301,9 +324,9 @@ class SiteSettingsView(TemplateView):
             form = ServiceTypeOptionForm(request.POST)
             if form.is_valid():
                 form.save()
-                messages.success(request, "Servis tipi eklendi.")
+                messages.success(request, "Arıza tipi eklendi.")
             else:
-                messages.error(request, "Geçersiz servis tipi verisi.")
+                messages.error(request, _form_errors_message(form, "Arıza tipi eklenemedi."))
                 
         elif 'add_product' in request.POST:
             form = ProductOptionForm(request.POST)
@@ -311,23 +334,23 @@ class SiteSettingsView(TemplateView):
                 form.save()
                 messages.success(request, "Ürün eklendi.")
             else:
-                messages.error(request, "Geçersiz ürün verisi.")
+                messages.error(request, _form_errors_message(form, "Ürün eklenemedi. İsim ve renk gerekli."))
                 
         elif 'add_status' in request.POST:
             form = StatusOptionForm(request.POST)
             if form.is_valid():
                 form.save()
-                messages.success(request, "Durum seçeneği eklendi.")
+                messages.success(request, "Durum eklendi.")
             else:
-                messages.error(request, "Geçersiz durum verisi. İsim ve renk gerekli.")
+                messages.error(request, _form_errors_message(form, "Durum eklenemedi. İsim ve renk gerekli."))
                 
         elif 'add_priority' in request.POST:
             form = PriorityOptionForm(request.POST)
             if form.is_valid():
                 form.save()
-                messages.success(request, "Öncelik seçeneği eklendi.")
+                messages.success(request, "Öncelik eklendi.")
             else:
-                messages.error(request, "Geçersiz öncelik verisi. İsim ve renk gerekli.")
+                messages.error(request, _form_errors_message(form, "Öncelik eklenemedi. İsim ve renk gerekli."))
                 
         elif 'add_solution_partner_type' in request.POST:
             form = SolutionPartnerTypeForm(request.POST)
@@ -335,11 +358,19 @@ class SiteSettingsView(TemplateView):
                 form.save()
                 messages.success(request, "Çözüm ortağı türü eklendi.")
             else:
-                messages.error(request, "Geçersiz tür verisi.")
+                messages.error(request, _form_errors_message(form, "Tür eklenemedi."))
         elif 'update_service_type' in request.POST:
             obj = get_object_or_404(ServiceTypeOption, pk=request.POST.get('id'))
-            obj.products.set(request.POST.getlist('product_ids'))
-            messages.success(request, "Servis tipi ürün ilişkileri güncellendi.")
+            name = request.POST.get('name', '').strip()
+            if not name:
+                messages.error(request, "Arıza tipi: isim boş olamaz.")
+            elif ServiceTypeOption.objects.filter(name__iexact=name).exclude(pk=obj.pk).exists():
+                messages.error(request, "Bu isimde bir arıza tipi zaten kayıtlı.")
+            else:
+                obj.name = name
+                obj.save(update_fields=['name'])
+                obj.products.set(request.POST.getlist('product_ids'))
+                messages.success(request, "Arıza tipi güncellendi.")
         elif 'update_product' in request.POST:
             obj = get_object_or_404(ProductOption, pk=request.POST.get('id'))
             name = request.POST.get('name', '').strip()
@@ -385,7 +416,7 @@ class SiteSettingsView(TemplateView):
                 form.save()
                 messages.success(request, "Çözüm ortağı türü güncellendi.")
             else:
-                messages.error(request, "Tür güncellenemedi.")
+                messages.error(request, _form_errors_message(form, "Tür güncellenemedi."))
         elif 'delete_service_type' in request.POST:
             _safe_delete_option(request, ServiceTypeOption, 'Servis tipi')
         elif 'delete_product' in request.POST:
@@ -1366,7 +1397,13 @@ def quick_option_create_api(request):
     if not model:
         return JsonResponse({'error': 'Geçersiz tip'}, status=400)
 
-    obj = model.objects.create(name=name, color=color)
+    if kind == 'service_type' and model.objects.filter(name__iexact=name).exists():
+        return JsonResponse({'error': 'Bu isimde bir arıza tipi zaten kayıtlı.'}, status=400)
+
+    try:
+        obj = model.objects.create(name=name, color=color)
+    except IntegrityError:
+        return JsonResponse({'error': 'Bu isim zaten kayıtlı.'}, status=400)
     payload = _serialize_option(obj)
     if kind == 'product':
         st_ids = data.get('service_type_ids') or []

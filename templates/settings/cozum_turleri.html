@@ -30,7 +30,10 @@
                             <p class="text-sm font-bold text-slate-800 truncate">{{ t.name }}</p>
                             <p class="text-[11px] text-slate-500">{% if t.is_active %}Aktif{% else %}Pasif{% endif %}</p>
                         </div>
-                        <button type="button" class="type-edit-toggle p-2 text-slate-400 hover:text-amber-600 rounded-lg"><i data-lucide="pencil" class="w-4 h-4"></i></button>
+                        <button type="button" class="type-edit-toggle inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:text-amber-600 rounded-lg">
+                            <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                            Düzenle
+                        </button>
                         <form method="post" class="inline" onsubmit="return confirm('Silmek istediğinize emin misiniz?');">
                             {% csrf_token %}
                             <input type="hidden" name="delete_solution_partner_type" value="1">
@@ -47,7 +50,7 @@
                             <label class="inline-flex items-center gap-2 text-sm text-slate-700">
                                 <input type="checkbox" name="is_active" class="w-4 h-4 accent-amber-600 rounded" {% if t.is_active %}checked{% endif %}> Aktif
                             </label>
-                            <button type="submit" class="w-full py-2 bg-amber-600 text-white rounded-xl text-sm font-bold">Kaydet</button>
+                            <button type="submit" class="w-full py-2 bg-amber-600 text-white rounded-xl text-sm font-bold">Güncelle</button>
                         </form>
                     </div>
                 </div>

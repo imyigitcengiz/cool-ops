@@ -79,6 +79,30 @@ def weekly_hours_from_request(post) -> dict[str, dict]:
     return normalize_weekly_hours(rows)
 
 
+def validate_weekly_hours_from_request(post) -> tuple[dict[str, dict] | None, list[str]]:
+    """POST verisinden mesai saatlerini doğrula; hata varsa (None, mesajlar) döner."""
+    rows: dict[str, dict] = {}
+    errors: list[str] = []
+    for day in WEEKDAY_DEFS:
+        key = day['key']
+        work = post.get(f'day_{key}_work') == 'on'
+        start_raw = (post.get(f'day_{key}_start') or '').strip()
+        end_raw = (post.get(f'day_{key}_end') or '').strip()
+        start = _parse_time(start_raw)
+        end = _parse_time(end_raw)
+        if work:
+            if not start or not end:
+                errors.append(
+                    f'{day["label"]}: çalışma günü işaretliyse başlangıç ve bitiş saati zorunludur (örn. 09:00).'
+                )
+            elif start >= end:
+                errors.append(f'{day["label"]}: bitiş saati başlangıçtan sonra olmalıdır.')
+        rows[key] = {'work': work, 'start': start_raw, 'end': end_raw}
+    if errors:
+        return None, errors
+    return normalize_weekly_hours(rows), []
+
+
 def plan_display_rows(plan=None) -> list[dict]:
     """Şablon tablosu için satırlar."""
     if plan and plan.weekly_hours:

@@ -5,9 +5,10 @@
         <span class="w-4 h-4 rounded-full shrink-0 ring-2 ring-white shadow-sm"
               style="background-color: {{ item.color_hex }};"></span>
         <span class="text-sm font-bold text-slate-800 flex-1 min-w-0 truncate">{{ item.name }}</span>
-        <button type="button" class="option-edit-toggle p-2 text-slate-400 hover:text-brand-600 hover:bg-white rounded-lg transition-colors"
-                aria-expanded="false" title="Düzenle">
-            <i data-lucide="pencil" class="w-4 h-4"></i>
+        <button type="button" class="option-edit-toggle inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold text-slate-600 hover:text-brand-600 hover:bg-white rounded-lg transition-colors"
+                aria-expanded="false" title="Kaydı düzenle">
+            <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+            Düzenle
         </button>
         <form method="post" class="inline" onsubmit="return confirm('Silmek istediğinize emin misiniz?');">
             {% csrf_token %}
@@ -33,7 +34,7 @@
                 {% include 'services_dashboard/partials/color_picker.html' with value=item.color_hex field_name='color' %}
             </div>
             <button type="submit" class="w-full py-2.5 bg-brand-600 text-white rounded-xl text-sm font-bold hover:bg-brand-700 transition-colors">
-                Kaydet
+                Güncelle
             </button>
         </form>
     </div>
