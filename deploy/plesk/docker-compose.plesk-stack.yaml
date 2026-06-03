@@ -1,0 +1,18 @@
+# Plesk Docker eklentisi → Stacks → Webspace
+# Git deposu domain köküne çekildikten sonra bu dosyayı seçin.
+# Ortam: deploy/plesk/plesk-stack.env.example → plesk-stack.env (veya Stacks UI)
+#
+# Alternatif (Git hook): docker-compose.yaml + deploy/plesk/docker-compose.plesk.yaml
+name: cool-ops
+
+include:
+  - path: ../../docker-compose.yaml
+
+services:
+  app:
+    ports:
+      - "127.0.0.1:${KOBIOPS_HTTP_PORT:-8080}:80"
+    environment:
+      COOLOPS_COMPOSE_STACK: "1"
+      SERVICE_FQDN_APP: ${KOBIOPS_DOMAIN:-}
+      SERVICE_URL_APP: ${KOBIOPS_PUBLIC_URL:-}

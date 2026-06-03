@@ -13,6 +13,7 @@ Tek `docker-compose.yaml`; platforma göre **overlay** dosyası eklenir (`COMPOS
 | **Easypanel** | *(gerekmez)* | [easypanel/README.md](easypanel/README.md) |
 | **Dockerfile only** (Compose yok) | — | [dockerfile/README.md](dockerfile/README.md) |
 | **Plesk Git** | `deploy/plesk/docker-compose.plesk.yaml` | [plesk/README.md](plesk/README.md) |
+| **Plesk Docker Stacks** | `deploy/plesk/docker-compose.plesk-stack.yaml` | [plesk/README.md](plesk/README.md) |
 | **VPS / SSH** | `deploy/docker-compose.vps.yaml` | `./deploy/install.sh` |
 
 ## COMPOSE_FILE örnekleri
@@ -29,6 +30,12 @@ export COMPOSE_FILE=docker-compose.yaml:deploy/1panel/docker-compose.1panel.yaml
 
 # Portainer Stack ortam değişkeni
 COMPOSE_FILE=docker-compose.yaml:deploy/portainer/docker-compose.portainer.yaml
+
+# Plesk Git (deploy.sh zaten COMPOSE_FILE ayarlar)
+COMPOSE_FILE=docker-compose.yaml:deploy/plesk/docker-compose.plesk.yaml
+
+# Plesk Docker Stacks — compose dosyası: deploy/plesk/docker-compose.plesk-stack.yaml
+# Ortam: KOBIOPS_DOMAIN, KOBIOPS_PUBLIC_URL (deploy/plesk/plesk-stack.env.example)
 ```
 
 Veya: `./deploy/panel-compose.sh dokploy` → `.env.compose` yazar.

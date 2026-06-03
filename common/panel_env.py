@@ -22,6 +22,8 @@ def detect_panel_fqdn() -> str:
         'SERVICE_FQDN',
         'COOLIFY_FQDN',
         'DOKPLOY_FQDN',
+        'KOBIOPS_DOMAIN',
+        'PLESK_DOMAIN',
         'DOMAIN',
         'APP_DOMAIN',
         'HOSTNAME',
@@ -29,7 +31,15 @@ def detect_panel_fqdn() -> str:
         host = _strip_host(os.environ.get(key, ''))
         if host:
             return host
-    for key in ('SERVICE_URL_APP', 'SERVICE_URL', 'DOKPLOY_DEPLOY_URL', 'DOKPLOY_URL', 'APP_URL', 'WEBSITE_URL'):
+    for key in (
+        'SERVICE_URL_APP',
+        'SERVICE_URL',
+        'KOBIOPS_PUBLIC_URL',
+        'DOKPLOY_DEPLOY_URL',
+        'DOKPLOY_URL',
+        'APP_URL',
+        'WEBSITE_URL',
+    ):
         host = _strip_host(os.environ.get(key, ''))
         if host:
             return host
@@ -37,7 +47,15 @@ def detect_panel_fqdn() -> str:
 
 
 def detect_panel_origin() -> str:
-    for key in ('SERVICE_URL_APP', 'SERVICE_URL', 'DOKPLOY_DEPLOY_URL', 'DOKPLOY_URL', 'APP_URL', 'WEBSITE_URL'):
+    for key in (
+        'SERVICE_URL_APP',
+        'SERVICE_URL',
+        'KOBIOPS_PUBLIC_URL',
+        'DOKPLOY_DEPLOY_URL',
+        'DOKPLOY_URL',
+        'APP_URL',
+        'WEBSITE_URL',
+    ):
         raw = os.environ.get(key, '').strip()
         if raw:
             if '://' not in raw:

@@ -43,7 +43,7 @@ cd /opt/cool-ops && ./deploy/install.sh panel.firma.com
 | Platform | Rehber |
 |----------|--------|
 | **Tüm paneller (özet)** | [deploy/README.md](deploy/README.md) |
-| **Plesk (Git auto-deploy)** | [deploy/plesk/README.md](deploy/plesk/README.md) |
+| **Plesk (Git + Docker Stacks)** | [deploy/plesk/README.md](deploy/plesk/README.md) |
 | Coolify | [deploy/coolify/README.md](deploy/coolify/README.md) |
 | Dokploy | [deploy/dokploy/README.md](deploy/dokploy/README.md) |
 | 1Panel | [deploy/1panel/README.md](deploy/1panel/README.md) |

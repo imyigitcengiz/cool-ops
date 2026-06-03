@@ -81,7 +81,7 @@ fi
 if [[ ! -f "$ROOT/.env" ]]; then
   echo "İlk kurulum: .env oluşturuluyor..."
   DOMAIN="$KOBIOPS_DOMAIN" DJANGO_ENSURE_SUPERADMIN="${DJANGO_ENSURE_SUPERADMIN:-1}" \
-    "$ROOT/deploy/install.sh" --force
+    "$ROOT/deploy/install.sh" "$KOBIOPS_DOMAIN" --force --panel plesk
 else
   echo "Güncelleme: docker compose build + up..."
   docker compose up -d --build --remove-orphans

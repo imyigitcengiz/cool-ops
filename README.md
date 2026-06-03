@@ -46,7 +46,7 @@ Detaylı üretim rehberi: **[DEPLOY.md](DEPLOY.md)**
 | Platform | Rehber |
 |----------|--------|
 | **Panel uyumluluk (özet)** | [deploy/README.md](deploy/README.md) |
-| Plesk (Git) | [deploy/plesk/README.md](deploy/plesk/README.md) |
+| Plesk (Git / Docker Stacks) | [deploy/plesk/README.md](deploy/plesk/README.md) |
 | Dokploy | [deploy/dokploy/README.md](deploy/dokploy/README.md) |
 | Coolify | [deploy/coolify/README.md](deploy/coolify/README.md) |
 | 1Panel | [deploy/1panel/README.md](deploy/1panel/README.md) |

@@ -41,4 +41,5 @@ tools/whatsapp_bridge/.wwebjs_auth/
 
 # Plesk (sunucuya özel)
 deploy/plesk/plesk.env
+deploy/plesk/plesk-stack.env
 deploy/plesk/logs/
