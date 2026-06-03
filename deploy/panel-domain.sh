@@ -68,7 +68,56 @@ panel_domain_origin_from_fqdn() {
   fi
 }
 
+panel_domain_is_self_hosted() {
+  case "${COOLOPS_PANEL:-}" in
+    plesk|1panel|vps) return 0 ;;
+  esac
+  [[ "${KOBIOPS_PLESK:-}" == "1" ]] && return 0
+  return 1
+}
+
+panel_domain_normalize_kobiops_host() {
+  # Plesk / 1Panel / VPS — KOBIOPS_DOMAIN birincil; Coolify/Dokploy kalıntıları yok sayılır
+  local fqdn url
+  fqdn="$(panel_domain_strip_host "${KOBIOPS_DOMAIN:-${PLESK_DOMAIN:-}}")"
+  if [[ -z "$fqdn" ]]; then
+    fqdn="$(panel_domain_strip_host "${DOMAIN:-}")"
+  fi
+  if [[ -z "$fqdn" ]]; then
+    echo "[cool-ops] HATA: KOBIOPS_DOMAIN tanımlı değil (Plesk/1Panel)."
+    return 1
+  fi
+  export SERVICE_FQDN_APP="$fqdn"
+  url="${KOBIOPS_PUBLIC_URL:-}"
+  url="${url%/}"
+  if [[ -n "$url" ]]; then
+    if [[ "$url" != http://* && "$url" != https://* ]]; then
+      url="$(panel_domain_origin_from_fqdn "$(panel_domain_strip_host "$url")")"
+    fi
+    export SERVICE_URL_APP="$url"
+  else
+    export SERVICE_URL_APP="$(panel_domain_origin_from_fqdn "$fqdn")"
+  fi
+  export DJANGO_ALLOW_SSLIP_HOSTS=0
+}
+
 panel_domain_normalize() {
+  if panel_domain_is_self_hosted; then
+    panel_domain_normalize_kobiops_host
+    return 0
+  fi
+
+  # Coolify/Dokploy → Plesk geçişi: .env'deki eski sslip SERVICE_FQDN yok say
+  if [[ -n "${KOBIOPS_DOMAIN:-}" && -n "${SERVICE_FQDN_APP:-}" ]]; then
+    local _svc _kobi
+    _svc="$(panel_domain_strip_host "$SERVICE_FQDN_APP")"
+    _kobi="$(panel_domain_strip_host "$KOBIOPS_DOMAIN")"
+    if [[ "$_svc" != "$_kobi" ]] && panel_domain_is_http_only "$_svc"; then
+      echo "[cool-ops] UYARI: Eski sslip domain (${_svc}) yok sayılıyor → KOBIOPS_DOMAIN=${_kobi}"
+      unset SERVICE_FQDN_APP SERVICE_URL_APP APP_URL
+    fi
+  fi
+
   # Tüm paneller → tek SERVICE_FQDN_APP / SERVICE_URL_APP (Django + bootstrap)
   if [[ -z "${SERVICE_FQDN_APP:-}" ]]; then
     local fqdn=""

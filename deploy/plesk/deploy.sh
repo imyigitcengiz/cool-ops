@@ -58,6 +58,26 @@ export KOBIOPS_PUBLIC_URL
 
 export COMPOSE_FILE="$ROOT/docker-compose.yaml:$SCRIPT_DIR/docker-compose.plesk.yaml"
 export KOBIOPS_PLESK=1
+export COOLOPS_PANEL=plesk
+
+_plesk_scrub_dotenv() {
+  local f="$ROOT/.env"
+  [[ -f "$f" ]] || return 0
+  local tmp
+  tmp="$(mktemp)"
+  grep -v -E '^(APP_URL|SERVICE_FQDN_APP|SERVICE_URL_APP|COOLIFY_FQDN|DOKPLOY_FQDN|DJANGO_ALLOWED_HOSTS|DJANGO_CSRF_TRUSTED_ORIGINS)=' "$f" > "$tmp" || true
+  {
+    cat "$tmp"
+    echo "KOBIOPS_DOMAIN=${KOBIOPS_DOMAIN}"
+    echo "KOBIOPS_PUBLIC_URL=${KOBIOPS_PUBLIC_URL}"
+    echo "KOBIOPS_HTTP_PORT=${KOBIOPS_HTTP_PORT}"
+  } > "$f"
+  rm -f "$tmp"
+  chmod 600 "$f" 2>/dev/null || true
+  echo "plesk.env → .env senkron (sslip/Coolify kalıntıları temizlendi)"
+}
+
+_plesk_scrub_dotenv
 
 # --- Ön kontroller ---
 if ! command -v docker >/dev/null 2>&1; then
@@ -75,15 +95,16 @@ if ! docker info >/dev/null 2>&1; then
   exit 1
 fi
 
-# --- .env (ilk kurulum) ---
+# --- .env + deploy ---
 if [[ ! -f "$ROOT/.env" ]]; then
   echo "İlk kurulum: .env oluşturuluyor..."
   DOMAIN="$KOBIOPS_DOMAIN" DJANGO_ENSURE_SUPERADMIN="${DJANGO_ENSURE_SUPERADMIN:-1}" \
     "$ROOT/deploy/install.sh" "$KOBIOPS_DOMAIN" --force --panel plesk
-else
-  echo "Güncelleme: docker compose build + up..."
-  docker compose up -d --build --remove-orphans
 fi
+
+_plesk_scrub_dotenv
+echo "docker compose build + up..."
+docker compose up -d --build --remove-orphans
 
 # --- Sağlık ---
 echo "Konteyner durumu:"

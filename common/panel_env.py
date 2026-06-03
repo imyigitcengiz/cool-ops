@@ -66,9 +66,32 @@ def _detect_fqdn_raw() -> str:
 
 def normalize_panel_service_env() -> tuple[str, str]:
     """Tüm panel env → (SERVICE_FQDN_APP, SERVICE_URL_APP) canonical çifti."""
+    panel = os.environ.get('COOLOPS_PANEL', '').strip().lower()
+    if panel in ('plesk', '1panel', 'vps') or os.environ.get('KOBIOPS_PLESK', '').strip() == '1':
+        fqdn = _strip_host(
+            os.environ.get('KOBIOPS_DOMAIN', '')
+            or os.environ.get('PLESK_DOMAIN', '')
+            or os.environ.get('DOMAIN', '')
+        )
+        if not fqdn:
+            return '', ''
+        url = os.environ.get('KOBIOPS_PUBLIC_URL', '').strip().rstrip('/')
+        if not url:
+            url = _origin_from_fqdn(fqdn)
+        elif '://' not in url:
+            url = _origin_from_fqdn(_strip_host(url))
+        return fqdn, url
+
     fqdn = _read_fqdn_key('SERVICE_FQDN_APP')
     if not fqdn:
-        fqdn = _detect_fqdn_raw()
+        kobi = _strip_host(os.environ.get('KOBIOPS_DOMAIN', ''))
+        svc_raw = os.environ.get('SERVICE_FQDN_APP', '').strip()
+        if kobi and svc_raw:
+            svc = _strip_host(svc_raw)
+            if svc != kobi and is_http_only_panel_host(svc):
+                fqdn = kobi
+        if not fqdn:
+            fqdn = _detect_fqdn_raw()
 
     url = os.environ.get('SERVICE_URL_APP', '').strip().rstrip('/')
     if not url:

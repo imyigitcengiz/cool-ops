@@ -164,6 +164,37 @@ Stack veya `docker compose down` sırasında **volume silmeyin**.
 
 ---
 
+## Domain değiştirme / sslip.io kalıntısı
+
+Plesk **sslip.io açmaz**. Eski **Coolify** kurulumundan kalan `.env` satırları (`APP_URL`, `SERVICE_FQDN_APP=....sslip.io`) yüzünden görürsünüz.
+
+**SSH ile (bir kez):**
+
+```bash
+cd /var/www/vhosts/.../ops.ornek.com   # repo kökü
+
+nano deploy/plesk/plesk.env
+# KOBIOPS_DOMAIN=ops.yigitcengiz.co   ← kendi domain'iniz
+
+./deploy/plesk/deploy.sh
+```
+
+`deploy.sh` otomatik olarak `.env` içinden Coolify kalıntılarını siler ve doğru domain'i yazar.
+
+Logda şunu görmelisiniz:
+
+```text
+plesk.env → .env senkron (sslip/Coolify kalıntıları temizlendi)
+[cool-ops] ALLOWED_HOSTS ← ops.yigitcengiz.co
+[cool-ops] Panel URL: https://ops.yigitcengiz.co/
+```
+
+Tarayıcıda **sslip.io değil**, Plesk'teki subdomain: `https://ops.yigitcengiz.co/giris/`
+
+**Docker Stacks kullanıyorsanız:** Stack env'de `KOBIOPS_DOMAIN` + `KOBIOPS_PUBLIC_URL=https://...` güncelleyin → Stack **Up**.
+
+---
+
 ## Log ve kontrol
 
 ```bash
@@ -180,7 +211,7 @@ docker compose logs whatsapp_bridge --tail 50
 | Belirti | Çözüm |
 |---------|--------|
 | 502 Bad Gateway | `docker compose ps` — `app` healthy mi? nginx `proxy_pass` portu **8000** mi? `curl http://127.0.0.1:8000/healthz/` |
-| DisallowedHost | `KOBIOPS_DOMAIN` doğru; redeploy |
+| DisallowedHost / sslip.io | `deploy/plesk/plesk.env` → `KOBIOPS_DOMAIN=...` → `./deploy/plesk/deploy.sh` |
 | CSRF | SSL açık; `KOBIOPS_PUBLIC_URL=https://...` |
 | `/data kalıcı volume` | Volume silinmiş; `kobiops_gy_data` yeniden oluşsun, veri yedekten |
 | Docker permission denied | `usermod -aG docker <user>` veya deploy root ile |

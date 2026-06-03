@@ -65,3 +65,16 @@ class PanelEnvTests(SimpleTestCase):
         )
         self.assertEqual(detect_panel_fqdn(), 'panel.dokploy.test')
         self.assertEqual(detect_panel_origin(), 'https://panel.dokploy.test')
+
+    def test_plesk_ignores_stale_sslip_service_fqdn(self):
+        self._set(
+            COOLOPS_PANEL='plesk',
+            KOBIOPS_PLESK='1',
+            KOBIOPS_DOMAIN='ops.ornek.com',
+            SERVICE_FQDN_APP='old-test.sslip.io',
+            SERVICE_URL_APP='http://old-test.sslip.io',
+            APP_URL='http://old-test.sslip.io',
+        )
+        fqdn, url = normalize_panel_service_env()
+        self.assertEqual(fqdn, 'ops.ornek.com')
+        self.assertEqual(url, 'https://ops.ornek.com')
