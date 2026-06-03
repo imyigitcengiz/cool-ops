@@ -13,13 +13,13 @@ User = get_user_model()
 
 class FinanceExtensionsTests(TestCase):
     def setUp(self):
-        from common.module_particles import vertical_preset_all_slugs
+        from common.kobi_lean_preset import full_finance_extension_slugs
         from core_settings.models import SiteSettings
 
         settings, _ = SiteSettings.objects.get_or_create(
             defaults={'site_name': 'Test'},
         )
-        settings.enabled_module_slugs = list(vertical_preset_all_slugs('kobi'))
+        settings.enabled_module_slugs = full_finance_extension_slugs()
         settings.save(update_fields=['enabled_module_slugs'])
         self.client = Client()
         role = __import__('users.models', fromlist=['Role']).Role.objects.filter(slug='admin').first()

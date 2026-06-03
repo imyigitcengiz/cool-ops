@@ -127,3 +127,16 @@ def detect_panel_fqdn() -> str:
 def detect_panel_origin() -> str:
     _, url = normalize_panel_service_env()
     return url
+
+
+def panel_git_updates_enabled() -> bool:
+    """Panel içi git güncelleme — varsayılan kapalı; Plesk/VPS'te git pull + deploy kullanın."""
+    raw = (
+        os.environ.get('COOLOPS_PANEL_GIT_UPDATE', '').strip()
+        or os.environ.get('KOBIOPS_PANEL_GIT_UPDATE', '').strip()
+    ).lower()
+    if raw in ('1', 'true', 'yes', 'on'):
+        return True
+    if raw in ('0', 'false', 'no', 'off'):
+        return False
+    return False

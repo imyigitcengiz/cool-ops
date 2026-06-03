@@ -3,6 +3,7 @@
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 
+from common.kobi_lean_preset import lean_kobi_slugs
 from common.module_runtime import get_enabled_module_slugs, module_route_allowed
 from core_settings.models import SiteSettings
 from users.models import Role
@@ -40,13 +41,23 @@ class ModuleGateTests(TestCase):
         response = self.client.get('/tools/whatsapp-baglan/')
         self.assertEqual(response.status_code, 302)
 
-    def test_outreach_closed_hides_whatsapp_even_if_integration_on(self):
+    def test_outreach_closed_hides_whatsapp_api_even_if_integration_on(self):
         settings = SiteSettings.objects.first()
-        settings.enabled_module_slugs = self._slugs_without('outreach')
+        slugs = list(get_enabled_module_slugs()) + ['integration_whatsapp_api']
+        slugs = [s for s in slugs if s != 'outreach']
+        settings.enabled_module_slugs = slugs
         settings.save()
-        self.assertFalse(module_route_allowed('integration_whatsapp_bridge'))
-        response = self.client.get('/tools/whatsapp-baglan/')
+        self.assertFalse(module_route_allowed('integration_whatsapp_api'))
+        response = self.client.get('/tools/whatsapp-api/')
         self.assertEqual(response.status_code, 302)
+
+    def test_whatsapp_bridge_works_without_outreach(self):
+        settings = SiteSettings.objects.first()
+        settings.enabled_module_slugs = lean_kobi_slugs()
+        settings.save()
+        self.assertTrue(module_route_allowed('integration_whatsapp_bridge'))
+        response = self.client.get('/tools/whatsapp-baglan/')
+        self.assertNotEqual(response.status_code, 302)
 
     def test_sub_app_closed_blocks_payables_route(self):
         settings = SiteSettings.objects.first()

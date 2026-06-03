@@ -1,0 +1,25 @@
+{# Birleşik mobil/desktop modül üst çubuğu
+   header_title — kısa sayfa başlığı (isteğe bağlı)
+   header_subtitle — modül adı / bağlam (isteğe bağlı)
+   show_media_library — varsayılan true
+#}
+<header class="erp-module-header">
+    <div class="erp-module-header__inner">
+        <div class="erp-module-header__top">
+            <div class="erp-module-header__lead">
+                {% include 'common/erp_sidebar_toggle.html' %}
+                <div class="erp-module-header__text min-w-0">
+                    {% if header_title %}
+                    <h1 class="erp-module-header__title truncate">{{ header_title }}</h1>
+                    {% endif %}
+                    {% if header_subtitle %}
+                    <p class="erp-module-header__subtitle truncate">{{ header_subtitle }}</p>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="erp-module-header__tools">
+                {% include 'common/erp_module_header_tools.html' %}
+            </div>
+        </div>
+    </div>
+</header>

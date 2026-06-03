@@ -5,6 +5,8 @@
 
 from __future__ import annotations
 
+from common.kobi_lean_preset import LEAN_KOBI_MODULES, LEAN_KOBI_PARTICLES
+
 PARTICLE_CATEGORIES: tuple[tuple[str, str, str], ...] = (
     ('rehber', 'Rehber & ilişkiler', 'users'),
     ('operasyon', 'Operasyon & saha', 'wrench'),
@@ -121,7 +123,7 @@ PARTICLES: tuple[dict, ...] = (
         'parent_module': 'accounting',
         'route_prefixes': ('/muhasebe/alacaklar/',),
         'vertical_tags': ('kobi', 'agency', 'retail'),
-        'default_enabled': True,
+        'default_enabled': False,
         'sort': 74,
     },
     {
@@ -132,7 +134,7 @@ PARTICLES: tuple[dict, ...] = (
         'parent_module': 'accounting',
         'route_prefixes': ('/muhasebe/stok/',),
         'vertical_tags': ('kobi', 'retail'),
-        'default_enabled': True,
+        'default_enabled': False,
         'sort': 76,
     },
     {
@@ -143,7 +145,7 @@ PARTICLES: tuple[dict, ...] = (
         'parent_module': 'accounting',
         'route_prefixes': ('/muhasebe/borclar/',),
         'vertical_tags': ('kobi', 'retail'),
-        'default_enabled': True,
+        'default_enabled': False,
         'sort': 78,
     },
     {
@@ -154,7 +156,7 @@ PARTICLES: tuple[dict, ...] = (
         'parent_module': 'accounting',
         'route_prefixes': ('/muhasebe/hesaplar/',),
         'vertical_tags': ('kobi', 'retail'),
-        'default_enabled': True,
+        'default_enabled': False,
         'sort': 79,
     },
     {
@@ -165,7 +167,7 @@ PARTICLES: tuple[dict, ...] = (
         'parent_module': 'accounting',
         'route_prefixes': ('/muhasebe/proje-karlilik/',),
         'vertical_tags': ('kobi',),
-        'default_enabled': True,
+        'default_enabled': False,
         'sort': 80,
     },
     {
@@ -176,7 +178,7 @@ PARTICLES: tuple[dict, ...] = (
         'parent_module': 'accounting',
         'route_prefixes': ('/muhasebe/dis-aktarim/',),
         'vertical_tags': ('kobi', 'retail'),
-        'default_enabled': True,
+        'default_enabled': False,
         'sort': 81,
     },
     {
@@ -187,7 +189,7 @@ PARTICLES: tuple[dict, ...] = (
         'parent_module': 'accounting',
         'route_prefixes': ('/muhasebe/zaman/',),
         'vertical_tags': ('kobi', 'agency'),
-        'default_enabled': True,
+        'default_enabled': False,
         'sort': 82,
     },
     {
@@ -198,7 +200,7 @@ PARTICLES: tuple[dict, ...] = (
         'parent_module': 'accounting',
         'route_prefixes': ('/muhasebe/projeler/',),
         'vertical_tags': ('kobi',),
-        'default_enabled': True,
+        'default_enabled': False,
         'sort': 83,
     },
     {
@@ -209,7 +211,7 @@ PARTICLES: tuple[dict, ...] = (
         'parent_module': 'outreach',
         'route_prefixes': (),
         'vertical_tags': ('kobi', 'agency', 'nonprofit'),
-        'default_enabled': True,
+        'default_enabled': False,
         'sort': 80,
     },
 )
@@ -217,21 +219,8 @@ PARTICLES: tuple[dict, ...] = (
 # Sektör paketi: modül slug'ları + parçacık slug'ları
 VERTICAL_CATALOG_PRESETS: dict[str, dict[str, tuple[str, ...]]] = {
     'kobi': {
-        'modules': (
-            'contact', 'services', 'accounting', 'outreach',
-            'supplier_payables', 'e_invoice_bridge', 'project_costing', 'multi_cash', 'projects', 'timesheet',
-            'integration_data_harvest',
-            'integration_whatsapp_bridge', 'integration_whatsapp_api', 'integration_media', 'integration_weather',
-        ),
-        'particles': (
-            'p.contact.customers', 'p.contact.firms', 'p.contact.teams',
-            'p.accounting.personnel', 'p.accounting.payroll',
-            'p.accounting.finance', 'p.accounting.sales',
-            'p.accounting.cash', 'p.accounting.receivables', 'p.accounting.stock',
-            'p.accounting.payables', 'p.accounting.multi_cash', 'p.accounting.project_costing',
-            'p.accounting.e_export', 'p.accounting.timesheet', 'p.accounting.projects',
-            'p.outreach.campaigns',
-        ),
+        'modules': LEAN_KOBI_MODULES,
+        'particles': LEAN_KOBI_PARTICLES,
     },
     'retail': {
         'modules': (

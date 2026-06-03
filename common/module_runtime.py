@@ -28,6 +28,11 @@ MODULE_PARTICLE_FALLBACK: dict[str, str] = {
     'timesheet': 'p.accounting.timesheet',
 }
 
+_EXTENSION_MODULE_SLUGS = frozenset({
+    'supplier_payables', 'e_invoice_bridge', 'project_costing',
+    'multi_cash', 'projects', 'timesheet',
+})
+
 LEGACY_PROFILE_TO_MODULE: dict[str, str | None] = {
     'app.kobi.customers': 'contact',
     'app.kobi.service_desk': 'services',
@@ -143,16 +148,32 @@ def is_module_installed(slug: str) -> bool:
 def get_enabled_particle_slugs() -> list[str]:
     slugs: set[str] = set()
     settings = _site_settings()
-    if settings and settings.enabled_module_slugs:
-        for slug in settings.enabled_module_slugs:
-            if slug.startswith('p.') and not slug.startswith('p.agency'):
-                slugs.add(slug)
+    raw = list(settings.enabled_module_slugs) if settings and settings.enabled_module_slugs else []
+
+    explicit_particles = {
+        slug for slug in raw
+        if slug.startswith('p.') and not slug.startswith('p.agency')
+    }
+    if explicit_particles:
+        slugs.update(explicit_particles)
+
     for mod_slug in get_enabled_module_slugs():
         mod = module_by_slug(mod_slug)
-        if mod:
+        if not mod:
+            continue
+        if mod_slug in _EXTENSION_MODULE_SLUGS or mod_slug in MODULE_PARTICLE_FALLBACK:
             for p in mod.get('particle_slugs', ()):
                 if not p.startswith('p.agency'):
                     slugs.add(p)
+        elif not explicit_particles and raw:
+            for p in mod.get('particle_slugs', ()):
+                if not p.startswith('p.agency'):
+                    slugs.add(p)
+
+    if not slugs:
+        from common.module_particles import default_enabled_particle_slugs
+        slugs.update(default_enabled_particle_slugs())
+
     return list(slugs)
 
 

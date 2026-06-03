@@ -52,10 +52,20 @@
     {% include 'common/erp_mobile_sidebar_end.html' %}
     <main class="flex-1 overflow-y-auto min-w-0">
         {% include 'common/toast_messages.html' %}
-        <header class="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-slate-200 px-4 md:px-6 py-4 flex items-center gap-3">
-            {% include 'common/erp_sidebar_toggle.html' %}
-            <div class="flex-1 min-w-0">{% block header %}{% endblock %}</div>
-            {% include 'common/erp_global_bar.html' %}
+        <header class="erp-module-header">
+            <div class="erp-module-header__inner erp-module-header__inner--inline-actions">
+                <div class="erp-module-header__top">
+                    <div class="erp-module-header__lead">
+                        {% include 'common/erp_sidebar_toggle.html' %}
+                        <div class="erp-module-header__text min-w-0 erp-module-header__text--block">
+                            {% block header %}{% endblock %}
+                        </div>
+                    </div>
+                    <div class="erp-module-header__tools">
+                        {% include 'common/erp_module_header_tools.html' with show_media_library=False %}
+                    </div>
+                </div>
+            </div>
         </header>
         <div class="p-4 md:p-6 max-w-[1500px] mx-auto">
             {% block content %}{% endblock %}

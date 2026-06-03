@@ -242,6 +242,19 @@ class AdminSystemBackupView(SuperuserRequiredMixin, TemplateView):
 class AdminSystemUpdatesView(SuperuserRequiredMixin, TemplateView):
     template_name = 'users/yonetim/system_updates.html'
 
+    def dispatch(self, request, *args, **kwargs):
+        from common.panel_env import panel_git_updates_enabled
+        from django.contrib import messages
+        from django.shortcuts import redirect
+
+        if not panel_git_updates_enabled():
+            messages.info(
+                request,
+                'Panel içi güncelleme kapalı. Sunucuda git pull ve deploy script kullanın.',
+            )
+            return redirect('admin_dashboard')
+        return super().dispatch(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs):
         from core_settings.updater import check_for_updates
 

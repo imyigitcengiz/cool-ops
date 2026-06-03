@@ -46,10 +46,13 @@ class SectorCatalogTests(TestCase):
         self.assertNotIn('services', slugs)
         self.assertNotIn('accounting', slugs)
 
-    def test_montaj_preset_includes_finance_extensions(self):
+    def test_montaj_preset_is_lean_core(self):
+        from common.kobi_lean_preset import lean_kobi_slugs
+
         slugs = sector_preset_all_slugs('montaj_saha')
-        for required in ('supplier_payables', 'multi_cash', 'integration_weather'):
-            self.assertIn(required, slugs)
+        self.assertEqual(set(slugs), set(lean_kobi_slugs()))
+        for optional in ('supplier_payables', 'multi_cash', 'integration_weather', 'outreach'):
+            self.assertNotIn(optional, slugs)
 
 
 class WeatherServiceTests(TestCase):
@@ -81,7 +84,10 @@ class WeatherApiTests(TestCase):
     def setUp(self):
         User = get_user_model()
         settings = SiteSettings.objects.create(site_name='Test')
-        settings.enabled_module_slugs = list(sector_preset_all_slugs('montaj_saha'))
+        slugs = list(sector_preset_all_slugs('montaj_saha'))
+        if 'integration_weather' not in slugs:
+            slugs.append('integration_weather')
+        settings.enabled_module_slugs = slugs
         settings.save()
         role = __import__('users.models', fromlist=['Role']).Role.objects.filter(slug='admin').first()
         self.user = User.objects.create_user(username='weather', password='x')

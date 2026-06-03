@@ -18,11 +18,14 @@ def site_settings(request):
     from common.currency import currency_from_settings
 
     cur = currency_from_settings(settings)
+    from common.panel_env import panel_git_updates_enabled
+
     return {
         'site_settings': settings,
         'currency_code': cur.code,
         'currency_symbol': cur.symbol,
         'currency_label': cur.label,
         'currency_position': cur.position,
+        'panel_git_updates_enabled': panel_git_updates_enabled(),
     }
 

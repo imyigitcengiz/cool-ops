@@ -10,32 +10,35 @@
 <body class="erp-app erp-theme-sky min-h-screen bg-slate-100 text-slate-900">
     {% include 'common/impersonation_banner.html' %}
     <div class="min-h-screen flex flex-col">
-        <header class="bg-white border-b border-slate-200">
-            <div class="max-w-6xl mx-auto px-4 md:px-6 py-4 md:py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div class="flex items-center gap-3 min-w-0">
-                    {% if site_settings.logo %}
-                    <img src="{{ site_settings.logo.url }}" alt="" class="h-10 w-10 rounded-xl object-contain shrink-0">
-                    {% else %}
-                    <span class="h-10 w-10 rounded-xl bg-brand-600 text-white flex items-center justify-center font-bold text-lg shrink-0">{{ site_settings.site_name.0|upper }}</span>
-                    {% endif %}
-                    <div class="min-w-0">
-                        <h1 class="text-lg sm:text-xl font-bold text-slate-900 truncate">{{ site_settings.site_name }}</h1>
-                        <p class="text-sm text-slate-500 truncate">{{ user_profile_card.display_name }} · {{ user_profile_card.subtitle }}</p>
+        <header class="erp-module-header home-mobile-header">
+            <div class="erp-module-header__inner">
+                <div class="erp-module-header__top">
+                    <div class="erp-module-header__lead">
+                        <div class="erp-module-header__text min-w-0 flex items-center gap-3">
+                            {% if site_settings.logo %}
+                            <img src="{{ site_settings.logo.url }}" alt="" class="h-9 w-9 rounded-xl object-contain shrink-0">
+                            {% else %}
+                            <span class="h-9 w-9 rounded-xl bg-brand-600 text-white flex items-center justify-center font-bold text-base shrink-0">{{ site_settings.site_name.0|upper }}</span>
+                            {% endif %}
+                            <div class="min-w-0">
+                                <h1 class="erp-module-header__title truncate">{{ site_settings.site_name }}</h1>
+                                <p class="erp-module-header__subtitle truncate">{{ user_profile_card.display_name }}</p>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class="flex flex-wrap items-center gap-2 shrink-0">
-                    {% include 'common/erp_global_bar.html' %}
-                    {% if user_access.admin_panel %}
-                    <a href="{% url 'admin_dashboard' %}" class="px-3 py-2 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700">Süper Admin</a>
-                    {% endif %}
-                    <a href="{% url 'profile_settings' %}" class="flex items-center gap-2 px-3 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-sm font-semibold text-slate-700">
-                        {% if user_profile_card.avatar_url %}
-                        <img src="{{ user_profile_card.avatar_url }}" alt="" class="w-8 h-8 rounded-full object-cover">
-                        {% else %}
-                        <span class="w-8 h-8 rounded-full bg-brand-100 text-brand-700 text-xs font-bold flex items-center justify-center">{{ user_profile_card.initials }}</span>
+                    <div class="erp-module-header__tools home-mobile-header__actions flex-wrap justify-end">
+                        {% include 'common/erp_global_bar.html' %}
+                        {% if user_access.admin_panel %}
+                        <a href="{% url 'admin_dashboard' %}" class="erp-touch-target px-2.5 py-2 rounded-xl bg-red-600 text-white text-xs font-bold hover:bg-red-700 whitespace-nowrap">Admin</a>
                         {% endif %}
-                        Profil
-                    </a>
+                        <a href="{% url 'profile_settings' %}" class="erp-touch-target p-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700" title="Profil" aria-label="Profil">
+                            {% if user_profile_card.avatar_url %}
+                            <img src="{{ user_profile_card.avatar_url }}" alt="" class="w-7 h-7 rounded-full object-cover">
+                            {% else %}
+                            <span class="w-7 h-7 rounded-full bg-brand-100 text-brand-700 text-[10px] font-bold flex items-center justify-center">{{ user_profile_card.initials }}</span>
+                            {% endif %}
+                        </a>
+                    </div>
                 </div>
             </div>
         </header>
@@ -47,7 +50,7 @@
                 <p class="text-slate-600 mt-2">Kurulu modüllere ve açık entegrasyonlara hızlı erişin.</p>
             </div>
 
-            <nav class="mb-10 flex flex-wrap gap-2" aria-label="Platform">
+            <nav class="home-platform-nav mb-10" aria-label="Platform">
                 {% if can_manage_modules %}
                 <a href="{% url 'module_hub' %}" class="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white border border-slate-200 text-sm font-semibold text-slate-700 hover:border-violet-300 hover:text-violet-700">
                     <i data-lucide="puzzle" class="w-4 h-4"></i> {{ gy.modul_merkezi }}

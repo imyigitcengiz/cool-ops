@@ -5,6 +5,8 @@ Landing, modül merkezi ve bilgi bankası bu katalogdan beslenir.
 
 from __future__ import annotations
 
+from common.kobi_lean_preset import LEAN_KOBI_MODULES, LEAN_KOBI_PARTICLES
+
 FIT_TAM = 'tam'
 FIT_YUKSEK = 'yuksek'
 FIT_ORTA = 'orta'
@@ -27,23 +29,9 @@ CORPORATE_SECTORS: tuple[tuple[str, str, str, str, str], ...] = (
     ('stk_dernek', 'heart-handshake', 'STK & dernek', FIT_KISMI, 'Kampanya, rehber; servis/muhasebe kapalı profil'),
 )
 
-# Ortak modül setleri
-_KOBI_CORE_MODULES = (
-    'contact', 'services', 'accounting', 'outreach', 'settings',
-    'supplier_payables', 'e_invoice_bridge', 'project_costing', 'multi_cash',
-    'projects', 'timesheet',
-    'integration_data_harvest', 'integration_whatsapp_bridge',
-    'integration_whatsapp_api', 'integration_media', 'integration_weather',
-)
-_KOBI_CORE_PARTICLES = (
-    'p.contact.customers', 'p.contact.firms', 'p.contact.teams',
-    'p.accounting.personnel', 'p.accounting.payroll',
-    'p.accounting.finance', 'p.accounting.sales',
-    'p.accounting.cash', 'p.accounting.receivables', 'p.accounting.stock',
-    'p.accounting.payables', 'p.accounting.multi_cash', 'p.accounting.project_costing',
-    'p.accounting.e_export', 'p.accounting.timesheet', 'p.accounting.projects',
-    'p.outreach.campaigns',
-)
+# Montaj & saha — sade KOBİ çekirdeği (isteğe bağlı modüller Modül Merkezi'nden açılır)
+_KOBI_CORE_MODULES = LEAN_KOBI_MODULES
+_KOBI_CORE_PARTICLES = LEAN_KOBI_PARTICLES
 
 SECTOR_PRESETS: dict[str, dict[str, tuple[str, ...] | str]] = {
     'montaj_saha': {

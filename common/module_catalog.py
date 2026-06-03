@@ -94,7 +94,7 @@ MODULES: tuple[dict, ...] = (
         'route_prefixes': ('/iletisim/', '/contact/pazarlama/'),
         'particle_slugs': ('p.outreach.campaigns',),
         'sort': 40,
-        'default_enabled': True,
+        'default_enabled': False,
         'can_disable': True,
     },
     {
@@ -112,7 +112,7 @@ MODULES: tuple[dict, ...] = (
         'route_prefixes': ('/contact/firma-bul/', '/contact/firma-kazi/'),
         'particle_slugs': (),
         'sort': 50,
-        'default_enabled': True,
+        'default_enabled': False,
         'can_disable': True,
     },
     {
@@ -125,7 +125,7 @@ MODULES: tuple[dict, ...] = (
         'icon': 'message-circle',
         'verticals': ('kobi', 'agency', 'retail', 'healthcare', 'universal'),
         'status': MODULE_STATUS_ACTIVE,
-        'panel_section': 'outreach',
+        'panel_section': 'services',
         'route_prefixes': ('/tools/whatsapp-baglan/', '/tools/whatsapp/'),
         'particle_slugs': (),
         'sort': 51,
@@ -146,7 +146,7 @@ MODULES: tuple[dict, ...] = (
         'route_prefixes': ('/tools/whatsapp-api/',),
         'particle_slugs': (),
         'sort': 52,
-        'default_enabled': True,
+        'default_enabled': False,
         'can_disable': True,
     },
     {
@@ -163,7 +163,7 @@ MODULES: tuple[dict, ...] = (
         'route_prefixes': ('/tools/medya/',),
         'particle_slugs': (),
         'sort': 53,
-        'default_enabled': True,
+        'default_enabled': False,
         'can_disable': True,
     },
     {
@@ -197,7 +197,7 @@ MODULES: tuple[dict, ...] = (
         'route_prefixes': ('/muhasebe/borclar/',),
         'particle_slugs': ('p.accounting.payables',),
         'sort': 105,
-        'default_enabled': True,
+        'default_enabled': False,
         'can_disable': True,
     },
     {
@@ -214,7 +214,7 @@ MODULES: tuple[dict, ...] = (
         'route_prefixes': ('/muhasebe/dis-aktarim/',),
         'particle_slugs': ('p.accounting.e_export',),
         'sort': 108,
-        'default_enabled': True,
+        'default_enabled': False,
         'can_disable': True,
     },
     {
@@ -231,7 +231,7 @@ MODULES: tuple[dict, ...] = (
         'route_prefixes': ('/muhasebe/proje-karlilik/',),
         'particle_slugs': ('p.accounting.project_costing',),
         'sort': 112,
-        'default_enabled': True,
+        'default_enabled': False,
         'can_disable': True,
     },
     {
@@ -248,7 +248,7 @@ MODULES: tuple[dict, ...] = (
         'route_prefixes': ('/muhasebe/hesaplar/',),
         'particle_slugs': ('p.accounting.multi_cash',),
         'sort': 115,
-        'default_enabled': True,
+        'default_enabled': False,
         'can_disable': True,
     },
     {
@@ -265,7 +265,7 @@ MODULES: tuple[dict, ...] = (
         'route_prefixes': ('/muhasebe/projeler/',),
         'particle_slugs': ('p.accounting.projects',),
         'sort': 120,
-        'default_enabled': True,
+        'default_enabled': False,
         'can_disable': True,
     },
     {
@@ -282,7 +282,7 @@ MODULES: tuple[dict, ...] = (
         'route_prefixes': ('/muhasebe/zaman/',),
         'particle_slugs': ('p.accounting.timesheet',),
         'sort': 121,
-        'default_enabled': True,
+        'default_enabled': False,
         'can_disable': True,
     },
     {
@@ -302,7 +302,7 @@ MODULES: tuple[dict, ...] = (
         'route_prefixes': ('/tools/api/hava-durumu/',),
         'particle_slugs': (),
         'sort': 54,
-        'default_enabled': True,
+        'default_enabled': False,
         'can_disable': True,
     },
 )

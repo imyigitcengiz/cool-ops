@@ -24,11 +24,20 @@
         {% include 'common/profile_sidebar_card.html' %}
     {% include 'common/erp_mobile_sidebar_end.html' %}
     <main class="flex-1 min-w-0 overflow-y-auto">
-        <header class="sticky top-0 z-10 bg-white border-b border-slate-200 px-4 md:px-8 py-4 flex flex-wrap items-center gap-3">
-            {% include 'common/erp_sidebar_toggle.html' %}
-            <div class="min-w-0 flex-1">
-                <h2 class="text-lg sm:text-2xl font-bold text-slate-900 truncate">{{ gy.entegrasyon_merkezi }}</h2>
-                <p class="text-sm text-slate-500 mt-0.5 hidden sm:block">WhatsApp, firma kazıma ve medya kütüphanesi.</p>
+        <header class="erp-module-header">
+            <div class="erp-module-header__inner">
+                <div class="erp-module-header__top">
+                    <div class="erp-module-header__lead">
+                        {% include 'common/erp_sidebar_toggle.html' %}
+                        <div class="erp-module-header__text min-w-0">
+                            <h1 class="erp-module-header__title truncate">{{ gy.entegrasyon_merkezi }}</h1>
+                            <p class="erp-module-header__subtitle truncate">WhatsApp, firma kazıma, medya</p>
+                        </div>
+                    </div>
+                    <div class="erp-module-header__tools">
+                        {% include 'common/erp_module_header_tools.html' %}
+                    </div>
+                </div>
             </div>
         </header>
         <div class="p-4 md:p-8 space-y-8 md:space-y-10 max-w-5xl mx-auto">
@@ -90,6 +99,7 @@
     </main>
     <script src="{% static 'js/gy-toast.js' %}"></script>
     <script src="{% static 'js/module-toggle.js' %}"></script>
+    {% include 'common/erp_shell_extras.html' %}
     {% include 'common/erp_mobile_sidebar_script.html' %}
     <script>if (window.lucide) lucide.createIcons();</script>
 </body>
