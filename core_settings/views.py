@@ -1623,7 +1623,7 @@ class AccountingReceivablesView(TemplateView):
         raw = self.request.GET.get('overdue_days', '')
         if raw.isdigit():
             overdue_days = max(1, int(raw))
-        context.update(build_receivables_context(overdue_days=overdue_days))
+        context.update(build_receivables_context(overdue_days=overdue_days, request=self.request))
         return context
 
 

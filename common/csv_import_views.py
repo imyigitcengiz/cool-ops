@@ -179,10 +179,9 @@ class CsvImportWizardView(PermissionRequiredMixin, TemplateView):
             if payload and payload.get('type') == self.import_type:
                 ctx['preview_token'] = token
                 ctx['csv_headers'] = payload['headers']
-                ctx['preview_rows'] = payload['rows'][:8]
                 ctx['preview_matrix'] = [
                     [row.get(h, '') for h in payload['headers']]
-                    for row in payload['rows'][:8]
+                    for row in payload['rows']
                 ]
                 ctx['row_count'] = len(payload['rows'])
                 fields = list(import_type_fields(self.import_type, self.request.user))
@@ -252,10 +251,13 @@ class CsvImportWizardView(PermissionRequiredMixin, TemplateView):
                 messages.error(request, 'Önizleme oturumu süresi doldu. Dosyayı tekrar yükleyin.')
                 return redirect(f'{reverse("csv_import_wizard")}?type={import_type}&next={next_url}')
 
+            from common.csv_import_registry import import_type_fields
+            from common.csv_mapping import encode_mapping_headers
+
             mapping = {}
-            for key in request.POST:
-                if key.startswith('map_'):
-                    mapping[key[4:]] = request.POST.get(key) or ''
+            for field in import_type_fields(import_type, request.user):
+                vals = [v.strip() for v in request.POST.getlist(f'map_{field.key}') if v.strip()]
+                mapping[field.key] = encode_mapping_headers(vals) or ''
 
             use_auto = request.POST.get('use_auto_mapping') == '1'
             _, final_map, _, _ = prepare_import_rows(
@@ -266,7 +268,9 @@ class CsvImportWizardView(PermissionRequiredMixin, TemplateView):
                 use_auto_mapping=use_auto,
                 user=request.user,
             )
-            if import_type == 'customers' and not final_map.get('name'):
+            from common.csv_mapping import mapping_headers
+
+            if import_type == 'customers' and not mapping_headers(final_map.get('name')):
                 messages.error(
                     request,
                     'Müşteri Adı sütunu eşleştirilmedi. CSV başlığını «Müşteri Adı» ile eşleştirin.',
@@ -363,7 +367,7 @@ def csv_import_preview_api(request):
         'headers': headers,
         'fields': _fields_payload(import_type, request.user),
         'auto_mapping': auto_mapping,
-        'preview_rows': rows[:5],
+        'preview_rows': rows[:MAX_ROWS],
         'row_count': len(rows),
     })
 

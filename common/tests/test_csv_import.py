@@ -4,7 +4,13 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
-from common.csv_mapping import auto_map_headers, apply_column_mapping, boost_import_mapping, normalize_header
+from common.csv_mapping import (
+    apply_column_mapping,
+    auto_map_headers,
+    boost_import_mapping,
+    mapping_headers,
+    normalize_header,
+)
 from sales_leads.csv_interim import (
     detect_interim_headers,
     has_interim_columns,
@@ -70,6 +76,16 @@ class CsvMappingTests(TestCase):
         mapped = apply_column_mapping(rows, {'title': 'Ad', 'amount': 'Tutar'})
         self.assertEqual(mapped[0]['title'], 'Test')
         self.assertEqual(mapped[0]['amount'], '100')
+
+    def test_apply_column_mapping_multiple_headers(self):
+        rows = [{'Ad': 'Ali', 'Soyad': 'Yılmaz', 'Ürün1': 'Klima', 'Ürün2': 'Panel'}]
+        mapped = apply_column_mapping(
+            rows,
+            {'name': 'Ad|Soyad', 'products': ['Ürün1', 'Ürün2']},
+        )
+        self.assertEqual(mapped[0]['name'], 'Ali Yılmaz')
+        self.assertEqual(mapped[0]['products'], 'Klima | Panel')
+        self.assertEqual(mapping_headers('Ad|Soyad'), ['Ad', 'Soyad'])
 
     def test_manual_skip_without_auto_mapping(self):
         headers = ['Müşteri Adı', 'Yanlış Ürün Sütunu', 'Telefon']

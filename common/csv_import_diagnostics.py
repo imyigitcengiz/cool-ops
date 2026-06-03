@@ -3,7 +3,14 @@
 from __future__ import annotations
 
 from common.csv_import_registry import import_type_config, import_type_fields
-from common.csv_mapping import ImportField, auto_map_headers, parse_mapping_payload
+from common.csv_mapping import (
+    ImportField,
+    auto_map_headers,
+    encode_mapping_headers,
+    mapping_headers,
+    merge_row_columns,
+    parse_mapping_payload,
+)
 
 
 def resolve_import_mapping(
@@ -29,18 +36,20 @@ def resolve_import_mapping(
         user_choice = parsed.get(field.key) if user_submitted else None
 
         if user_submitted:
-            chosen = user_choice
-            if not chosen and use_auto_mapping:
-                chosen = auto.get(field.key)
+            chosen_list = mapping_headers(user_choice)
+            if not chosen_list and use_auto_mapping:
+                chosen_list = mapping_headers(auto.get(field.key))
+            chosen = encode_mapping_headers(chosen_list)
             final[field.key] = chosen
-            if not chosen:
+            if not chosen_list:
                 sources[field.key] = 'skip'
-            elif chosen == auto.get(field.key):
+            elif chosen_list == mapping_headers(auto.get(field.key)):
                 sources[field.key] = 'auto'
             else:
                 sources[field.key] = 'manual'
         elif use_auto_mapping:
-            chosen = auto.get(field.key)
+            chosen_list = mapping_headers(auto.get(field.key))
+            chosen = encode_mapping_headers(chosen_list)
             final[field.key] = chosen
             sources[field.key] = 'auto' if chosen else 'empty'
         else:
@@ -60,7 +69,9 @@ def resolve_import_mapping(
 
 
 def unmapped_csv_columns(headers: list[str], mapping: dict[str, str | None], *, extra_used: list[str] | None = None) -> list[str]:
-    used = {h for h in mapping.values() if h}
+    used: set[str] = set()
+    for spec in mapping.values():
+        used.update(mapping_headers(spec))
     if extra_used:
         used.update(extra_used)
     return [h for h in headers if h not in used]
@@ -76,7 +87,8 @@ def mapping_plan_rows(
 ) -> list[dict]:
     rows = []
     for field in fields:
-        selected = final_mapping.get(field.key) or ''
+        selected_list = mapping_headers(final_mapping.get(field.key))
+        selected = encode_mapping_headers(selected_list) or ''
         source = mapping_sources.get(field.key, 'empty')
         source_label = {
             'auto': 'Otomatik',
@@ -85,15 +97,21 @@ def mapping_plan_rows(
             'empty': 'Eşleşmedi',
             'boosted': 'Otomatik (tahmin)',
         }.get(source, source)
+        sample = (
+            merge_row_columns(sample_row, selected_list, field_key=field.key)[:80]
+            if selected_list
+            else '—'
+        )
         rows.append({
             'key': field.key,
             'label': field.label,
             'required': field.required,
             'selected_header': selected,
+            'selected_headers': selected_list,
             'auto_header': auto_mapping.get(field.key, ''),
             'mapping_source': source,
             'mapping_source_label': source_label,
-            'sample': (sample_row.get(selected) or '—')[:80] if selected else '—',
+            'sample': sample,
         })
     return rows
 
@@ -149,8 +167,10 @@ def build_mapping_summary(
     skipped_fields = []
     for key, header in final_mapping.items():
         label = field_labels.get(key, key)
-        if header:
-            mapped_fields.append(f'{label} → {header} ({mapping_sources.get(key, "?")})')
+        cols = mapping_headers(header)
+        if cols:
+            col_text = ' + '.join(cols) if len(cols) > 1 else cols[0]
+            mapped_fields.append(f'{label} → {col_text} ({mapping_sources.get(key, "?")})')
         else:
             skipped_fields.append(label)
     return {

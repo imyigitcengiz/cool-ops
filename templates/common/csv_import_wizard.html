@@ -127,7 +127,7 @@
                     <input type="checkbox" name="use_auto_mapping" value="1" checked class="mt-1 w-4 h-4 accent-brand-600 rounded" id="useAutoMapping">
                     <span>
                         <strong>Otomatik eşleştirme önerilerini kullan</strong>
-                        <span class="block text-xs text-slate-500 mt-0.5">Kapattığınızda yalnızca aşağıda seçtiğiniz sütunlar kullanılır; boş bıraktıklarınız atlanır (yanlış otomatik eşleşmeyi böyle engelleyebilirsiniz).</span>
+                        <span class="block text-xs text-slate-500 mt-0.5">Kapattığınızda yalnızca seçtiğiniz sütunlar kullanılır. Bir tablo alanına birden fazla CSV sütunu bağlamak için listede Ctrl ile çoklu seçim yapın (ör. Ad + Soyad → Müşteri Adı).</span>
                     </span>
                 </label>
                 {% if unmapped_csv_columns %}
@@ -143,7 +143,7 @@
                         <tr>
                             <th class="px-4 py-3 text-left font-bold text-slate-700">Tablo alanı</th>
                             <th class="px-4 py-3 text-left font-bold text-slate-700">Kaynak</th>
-                            <th class="px-4 py-3 text-left font-bold text-slate-700">CSV sütunu (manuel seçim)</th>
+                            <th class="px-4 py-3 text-left font-bold text-slate-700">CSV sütunu (Ctrl ile çoklu seçim)</th>
                             <th class="px-4 py-3 text-left font-bold text-slate-700">Örnek</th>
                         </tr>
                     </thead>
@@ -169,12 +169,12 @@
                                 </span>
                             </td>
                             <td class="px-4 py-3">
-                                <select name="map_{{ row.key }}" class="csv-map-select w-full min-w-[160px] p-2 bg-white border border-slate-200 rounded-xl text-sm" data-auto-header="{{ row.auto_header|default:'' }}">
-                                    <option value="">— Atla —</option>
+                                <select name="map_{{ row.key }}" multiple size="5" class="csv-map-select w-full min-w-[160px] p-2 bg-white border border-slate-200 rounded-xl text-sm" data-auto-header="{{ row.auto_header|default:'' }}" title="Birden fazla sütun seçmek için Ctrl (Mac: Cmd) ile tıklayın">
                                     {% for header in csv_headers %}
-                                    <option value="{{ header }}" {% if row.selected_header == header %}selected{% endif %}>{{ header }}</option>
+                                    <option value="{{ header }}" {% if header in row.selected_headers %}selected{% endif %}>{{ header }}</option>
                                     {% endfor %}
                                 </select>
+                                <p class="text-[10px] text-slate-400 mt-1">Boş bırakırsanız alan atlanır{% if row.selected_headers|length > 1 %} · {{ row.selected_headers|length }} sütun birleştirilir{% endif %}</p>
                             </td>
                             <td class="px-4 py-3 text-slate-500 font-mono text-xs">{{ row.sample }}</td>
                         </tr>
@@ -198,10 +198,10 @@
 
             {% if preview_matrix %}
             <div>
-                <p class="text-xs font-bold text-slate-600 uppercase mb-2">Önizleme</p>
-                <div class="overflow-x-auto rounded-2xl border border-slate-200">
+                <p class="text-xs font-bold text-slate-600 uppercase mb-2">Önizleme — {{ row_count }} satırın tamamı</p>
+                <div class="overflow-x-auto overflow-y-auto max-h-[min(70vh,48rem)] rounded-2xl border border-slate-200">
                     <table class="w-full text-xs">
-                        <thead class="bg-slate-50">
+                        <thead class="bg-slate-50 sticky top-0 z-10">
                             <tr>
                                 {% for header in csv_headers %}
                                 <th class="px-3 py-2 text-left font-bold text-slate-600 whitespace-nowrap">{{ header }}</th>

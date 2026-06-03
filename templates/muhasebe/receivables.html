@@ -4,7 +4,7 @@
 
 {% block header %}
 <h1 class="text-lg font-bold text-slate-900">{{ gy.mh_alacaklar }}</h1>
-<p class="text-sm text-slate-500">Satış kayıtlarındaki kalan bakiyeler — ürün odaklı liste.</p>
+<p class="text-sm text-slate-500">Açık satış projeleri — kalan = Toplam − Peşinat − Ara ödemeler − Satışa bağlı gelir kayıtları. Kalan 0 ise tahsil tamamlanmıştır.</p>
 {% endblock %}
 
 {% block content %}
@@ -13,7 +13,7 @@
         <div class="rounded-2xl bg-amber-50 border border-amber-100 px-5 py-4">
             <p class="text-[10px] font-bold uppercase text-amber-700">Toplam alacak</p>
             <p class="text-2xl font-black text-amber-900 mt-1">{{ receivable_total|floatformat:2 }} {{ currency_symbol }}</p>
-            <p class="text-xs text-amber-700/80">{{ receivable_count }} kayıt</p>
+            <p class="text-xs text-amber-700/80">{{ receivable_count }} açık proje</p>
         </div>
         <div class="rounded-2xl bg-red-50 border border-red-100 px-5 py-4">
             <p class="text-[10px] font-bold uppercase text-red-700">{{ receivable_overdue_days }}+ gün geciken</p>
@@ -51,34 +51,41 @@
             <table class="w-full text-sm">
                 <thead class="bg-slate-50 text-xs uppercase text-slate-500">
                     <tr>
-                        <th class="px-4 py-3 text-left">Müşteri</th>
-                        <th class="px-4 py-3 text-left min-w-[180px]">Ürünler</th>
-                        <th class="px-4 py-3 text-right">Kalan</th>
-                        <th class="px-4 py-3 text-left">Satış tarihi</th>
-                        <th class="px-4 py-3 text-left">Durum</th>
-                        <th class="px-4 py-3 text-right">İşlem</th>
+                        <th class="px-3 py-3 text-left">Müşteri</th>
+                        <th class="px-3 py-3 text-left min-w-[140px]">Proje / ürün</th>
+                        <th class="px-3 py-3 text-right">Toplam</th>
+                        <th class="px-3 py-3 text-right">Peşinat</th>
+                        <th class="px-3 py-3 text-right">Ara ödeme</th>
+                        <th class="px-3 py-3 text-right">Gelir (muh.)</th>
+                        <th class="px-3 py-3 text-right">Kalan</th>
+                        <th class="px-3 py-3 text-left">Satış tarihi</th>
+                        <th class="px-3 py-3 text-right">İşlem</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-slate-100">
                     {% for row in receivable_rows %}
                     <tr class="{% if row.is_overdue %}bg-red-50/40{% endif %}">
-                        <td class="px-4 py-3 font-semibold">{{ row.lead.customer.name }}</td>
-                        <td class="px-4 py-3">
+                        <td class="px-3 py-3 font-semibold">{{ row.lead.customer.name }}</td>
+                        <td class="px-3 py-3">
                             <p class="font-bold text-slate-900">{{ row.products_primary }}</p>
                             {% if row.lead.project %}<p class="text-xs text-slate-400">{{ row.lead.project }}</p>{% endif %}
                         </td>
-                        <td class="px-4 py-3 text-right font-black text-amber-800">{{ row.remaining|floatformat:2 }} {{ currency_symbol }}</td>
-                        <td class="px-4 py-3">{{ row.lead.sale_date|date:"d.m.Y" }} <span class="text-xs text-slate-400">({{ row.days_since }} gün)</span></td>
-                        <td class="px-4 py-3">{% if row.is_overdue %}<span class="text-xs font-bold text-red-700">Gecikmiş</span>{% else %}<span class="text-xs text-slate-500">Bekliyor</span>{% endif %}</td>
-                        <td class="px-4 py-3 text-right whitespace-nowrap">
-                            <a href="{% url 'sales_lead_edit' row.lead.id %}" class="text-brand-600 font-semibold text-xs hover:underline mr-2">Düzenle</a>
+                        <td class="px-3 py-3 text-right text-slate-700">{{ row.sale_total|floatformat:2 }}</td>
+                        <td class="px-3 py-3 text-right text-slate-600">{{ row.down_payment|floatformat:2 }}</td>
+                        <td class="px-3 py-3 text-right text-slate-600">{{ row.interim_total|floatformat:2 }}</td>
+                        <td class="px-3 py-3 text-right text-emerald-700">{{ row.finance_income|floatformat:2 }}</td>
+                        <td class="px-3 py-3 text-right font-black text-amber-800">{{ row.remaining|floatformat:2 }} {{ currency_symbol }}</td>
+                        <td class="px-3 py-3 whitespace-nowrap">{{ row.lead.sale_date|date:"d.m.Y" }} <span class="text-xs text-slate-400">({{ row.days_since }} gün)</span></td>
+                        <td class="px-3 py-3 text-right whitespace-nowrap">
+                            <a href="{% url 'sales_lead_edit' row.lead.id %}" class="text-brand-600 font-semibold text-xs hover:underline mr-2">Satış</a>
+                            <a href="{% url 'accounting_finance' %}" class="text-slate-600 font-semibold text-xs hover:underline mr-2">Gelir</a>
                             {% if row.lead.customer.whatsapp_link %}
-                            <a href="{{ row.lead.customer.whatsapp_link }}?text={{ row.whatsapp_text|urlencode }}" target="_blank" rel="noopener" class="text-emerald-700 font-bold text-xs hover:underline">WhatsApp</a>
+                            <a href="{{ row.lead.customer.whatsapp_link }}?text={{ row.whatsapp_text|urlencode }}" target="_blank" rel="noopener" class="text-emerald-700 font-bold text-xs hover:underline">WA</a>
                             {% endif %}
                         </td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6" class="px-4 py-12 text-center text-slate-400">Açık alacak yok.</td></tr>
+                    <tr><td colspan="9" class="px-4 py-12 text-center text-slate-400">Açık alacak yok — tüm projeler tahsil edilmiş.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>

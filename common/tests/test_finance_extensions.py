@@ -168,3 +168,36 @@ class FinanceExtensionsTests(TestCase):
         self.assertIsNotNone(rec)
         self.assertEqual(rec.sales_lead_id, lead.pk)
         self.assertEqual(rec.category, 'material')
+
+    def test_receivable_closes_when_finance_income_linked_to_sale(self):
+        from customers.models import Customer
+        from sales_leads.models import SalesLead
+        from sales_leads.receivables import build_receivables_context
+        from core_settings.models import FinanceRecord
+        from django.utils import timezone
+
+        customer = Customer.objects.create(name='Tahsil Müşteri', **self._brand_kwargs())
+        lead = SalesLead.objects.create(
+            customer=customer,
+            sale_date=timezone.localdate(),
+            project='Villa',
+            sale_amount=Decimal('10000'),
+            down_payment=Decimal('2000'),
+        )
+        self.assertEqual(lead.remaining_balance, Decimal('8000'))
+
+        FinanceRecord.objects.create(
+            record_type=FinanceRecord.TYPE_INCOME,
+            title='Tahsilat',
+            amount=Decimal('8000'),
+            record_date=timezone.localdate(),
+            sales_lead=lead,
+            recorded_by=self.user,
+            **self._brand_kwargs(),
+        )
+        lead.refresh_from_db()
+        self.assertEqual(lead.remaining_balance, Decimal('0'))
+
+        ctx = build_receivables_context()
+        self.assertEqual(ctx['receivable_count'], 0)
+        self.assertEqual(ctx['receivable_total'], Decimal('0'))

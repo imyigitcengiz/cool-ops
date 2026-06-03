@@ -88,9 +88,21 @@ class SalesLead(models.Model):
 
     @property
     def interim_payments_total(self):
-        return sum(
-            (p.amount or Decimal('0')) for p in self.interim_payments.all()
-        )
+        from sales_leads.collections import interim_total_for_lead
+
+        return interim_total_for_lead(self)
+
+    @property
+    def finance_income_total(self):
+        from sales_leads.collections import finance_income_for_lead
+
+        return finance_income_for_lead(self)
+
+    @property
+    def collected_total(self):
+        from sales_leads.collections import collected_total_for_lead
+
+        return collected_total_for_lead(self)
 
     @property
     def interim_payments_summary(self):
@@ -101,9 +113,9 @@ class SalesLead(models.Model):
 
     @property
     def remaining_balance(self):
-        total = self.sale_amount or Decimal('0')
-        paid = (self.down_payment or Decimal('0')) + self.interim_payments_total
-        return total - paid
+        from sales_leads.collections import remaining_balance_for_lead
+
+        return remaining_balance_for_lead(self)
 
 
 class SalesLeadInterimPayment(models.Model):

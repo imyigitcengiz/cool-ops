@@ -15,12 +15,57 @@ def normalize_header(value: str) -> str:
     return s.strip('_')
 
 
+# Birden fazla CSV başlığı tek alana: "Sütun A|Sütun B" veya liste
+MAPPING_HEADER_SEP = '|'
+
+FIELD_MULTI_COLUMN_JOIN: dict[str, str] = {
+    'products': ' | ',
+    'name': ' ',
+    'customer_name': ' ',
+}
+
+
 @dataclass(frozen=True)
 class ImportField:
     key: str
     label: str
     required: bool = False
     aliases: tuple[str, ...] = ()
+
+
+def mapping_headers(spec: str | list[str] | None) -> list[str]:
+    """Eşleştirme değerini CSV başlık listesine çevirir."""
+    if spec is None:
+        return []
+    if isinstance(spec, list):
+        return [str(h).strip() for h in spec if str(h).strip()]
+    text = str(spec).strip()
+    if not text:
+        return []
+    if MAPPING_HEADER_SEP in text:
+        return [p.strip() for p in text.split(MAPPING_HEADER_SEP) if p.strip()]
+    return [text]
+
+
+def encode_mapping_headers(headers: list[str]) -> str | None:
+    cleaned = [h.strip() for h in headers if h and str(h).strip()]
+    if not cleaned:
+        return None
+    if len(cleaned) == 1:
+        return cleaned[0]
+    return MAPPING_HEADER_SEP.join(cleaned)
+
+
+def merge_row_columns(row: dict[str, str], headers: list[str], *, field_key: str = '') -> str:
+    parts = []
+    for header in headers:
+        val = (row.get(header) or '').strip()
+        if val:
+            parts.append(val)
+    if not parts:
+        return ''
+    sep = FIELD_MULTI_COLUMN_JOIN.get(field_key, ' ')
+    return sep.join(parts)
 
 
 def auto_map_headers(csv_headers: list[str], fields: list[ImportField]) -> dict[str, str]:
@@ -46,17 +91,15 @@ def auto_map_headers(csv_headers: list[str], fields: list[ImportField]) -> dict[
 
 def apply_column_mapping(
     rows: list[dict[str, str]],
-    mapping: dict[str, str | None],
+    mapping: dict[str, str | list[str] | None],
 ) -> list[dict[str, str]]:
-    """Her satırı canonical alan anahtarlarına dönüştür."""
+    """Her satırı canonical alan anahtarlarına dönüştür (alan başına birden fazla CSV sütunu birleştirilebilir)."""
     out: list[dict[str, str]] = []
     for row in rows:
         mapped: dict[str, str] = {}
-        for key, header in mapping.items():
-            if header and header in row:
-                mapped[key] = (row.get(header) or '').strip()
-            else:
-                mapped[key] = ''
+        for key, spec in mapping.items():
+            headers = mapping_headers(spec)
+            mapped[key] = merge_row_columns(row, headers, field_key=key) if headers else ''
         out.append(mapped)
     return out
 
@@ -139,6 +182,8 @@ def parse_mapping_payload(raw) -> dict[str, str | None]:
     for key, val in data.items():
         if val in (None, '', '__skip__'):
             out[str(key)] = None
+        elif isinstance(val, list):
+            out[str(key)] = encode_mapping_headers([str(v) for v in val])
         else:
-            out[str(key)] = str(val).strip()
+            out[str(key)] = encode_mapping_headers(mapping_headers(val))
     return out

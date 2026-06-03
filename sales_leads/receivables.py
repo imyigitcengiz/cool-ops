@@ -7,6 +7,13 @@ from decimal import Decimal
 from django.db.models import Sum
 from django.utils import timezone
 
+from sales_leads.collections import (
+    annotate_sales_collection,
+    collected_total_for_lead,
+    finance_income_for_lead,
+    interim_total_for_lead,
+    remaining_balance_for_lead,
+)
 from sales_leads.models import SalesLead
 
 
@@ -16,10 +23,17 @@ def _money(value) -> str:
     return format_money(value, decimals=2)
 
 
-def build_receivables_context(*, overdue_days: int = 30) -> dict:
+def build_receivables_context(*, overdue_days: int = 30, request=None) -> dict:
     today = timezone.localdate()
+    qs = SalesLead.objects.exclude(status=SalesLead.STATUS_CANCELLED)
+    if request is not None:
+        from common.brand_scope import get_active_brand_id
+
+        bid = get_active_brand_id(request)
+        if bid:
+            qs = qs.filter(customer__brand_id=bid)
     leads = list(
-        SalesLead.objects.exclude(status=SalesLead.STATUS_CANCELLED)
+        annotate_sales_collection(qs)
         .select_related('customer')
         .prefetch_related('interim_payments', 'product_lines__product')
         .order_by('-sale_date', '-created_at')
@@ -29,7 +43,7 @@ def build_receivables_context(*, overdue_days: int = 30) -> dict:
     overdue_receivable = Decimal('0')
 
     for lead in leads:
-        remaining = lead.remaining_balance
+        remaining = remaining_balance_for_lead(lead)
         if remaining <= 0:
             continue
         days_since = (today - lead.sale_date).days if lead.sale_date else 0
@@ -45,6 +59,11 @@ def build_receivables_context(*, overdue_days: int = 30) -> dict:
 
         receivable_rows.append({
             'lead': lead,
+            'sale_total': lead.sale_amount or Decimal('0'),
+            'down_payment': lead.down_payment or Decimal('0'),
+            'interim_total': interim_total_for_lead(lead),
+            'finance_income': finance_income_for_lead(lead),
+            'collected': collected_total_for_lead(lead),
             'remaining': remaining,
             'days_since': days_since,
             'is_overdue': is_overdue,
