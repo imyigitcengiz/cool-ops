@@ -31,9 +31,26 @@ sudo bash deploy/plesk/install-docker.sh
 2. **SSL/TLS** → Let’s Encrypt
 3. **Apache & nginx Settings** → **Proxy mode** açık
 4. **Additional nginx directives** → `deploy/plesk/nginx-proxy.conf` içeriğini yapıştırın  
-   (hedef port varsayılan **8080**)
+   (hedef port varsayılan **8000** — `plesk.env` içinde `KOBIOPS_HTTP_PORT` değiştirdiyseniz proxy’de de güncelleyin)
 
-Uygulama konteyner içinde **80** dinler; Plesk nginx → `127.0.0.1:8080`.
+### Neden kök `docker-compose.yaml`'da `ports` yok?
+
+Ana dosya Coolify/Dokploy için tasarlandı (`expose` only). Plesk’te host portu **overlay** ile açılır:
+
+```yaml
+# deploy/plesk/docker-compose.plesk.yaml
+ports:
+  - "127.0.0.1:8000:80"   # dışarıdan değil — Plesk nginx buraya proxy yapar
+```
+
+Sadece `docker compose up` (overlay olmadan) çalıştırırsanız dış port **kapalı** kalır → 502 / Passenger hatası.
+
+**Doğru komut:** `./deploy/plesk/deploy.sh` veya  
+`COMPOSE_FILE=docker-compose.yaml:deploy/plesk/docker-compose.plesk.yaml docker compose up -d --build`
+
+Sunucuda test: `curl http://127.0.0.1:8000/healthz/`
+
+Uygulama konteyner içinde **80** dinler; Plesk nginx → `127.0.0.1:8000`.
 
 ---
 
@@ -109,7 +126,7 @@ git clone https://github.com/imyigitcengiz/cool-ops.git .
 
 ```env
 KOBIOPS_DOMAIN=ops.ornek.com
-KOBIOPS_HTTP_PORT=8080
+KOBIOPS_HTTP_PORT=8000
 KOBIOPS_PUBLIC_URL=https://ops.ornek.com
 DJANGO_ENSURE_SUPERADMIN=1
 ```
@@ -159,7 +176,7 @@ docker compose logs whatsapp_bridge --tail 50
 
 | Belirti | Çözüm |
 |---------|--------|
-| 502 Bad Gateway | `docker compose ps` — `app` healthy mi? nginx `proxy_pass` portu 8080 mi? |
+| 502 Bad Gateway | `docker compose ps` — `app` healthy mi? nginx `proxy_pass` portu **8000** mi? `curl http://127.0.0.1:8000/healthz/` |
 | DisallowedHost | `KOBIOPS_DOMAIN` doğru; redeploy |
 | CSRF | SSL açık; `KOBIOPS_PUBLIC_URL=https://...` |
 | `/data kalıcı volume` | Volume silinmiş; `kobiops_gy_data` yeniden oluşsun, veri yedekten |
@@ -174,7 +191,7 @@ docker compose logs whatsapp_bridge --tail 50
 | Dosya | Açıklama |
 |-------|----------|
 | `deploy/plesk/deploy.sh` | Git post-deploy hook |
-| `deploy/plesk/docker-compose.plesk.yaml` | Git/CLI overlay (localhost:8080) |
+| `deploy/plesk/docker-compose.plesk.yaml` | Git/CLI overlay (localhost:8000→80) |
 | `deploy/plesk/docker-compose.plesk-stack.yaml` | Plesk Stacks (include + port) |
 | `deploy/plesk/plesk.env` | Sunucu domain ayarı (gitignore) |
 | `deploy/plesk/plesk-stack.env` | Stacks UI env (gitignore) |

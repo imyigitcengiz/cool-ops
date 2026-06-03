@@ -13,6 +13,9 @@ services:
       args:
         COOLOPS_BUILD_COMMIT: ${COOLOPS_BUILD_COMMIT:-unknown}
     restart: unless-stopped
+    # Traefik/Coolify: yalnızca internal expose. Host portu için overlay kullanın:
+    #   Plesk → deploy/plesk/docker-compose.plesk.yaml (127.0.0.1:8000→80)
+    #   VPS   → deploy/docker-compose.vps.yaml (8000→80)
     expose:
       - *app_port
     environment:
