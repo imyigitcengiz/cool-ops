@@ -43,3 +43,9 @@ tools/whatsapp_bridge/.wwebjs_auth/
 deploy/plesk/plesk.env
 deploy/plesk/plesk-stack.env
 deploy/plesk/logs/
+
+# Firebase credentials & temp files
+*-firebase-adminsdk-*.json
+firebase-key.json
+source.tar.gz
+.firebase/
