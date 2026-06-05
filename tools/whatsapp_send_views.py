@@ -95,6 +95,11 @@ CLOUD_SEND_TYPES = frozenset({
     WhatsappOutboundMessage.SEND_PARTNER,
     WhatsappOutboundMessage.SEND_DEALER,
     WhatsappOutboundMessage.SEND_BUSINESS,
+    WhatsappOutboundMessage.SEND_AUTO,
+})
+
+BRIDGE_SEND_TYPES = frozenset({
+    WhatsappOutboundMessage.SEND_CUSTOMER,
 })
 
 SALES_LEAD_SCENARIOS = frozenset({
@@ -104,17 +109,13 @@ SALES_LEAD_SCENARIOS = frozenset({
 
 
 def resolve_whatsapp_transport(*, send_type: str = '', scenario: str = '', explicit: str = '') -> str:
-    if explicit in ('bridge', 'cloud'):
-        return explicit
-    if scenario in SALES_LEAD_SCENARIOS:
-        return 'cloud'
-    if send_type == WhatsappOutboundMessage.SEND_CUSTOMER:
+    if send_type in BRIDGE_SEND_TYPES:
         return 'bridge'
-    if send_type == WhatsappOutboundMessage.SEND_AUTO:
-        return 'bridge'
-    if send_type in CLOUD_SEND_TYPES:
+    if send_type in CLOUD_SEND_TYPES or scenario in SALES_LEAD_SCENARIOS:
         return 'cloud'
-    return 'bridge'
+    if explicit == 'cloud':
+        return 'cloud'
+    return 'cloud'
 
 
 def _dispatch_send(
@@ -249,7 +250,10 @@ def send_pending_outbound(
     connection_id: int | None = None,
 ):
     """Kuyruktaki bekleyen mesajı uygun kanaldan gönder."""
-    resolved_transport = (transport or '').strip() or resolve_whatsapp_transport(send_type=outbound.send_type or '')
+    resolved_transport = resolve_whatsapp_transport(
+        send_type=outbound.send_type or '',
+        explicit=(transport or '').strip(),
+    )
     outbound.status = WhatsappOutboundMessage.STATUS_SENDING
     outbound.error_message = ''
     outbound.save(update_fields=['status', 'error_message'])
@@ -414,77 +418,21 @@ def whatsapp_cloud_status_api(request):
     return JsonResponse({'ok': True, **status})
 
 
-@require_http_methods(['GET'])
-@json_auth_required
-@permission_required('access.outreach')
-def campaign_bridge_status_api(request):
-    """Kampanya ekranı — köprü hat durumu (API token gerekmez)."""
-    try:
-        items = []
-        for conn in WhatsappConnection.objects.order_by('-last_connected_at', 'name'):
-            try:
-                bridge = bridge_connection_status(conn.id)
-            except WhatsappBridgeOffline:
-                return JsonResponse({
-                    'ok': True,
-                    'bridge_offline': True,
-                    'connections': items,
-                    'ready': False,
-                })
-            except WhatsappBridgeError:
-                bridge = {'status': 'disconnected'}
-            items.append({
-                'id': conn.id,
-                'name': conn.name,
-                'phone': bridge.get('phone') or conn.phone,
-                'pushname': bridge.get('pushname') or conn.pushname,
-                'status': bridge.get('status') or 'disconnected',
-                'ready': bridge.get('status') == 'ready',
-            })
-        ready = [c for c in items if c['ready']]
-        return JsonResponse({
-            'ok': True,
-            'bridge_offline': False,
-            'connections': items,
-            'ready': bool(ready),
-            'ready_count': len(ready),
-            'default_connection_id': ready[0]['id'] if ready else None,
-        })
-    except WhatsappBridgeOffline as exc:
-        return JsonResponse({
-            'ok': True,
-            'bridge_offline': True,
-            'ready': False,
-            'error': str(exc),
-            'connections': [],
-        })
-
-
 @require_http_methods(['POST'])
 @json_auth_required
 @permission_required('access.outreach')
 def campaign_send_next_api(request):
-    from tools.campaign_send_pacing import compute_bridge_wait_seconds
-
     body = _json_body(request) or {}
     batch_id = (body.get('batch_id') or '').strip()
     if not batch_id:
         return JsonResponse({'ok': False, 'error': 'batch_id gerekli.'}, status=400)
 
     transport = (body.get('transport') or 'cloud').strip().lower()
-    if transport not in ('cloud', 'bridge'):
-        transport = 'cloud'
-
-    connection_id = body.get('connection_id')
-    try:
-        connection_id = int(connection_id) if connection_id not in (None, '') else None
-    except (TypeError, ValueError):
-        connection_id = None
-
-    try:
-        base_delay = float(body.get('base_delay_seconds') or 12)
-    except (TypeError, ValueError):
-        base_delay = 12.0
+    if transport == 'bridge':
+        return JsonResponse({
+            'ok': False,
+            'error': 'Toplu kampanya gönderimi yalnızca WhatsApp Business API ile yapılır. QR köprü müşteri mesajları içindir.',
+        }, status=400)
 
     outbound = (
         WhatsappOutboundMessage.objects.filter(
@@ -497,15 +445,10 @@ def campaign_send_next_api(request):
     if not outbound:
         return JsonResponse({'ok': True, 'done': True})
 
-    sent_before = WhatsappOutboundMessage.objects.filter(
-        batch_id=batch_id,
-        status=WhatsappOutboundMessage.STATUS_SENT,
-    ).count()
-
     result = send_pending_outbound(
         outbound,
-        transport=transport,
-        connection_id=connection_id,
+        transport='cloud',
+        connection_id=None,
     )
     if result.get('done'):
         return JsonResponse(result)
@@ -513,12 +456,6 @@ def campaign_send_next_api(request):
         status_code = 503 if result.get('offline') else 502
         return JsonResponse(result, status=status_code)
 
-    if transport == 'bridge':
-        result['wait_seconds'] = compute_bridge_wait_seconds(
-            base_seconds=base_delay,
-            sent_index=sent_before,
-            message_length=len(outbound.message or ''),
-        )
     return JsonResponse(result)
 
 

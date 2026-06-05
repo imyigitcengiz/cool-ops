@@ -2,7 +2,7 @@
 {% block title %}Kampanyalar{% endblock %}
 {% block header %}
 <h1 class="text-xl font-bold text-slate-900">WhatsApp Kampanyaları</h1>
-<p class="text-sm text-slate-500 mt-0.5">Firma rehberinden alıcı ekleyin — WhatsApp Business API veya QR köprüsü ile tek tek gönderim.</p>
+<p class="text-sm text-slate-500 mt-0.5">Firma rehberinden alıcı ekleyin — WhatsApp Business API ile toplu gönderim.</p>
 {% endblock %}
 {% block content %}
 {% csrf_token %}
@@ -83,21 +83,14 @@
                 </label>
             </div>
             <div class="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100">
-                <label class="text-xs text-slate-500">Taban bekleme</label>
-                <input id="delayInput" type="number" min="4" max="120" value="12" class="w-14 p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-center">
+                <label class="text-xs text-slate-500">Bekleme</label>
+                <input id="delayInput" type="number" min="1" max="30" value="4" class="w-14 p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-center">
                 <span class="text-xs text-slate-400">sn</span>
-                <span id="delayHint" class="text-[10px] text-slate-400 hidden sm:inline">Köprü: değişken tempo · API: sabit aralık</span>
                 <button type="button" id="saveCampaignBtn" class="px-3 py-1.5 bg-slate-700 text-white rounded-lg text-xs font-bold">Kaydet</button>
                 <div class="ml-auto flex flex-wrap gap-2">
-                    {% if modules_nav.integration_whatsapp_bridge %}
-                    <button type="button" id="startSendBridgeBtn" disabled
-                            class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold disabled:opacity-40">
-                        Köprü ile gönder
-                    </button>
-                    {% endif %}
                     <button type="button" id="startSendBtn" disabled
                             class="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-bold disabled:opacity-40">
-                        API ile gönder
+                        Gönderimi başlat
                     </button>
                     <button type="button" id="stopSendBtn" disabled class="px-3 py-2 bg-red-50 text-red-600 rounded-xl text-sm font-bold disabled:opacity-40">Durdur</button>
                 </div>
@@ -156,22 +149,8 @@
             </div>
         </section>
     </main>
-    <!-- Sağ: Gönderim kanalları -->
+    <!-- Sağ: Gönderim kanalı -->
     <aside class="lg:col-span-3 bg-white rounded-2xl border border-slate-200 p-5 space-y-5 lg:sticky lg:top-4 lg:self-start">
-        {% if modules_nav.integration_whatsapp_bridge %}
-        <div class="space-y-3 pb-4 border-b border-slate-100">
-            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">WhatsApp Köprüsü (QR)</h2>
-            <div id="bridgeStatusPill" class="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600">Kontrol ediliyor…</div>
-            <p id="bridgeStatusDetail" class="text-xs text-slate-500"></p>
-            <div id="bridgeReadyBox" class="hidden p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
-                <span class="font-bold">Hat hazır</span>
-                <p id="bridgeReadyName" class="text-xs mt-1 opacity-80"></p>
-            </div>
-            <select id="bridgeConnectionSelect" class="hidden w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"></select>
-            <a href="{% url 'tools_whatsapp_baglan' %}" class="block w-full py-2.5 text-center bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700">QR ile bağlan</a>
-            <p class="text-[10px] text-slate-400 leading-relaxed">Köprü gönderimi mesajları tek tek iletir; tempo otomatik değişir (10 sn taban, ara molalar).</p>
-        </div>
-        {% endif %}
         <div class="space-y-3 pb-4 border-b border-slate-100">
             <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">WhatsApp Business API</h2>
             <div id="waStatusPill" class="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600">Kontrol ediliyor…</div>
@@ -240,21 +219,16 @@
     const MEMORY_URL = '{% url "outreach_firms_memory" %}';
     const TAGS_URL = '{% url "outreach_tags" %}';
     const API_STATUS_URL = '{% url "outreach_whatsapp_api_status" %}';
-    const BRIDGE_STATUS_URL = '{% url "outreach_bridge_status" %}';
     const SEND_NEXT_URL = '{% url "outreach_send_next" %}';
     const QUEUE_STATUS_URL = '{% url "outreach_queue_status" %}';
     const MESSAGES_URL = '{% url "outreach_sent_messages" %}';
-    const BRIDGE_ENABLED = {% if modules_nav.integration_whatsapp_bridge %}true{% else %}false{% endif %};
     let activeCampaignId = null;
     let activeCampaign = null;
     let batchId = null;
     let sending = false;
     let stopRequested = false;
     let apiReady = false;
-    let bridgeReady = false;
-    let bridgeConnectionId = null;
     let apiPollTimer = null;
-    let bridgePollTimer = null;
     let memoryFirms = [];
     let editingMemberId = null;
     let currentMembers = [];
@@ -519,8 +493,6 @@
     function updateSendBtn() {
         const hasMembers = !!activeCampaign?.member_count;
         document.getElementById('startSendBtn').disabled = !hasMembers || !apiReady || sending;
-        const bridgeBtn = document.getElementById('startSendBridgeBtn');
-        if (bridgeBtn) bridgeBtn.disabled = !hasMembers || !bridgeReady || sending;
     }
     async function saveCampaignSettings() {
         if (!activeCampaignId) return;
@@ -533,7 +505,7 @@
             message_template,
             skip_globally_messaged: document.getElementById('skipGloballyCheck').checked,
             allow_repeat_in_campaign: document.getElementById('allowRepeatCheck').checked,
-            delay_seconds: parseInt(document.getElementById('delayInput').value, 10) || 12,
+            delay_seconds: parseInt(document.getElementById('delayInput').value, 10) || 4,
         });
         savedCampaignName = col.name;
         savedMessageTemplate = col.message_template;
@@ -573,76 +545,9 @@
             return null;
         }
     }
-    function setBridgeStatus(data) {
-        if (!BRIDGE_ENABLED) return;
-        const pill = document.getElementById('bridgeStatusPill');
-        const sel = document.getElementById('bridgeConnectionSelect');
-        const readyBox = document.getElementById('bridgeReadyBox');
-        if (!pill) return;
-        bridgeReady = !!(data && data.ready && !data.bridge_offline);
-        const readyConns = (data?.connections || []).filter(c => c.ready);
-        if (data?.bridge_offline) {
-            pill.textContent = 'Köprü kapalı';
-            pill.className = 'inline-flex px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800';
-            document.getElementById('bridgeStatusDetail').textContent = data.error || 'WhatsApp köprüsünü başlatın.';
-            readyBox?.classList.add('hidden');
-            sel?.classList.add('hidden');
-            bridgeConnectionId = null;
-            updateSendBtn();
-            return;
-        }
-        if (!readyConns.length) {
-            pill.textContent = 'Hat bağlı değil';
-            pill.className = 'inline-flex px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600';
-            document.getElementById('bridgeStatusDetail').textContent = 'QR ile telefonunuzu bağlayın.';
-            readyBox?.classList.add('hidden');
-            sel?.classList.add('hidden');
-            bridgeConnectionId = null;
-            bridgeReady = false;
-            updateSendBtn();
-            return;
-        }
-        pill.textContent = `${readyConns.length} hat hazır`;
-        pill.className = 'inline-flex px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800';
-        readyBox?.classList.remove('hidden');
-        const first = readyConns[0];
-        document.getElementById('bridgeReadyName').textContent = [first.pushname, first.phone].filter(Boolean).join(' · ') || first.name;
-        document.getElementById('bridgeStatusDetail').textContent = 'Mesajlar tek tek, değişken aralıklarla gönderilir.';
-        if (readyConns.length > 1 && sel) {
-            sel.classList.remove('hidden');
-            sel.innerHTML = readyConns.map(c =>
-                `<option value="${c.id}">${esc(c.name)}${c.phone ? ' · ' + esc(c.phone) : ''}</option>`
-            ).join('');
-            bridgeConnectionId = parseInt(sel.value, 10);
-        } else {
-            sel?.classList.add('hidden');
-            bridgeConnectionId = first.id;
-        }
-        updateSendBtn();
-    }
-    async function pollBridge() {
-        if (!BRIDGE_ENABLED) return null;
-        try {
-            const res = await fetch(BRIDGE_STATUS_URL);
-            const data = await res.json();
-            setBridgeStatus(data);
-            return data;
-        } catch (e) {
-            setBridgeStatus({ bridge_offline: true, ready: false });
-            return null;
-        }
-    }
     async function initWhatsAppApi() {
         await pollApi();
         if (!apiPollTimer) apiPollTimer = setInterval(pollApi, 15000);
-    }
-    async function initWhatsAppBridge() {
-        if (!BRIDGE_ENABLED) return;
-        document.getElementById('bridgeConnectionSelect')?.addEventListener('change', (e) => {
-            bridgeConnectionId = parseInt(e.target.value, 10) || null;
-        });
-        await pollBridge();
-        if (!bridgePollTimer) bridgePollTimer = setInterval(pollBridge, 12000);
     }
     document.getElementById('retryApiBtn')?.addEventListener('click', pollApi);
     document.getElementById('saveCampaignNameBtn')?.addEventListener('click', () => saveCampaignName().catch(e => alert(e.message)));
@@ -779,10 +684,9 @@
         document.getElementById('statSkipped').textContent = `${data.skipped || 0} atlandı`;
         document.getElementById('statRemaining').textContent = `${data.pending} kalan`;
     }
-    async function runSendLoop(transport) {
+    async function runSendLoop() {
         if (!activeCampaignId) return;
-        if (transport === 'cloud' && !apiReady) return alert('Önce WhatsApp Business API bilgilerini girin.');
-        if (transport === 'bridge' && !bridgeReady) return alert('Önce WhatsApp köprüsünde QR ile hat bağlayın.');
+        if (!apiReady) return alert('Önce WhatsApp Business API bilgilerini girin.');
         await saveCampaignSettings();
         const qRes = await fetch(campaignUrl(activeCampaignId, 'kuyruk/'), {
             method: 'POST',
@@ -793,41 +697,27 @@
         if (!qData.ok) return alert(qData.error || 'Kuyruk oluşturulamadı.');
         batchId = qData.batch_id;
         if (qData.skipped) log(`${qData.skipped} atlandı.`);
-        log(`${qData.queued} mesaj kuyruğa alındı (${transport === 'bridge' ? 'köprü' : 'API'}).`, 'ok');
+        log(`${qData.queued} mesaj kuyruğa alındı (API).`, 'ok');
         if (!qData.queued) return;
         sending = true;
         stopRequested = false;
         updateSendBtn();
         document.getElementById('stopSendBtn').disabled = false;
-        const baseDelay = parseInt(document.getElementById('delayInput').value, 10) || (transport === 'bridge' ? 12 : 4);
+        const delayMs = (parseInt(document.getElementById('delayInput').value, 10) || 4) * 1000;
         while (!stopRequested) {
-            const payload = {
-                batch_id: batchId,
-                transport,
-                base_delay_seconds: baseDelay,
-            };
-            if (transport === 'bridge' && bridgeConnectionId) payload.connection_id = bridgeConnectionId;
             const res = await fetch(SEND_NEXT_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
-                body: JSON.stringify(payload),
+                body: JSON.stringify({ batch_id: batchId, transport: 'cloud' }),
             });
             const data = await res.json();
             await refreshQueueStats();
             if (data.done) { log('Gönderim tamamlandı.', 'ok'); break; }
             if (!data.ok && !data.skipped) {
                 log(data.error || 'Hata', 'error');
-                if (transport === 'cloud' && data.error && data.error.includes('API')) { await pollApi(); break; }
-                if (transport === 'bridge' && data.offline) { await pollBridge(); break; }
+                if (data.error && data.error.includes('API')) { await pollApi(); break; }
             } else if (data.ok && !data.skipped) {
                 log(`→ ${data.recipient_name}`, 'ok');
-            }
-            let delayMs;
-            if (transport === 'bridge' && data.wait_seconds) {
-                delayMs = Math.round(data.wait_seconds * 1000);
-                log(`Bekleme ${data.wait_seconds}s…`);
-            } else {
-                delayMs = baseDelay * 1000;
             }
             await new Promise(r => setTimeout(r, delayMs));
         }
@@ -837,8 +727,7 @@
         await selectCampaign(activeCampaignId);
         loadMessageHistory();
     }
-    document.getElementById('startSendBtn').addEventListener('click', () => runSendLoop('cloud').catch(e => alert(e.message)));
-    document.getElementById('startSendBridgeBtn')?.addEventListener('click', () => runSendLoop('bridge').catch(e => alert(e.message)));
+    document.getElementById('startSendBtn').addEventListener('click', () => runSendLoop().catch(e => alert(e.message)));
     document.getElementById('stopSendBtn').addEventListener('click', () => { stopRequested = true; log('Durduruluyor…'); });
     function histLabel(st) { return { sent: 'Gönderildi', failed: 'Hata', skipped: 'Atlandı' }[st] || st; }
     async function loadMessageHistory() {
@@ -881,7 +770,6 @@
         await selectCampaign(activeCampaignId);
     }
     initWhatsAppApi();
-    initWhatsAppBridge();
     loadTagsForMemory();
     loadMemoryFirms().catch(() => {});
     loadCampaigns().then(async () => {
