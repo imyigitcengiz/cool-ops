@@ -716,7 +716,11 @@
                 tab.classList.add('ring-2', 'ring-brand-500', 'border-brand-400');
             }
         });
-        loadMemory('').catch(() => {
+        const initialQuery = new URLSearchParams(window.location.search).get('q') || '';
+        if (memorySearchInput && initialQuery) {
+            memorySearchInput.value = initialQuery;
+        }
+        loadMemory(initialQuery).catch(() => {
             memoryBody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">Rehber yüklenemedi.</td></tr>';
         });
     }

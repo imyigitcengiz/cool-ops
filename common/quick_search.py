@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from urllib.parse import urlencode
 
+from django.db.models import Q
 from django.urls import NoReverseMatch, reverse
 
 from common.module_runtime import (
@@ -145,6 +147,53 @@ def _match_query(item: QuickSearchItem, q: str) -> bool:
     return q in blob or any(part in blob for part in q.split() if len(part) >= 2)
 
 
+def _query_digits(q: str) -> str:
+    return ''.join(c for c in q if c.isdigit())
+
+
+def _phone_variants(digits: str) -> set[str]:
+    """DB'deki boşluklu/0 önekli telefon formatları için arama adayları."""
+    variants = {digits}
+    if len(digits) == 10:
+        variants.add(f'0{digits}')
+        variants.add(f'0{digits[:3]} {digits[3:6]} {digits[6:8]} {digits[8:10]}')
+        variants.add(f'{digits[:3]} {digits[3:6]} {digits[6:8]} {digits[8:10]}')
+    elif len(digits) == 11 and digits.startswith('0'):
+        variants.add(f'{digits[:4]} {digits[4:7]} {digits[7:9]} {digits[9:11]}')
+    elif len(digits) >= 12 and digits.startswith('90'):
+        local = digits[2:]
+        variants.update(_phone_variants(local))
+    return {v for v in variants if v}
+
+
+def _contact_search_q(
+    q: str,
+    *,
+    name_prefix: str = '',
+    phone_field: str = 'phone',
+    phone_norm_field: str | None = None,
+) -> Q:
+    """İsim + telefon (ham ve normalize) ile kayıt filtresi."""
+    name_lookup = f'{name_prefix}name__icontains' if name_prefix else 'name__icontains'
+    phone_lookup = f'{name_prefix}{phone_field}__icontains'
+    filters = Q(**{name_lookup: q}) | Q(**{phone_lookup: q})
+
+    digits = _query_digits(q)
+    if len(digits) >= 3:
+        for candidate in _phone_variants(digits):
+            filters |= Q(**{phone_lookup: candidate})
+        from tools.phone_utils import normalize_phone
+
+        norm = normalize_phone(q)
+        if norm:
+            for candidate in _phone_variants(norm):
+                filters |= Q(**{phone_lookup: candidate})
+                if phone_norm_field:
+                    norm_lookup = f'{name_prefix}{phone_norm_field}__icontains'
+                    filters |= Q(**{norm_lookup: candidate})
+    return filters
+
+
 def build_quick_search_results(user, query: str = '', *, limit: int = 20) -> list[dict]:
     q = (query or '').strip().lower()
     out: list[dict] = []
@@ -175,25 +224,57 @@ def search_entities(user, query: str, *, limit: int = 5, request=None) -> list[d
         return []
 
     results: list[dict] = []
+    per_type = max(2, limit // 2)
 
     if user.has_any_perm_codename('contact.customers_view', 'contact.customers'):
         from customers.models import Customer
 
-        cust_qs = Customer.objects.filter(name__icontains=q).order_by('name')
+        cust_qs = Customer.objects.filter(_contact_search_q(q)).order_by('name')
         if request:
             from common.brand_scope import filter_customers
 
             cust_qs = filter_customers(cust_qs, request)
-        for customer in cust_qs[:limit]:
+        for customer in cust_qs[:per_type]:
             try:
                 url = reverse('customer_update', kwargs={'pk': customer.pk})
             except NoReverseMatch:
                 url = reverse('customers')
+            phone = (customer.phone or '').strip()
+            subtitle = phone if phone else 'Müşteri kaydı'
             results.append({
                 'title': customer.name,
-                'subtitle': 'Müşteri kaydı',
+                'subtitle': subtitle,
                 'url': url,
                 'icon': 'user',
+                'group': 'Kayıtlar',
+                'kind': 'record',
+            })
+
+    if user.has_perm_codename('contact.firms'):
+        from tools.models import MapsScrapedFirm
+        from tools.outreach_memory import CUSTOMER_SHADOW_NOTE
+
+        firm_qs = (
+            MapsScrapedFirm.objects.exclude(notes=CUSTOMER_SHADOW_NOTE)
+            .filter(
+                _contact_search_q(q, phone_norm_field='phone_normalized')
+                | Q(region__icontains=q)
+                | Q(address__icontains=q),
+            )
+            .order_by('-last_scraped_at', 'name')
+        )
+        for firm in firm_qs[:per_type]:
+            phone = (firm.phone or '').strip()
+            try:
+                base = reverse('contact_firmalar')
+                url = f'{base}?{urlencode({"q": q})}'
+            except NoReverseMatch:
+                url = '#'
+            results.append({
+                'title': firm.name,
+                'subtitle': phone if phone else 'Firma kaydı',
+                'url': url,
+                'icon': 'building-2',
                 'group': 'Kayıtlar',
                 'kind': 'record',
             })
@@ -202,20 +283,26 @@ def search_entities(user, query: str, *, limit: int = 5, request=None) -> list[d
         from services.models import ServiceRecord
 
         svc_qs = ServiceRecord.objects.select_related('customer').filter(
-            customer__name__icontains=q,
+            _contact_search_q(q, name_prefix='customer__', phone_field='phone')
+            | Q(customer__name__icontains=q),
         ).order_by('-updated_at')
         if request:
             from common.brand_scope import filter_services
 
             svc_qs = filter_services(svc_qs, request)
-        for service in svc_qs[:limit]:
+        remaining = max(0, limit - len(results))
+        for service in svc_qs[:remaining]:
             try:
                 url = reverse('service_update', kwargs={'pk': service.pk})
             except NoReverseMatch:
                 url = reverse('services')
+            phone = (service.customer.phone or '').strip()
+            subtitle = 'Servis kaydı'
+            if phone:
+                subtitle = f'Servis · {phone}'
             results.append({
                 'title': f'#{service.pk} · {service.customer.name}',
-                'subtitle': 'Servis kaydı',
+                'subtitle': subtitle,
                 'url': url,
                 'icon': 'headphones',
                 'group': 'Kayıtlar',
