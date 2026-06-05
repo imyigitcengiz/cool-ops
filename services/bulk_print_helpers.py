@@ -19,7 +19,7 @@ def _service_type_label(service) -> str:
     return ', '.join(names) if names else 'servis'
 
 
-def build_bulk_print_qr(service, *, site_name: str = 'CoolOPS') -> dict:
+def build_bulk_print_qr(service) -> dict:
     """
     kind: location | whatsapp | none
     location → müşteri konum linki QR
@@ -47,7 +47,7 @@ def build_bulk_print_qr(service, *, site_name: str = 'CoolOPS') -> dict:
         }
 
     ariza = _service_type_label(service)
-    message = render_whatsapp_location_request_message(site_name=site_name, ariza=ariza)
+    message = render_whatsapp_location_request_message(ariza=ariza)
     wa_link = f'{wa_base}?text={quote(message)}'
     return {
         'kind': 'whatsapp',

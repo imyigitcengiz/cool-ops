@@ -99,7 +99,8 @@ LANDING_OUTREACH_FEATURES: tuple[tuple[str, str, str], ...] = (
 
 LANDING_INTEGRATION_DETAILS: tuple[tuple[str, str, str], ...] = (
     ('message-circle', 'WhatsApp Köprüsü (QR)', 'Hat bağlama, senaryo şablonları, servis bildirimleri'),
-    ('cloud', 'WhatsApp Business API', 'Meta Cloud API — kampanya ve otomasyon'),
+    ('cloud', 'WhatsApp Business API', 'Meta Cloud API — token ve telefon ID'),
+    ('megaphone', 'Toplu mesaj gönderici', 'Kampanya listeleri ve WhatsApp toplu gönderim'),
     ('map-pin', 'Firma & lead kazıma', 'Maps araması, etiketleme, hafıza listesi'),
     ('images', 'Medya kütüphanesi', 'Müşteri ve kampanya dosyaları; önizleme'),
     ('sparkles', 'Yapay zeka (opsiyonel)', 'Sohbet asistanı, servis raporlama paneli'),

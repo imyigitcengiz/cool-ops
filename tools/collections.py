@@ -14,6 +14,27 @@ Sizinle iletişime geçmek istedik. Uygun olduğunuzda kısaca görüşebilir mi
 
 İyi çalışmalar."""
 
+TEMPLATE_PLACEHOLDERS: tuple[tuple[str, str], ...] = (
+    ('firma', 'Firma / alıcı adı'),
+    ('telefon', 'Telefon numarası'),
+    ('bolge', 'Bölge'),
+    ('adres', 'Adres'),
+    ('puan', 'Google puanı'),
+)
+
+
+def preview_message_template(template: str) -> str:
+    from tools.views import _apply_template
+
+    class _SampleFirm:
+        name = 'Örnek Klima Ltd.'
+        phone = '0532 000 00 00'
+        region = 'Kadıköy'
+        address = 'Bağdat Cad. No:12'
+        rating = '4.8'
+
+    return _apply_template(template or DEFAULT_TEMPLATE, firm=_SampleFirm())
+
 
 
 
@@ -92,6 +113,12 @@ def serialize_collection(collection: OutreachCollection, *, include_members=Fals
         'name': collection.name,
 
         'message_template': collection.message_template or DEFAULT_TEMPLATE,
+        'default_message_template': DEFAULT_TEMPLATE,
+        'template_placeholders': [
+            {'key': key, 'label': label, 'token': '{' + key + '}'}
+            for key, label in TEMPLATE_PLACEHOLDERS
+        ],
+        'template_preview': preview_message_template(collection.message_template),
 
         'skip_globally_messaged': collection.skip_globally_messaged,
 

@@ -91,8 +91,8 @@ class CsvExchangeHubView(PermissionRequiredMixin, TemplateView):
                 'color': 'rose',
                 'hint': cfg['sample_hint'],
                 'note': '',
-                'export_url': reverse('contact_google_maps_export_csv'),
-                'export_label': 'Liste CSV',
+                'export_url': reverse('contact_firms_export_csv'),
+                'export_label': 'Rehber CSV',
                 'import_url': f"{reverse('csv_import_wizard')}?type=firms&next={hub}",
                 'highlight': open_slug == 'firms',
             })

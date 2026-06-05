@@ -1,7 +1,7 @@
 @echo off
 chcp 65001 >nul
 title GY WhatsApp Bridge
-cd /d "D:\Downloads\cool-ops\tools\whatsapp_bridge"
+cd /d "D:\Downloads\cool-ops-git\tools\whatsapp_bridge"
 echo [%date% %time%] Köprü baslatiliyor...
 echo Node: "C:\Program Files\nodejs\node.exe"
 "C:\Program Files\nodejs\node.exe" server.js

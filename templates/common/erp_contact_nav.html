@@ -17,7 +17,7 @@
 <p class="erp-nav-group-label">{{ gy.mh_personel }}</p>
 {% if user_perms.contact_personnel and particles_nav.contact_personnel %}
 <a href="{% url 'personnel_network' %}" class="erp-nav-link{% if url_name == 'personnel_network' %} erp-nav-link--active{% endif %}">
-    <i data-lucide="users" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">Personel ağı</span>
+    <i data-lucide="users" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">Personeller</span>
 </a>
 <a href="{% url 'contact_personnel' %}" class="erp-nav-link{% if url_name == 'contact_personnel' or url_name == 'accounting_personnel' %} erp-nav-link--active{% endif %}">
     <i data-lucide="id-card" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">Personel yönetimi</span>
@@ -34,8 +34,10 @@
 <a href="{% url 'outreach_hub' %}" class="erp-nav-link{% if url_name == 'outreach_hub' %} erp-nav-link--active{% endif %}">
     <i data-lucide="messages-square" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">{{ gy.iletisim_merkezi }}</span>
 </a>
+{% if modules_nav.integration_bulk_messaging %}
 <a href="{% url 'outreach_campaigns' %}" class="erp-nav-link{% if url_name == 'outreach_campaigns' %} erp-nav-link--active{% endif %}">
     <i data-lucide="megaphone" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">Kampanyalar</span>
 </a>
+{% endif %}
 {% endif %}
 {% endwith %}

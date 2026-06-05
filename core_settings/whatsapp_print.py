@@ -19,12 +19,20 @@ def get_whatsapp_location_request_template() -> str:
     return DEFAULT_WHATSAPP_LOCATION_REQUEST_TEMPLATE
 
 
-def render_whatsapp_location_request_message(*, site_name: str, ariza: str) -> str:
+def get_site_display_name() -> str:
+    """Site ayarlarındaki firma adı; yoksa varsayılan CoolOPS."""
+    row = SiteSettings.objects.first()
+    name = (getattr(row, 'site_name', None) or '').strip() if row else ''
+    return name or 'CoolOPS'
+
+
+def render_whatsapp_location_request_message(*, ariza: str, site_name: str | None = None) -> str:
+    resolved_name = (site_name or '').strip() or get_site_display_name()
     template = get_whatsapp_location_request_template()
     try:
-        return template.format(site_name=site_name, ariza=ariza)
+        return template.format(site_name=resolved_name, ariza=ariza)
     except (KeyError, ValueError):
         return DEFAULT_WHATSAPP_LOCATION_REQUEST_TEMPLATE.format(
-            site_name=site_name,
+            site_name=resolved_name,
             ariza=ariza,
         )

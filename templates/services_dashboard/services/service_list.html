@@ -24,24 +24,39 @@
 
     <!-- Filters -->
     <div class="bg-white p-4 md:p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
-        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-            <div class="inline-flex flex-wrap p-1 bg-slate-100 rounded-2xl gap-1" role="tablist" aria-label="Servis durumu">
-                <a href="{{ service_tab_urls.active }}"
-                   class="px-4 py-2 rounded-xl text-sm font-bold transition-colors {% if list_tab == 'active' %}bg-white text-brand-700 shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}">
-                    Aktif
-                </a>
-                <a href="{{ service_tab_urls.pending }}"
-                   class="px-4 py-2 rounded-xl text-sm font-bold transition-colors {% if list_tab == 'pending' %}bg-white text-amber-700 shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}">
-                    Beklemede
-                </a>
-                <a href="{{ service_tab_urls.closed }}"
-                   class="px-4 py-2 rounded-xl text-sm font-bold transition-colors {% if list_tab == 'closed' %}bg-white text-slate-800 shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}">
-                    Kapalı
-                </a>
-                <a href="{{ service_tab_urls.all }}"
-                   class="px-4 py-2 rounded-xl text-sm font-bold transition-colors {% if list_tab == 'all' %}bg-white text-slate-800 shadow-sm{% else %}text-slate-600 hover:text-slate-900{% endif %}">
-                    Tümü
-                </a>
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+            <div class="flex flex-wrap items-center gap-2">
+                <div class="inline-flex flex-wrap p-1 bg-slate-100 rounded-2xl gap-1" role="tablist" aria-label="Servis durumu" id="statusTabBar">
+                    {% for tab in status_tabs %}
+                    <button type="button"
+                            class="status-tab-btn px-3 py-1.5 rounded-xl text-xs font-bold transition-all"
+                            data-status-id="{{ tab.id }}"
+                            data-color="{{ tab.color_hex }}"
+                            data-selected="{% if tab.active %}1{% else %}0{% endif %}">
+                        {{ tab.name }}
+                    </button>
+                    {% endfor %}
+                    <button type="button" id="statusTabClear"
+                            class="px-3 py-1.5 rounded-xl text-xs font-bold transition-colors text-slate-600 hover:text-slate-900">
+                        Tümü
+                    </button>
+                </div>
+                {# Seçim yapılınca çıkan aksiyonlar #}
+                <div id="statusTabActions" class="hidden items-center gap-2 animate-in">
+                    <span id="statusTabCountLabel" class="text-xs font-semibold text-slate-500"></span>
+                    <button type="button" id="statusTabFilter"
+                            class="px-3 py-1.5 rounded-xl bg-slate-700 text-white text-xs font-bold hover:bg-slate-800 transition-colors">
+                        Listele
+                    </button>
+                    {% if user_perms.services_print %}
+                    <button type="button" id="statusTabPrint"
+                            class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17H7a2 2 0 01-2-2V5a2 2 0 012-2h10a2 2 0 012 2v10a2 2 0 01-2 2zm0 0l3 3M7 17l-3 3"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12H3m4-4H5m14 4h2m-4-4h2"/></svg>
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M9 22h6v-4H9v4z"/></svg>
+                        Yazdır
+                    </button>
+                    {% endif %}
+                </div>
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <div class="inline-flex p-1 bg-slate-100 rounded-xl text-xs font-bold">
@@ -54,11 +69,6 @@
                         Tüm kayıtlar
                     </button>
                 </div>
-                <button type="button" id="serviceFilterToggle" aria-expanded="false"
-                        class="inline-flex items-center gap-2 px-3 py-2 rounded-xl border text-sm font-semibold transition-colors {% if has_active_filters %}border-brand-300 bg-brand-50 text-brand-800{% else %}border-slate-200 bg-white text-slate-700 hover:bg-slate-50{% endif %}">
-                    <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
-                    Filtreler{% if has_active_filters %} <span class="w-2 h-2 rounded-full bg-brand-500"></span>{% endif %}
-                </button>
             </div>
         </div>
 
@@ -72,59 +82,6 @@
                 <button type="submit" class="absolute right-2 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-lg bg-brand-600 text-white text-xs font-bold hover:bg-brand-700">
                     Ara
                 </button>
-            </div>
-
-            <div id="serviceFilterDrawer" class="hidden border-t border-slate-100 pt-4 {% if has_active_filters %}!block{% endif %}"
-                 {% if has_active_filters %}data-open-default="1"{% endif %}>
-                <p class="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Detaylı filtreler</p>
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                    <select name="status" class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm">
-                        <option value="">Durum (tümü)</option>
-                        {% for s in statuses %}
-                        <option value="{{ s.id }}" {% if request.GET.status == s.id|stringformat:"i" %}selected{% endif %}>{{ s.name }}</option>
-                        {% endfor %}
-                    </select>
-                    <select name="priority" class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm">
-                        <option value="">Tüm öncelikler</option>
-                        {% for p in priorities %}
-                        <option value="{{ p.id }}" {% if request.GET.priority == p.id|stringformat:"i" %}selected{% endif %}>{{ p.name }}</option>
-                        {% endfor %}
-                    </select>
-                    <select name="product" class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm">
-                        <option value="">Tüm ürünler</option>
-                        {% for p in products %}
-                        <option value="{{ p.id }}" {% if request.GET.product == p.id|stringformat:"i" %}selected{% endif %}>{{ p.name }}</option>
-                        {% endfor %}
-                    </select>
-                    <select name="warranty" class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm">
-                        <option value="">Garanti durumu</option>
-                        <option value="active" {% if request.GET.warranty == 'active' %}selected{% endif %}>Devam eden</option>
-                        <option value="expired" {% if request.GET.warranty == 'expired' %}selected{% endif %}>Biten / ücretli</option>
-                    </select>
-                    <select name="team" class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm">
-                        <option value="">Tüm ekipler</option>
-                        {% for t in teams %}
-                        <option value="{{ t.id }}" {% if request.GET.team == t.id|stringformat:"i" %}selected{% endif %}>{{ t.name }}</option>
-                        {% endfor %}
-                    </select>
-                    <select name="personnel" class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm">
-                        <option value="">Tüm personeller</option>
-                        {% for p in personnel_list %}
-                        <option value="{{ p.id }}" {% if request.GET.personnel == p.id|stringformat:"i" %}selected{% endif %}>{{ p.name }}{% if p.team %} ({{ p.team.name }}){% endif %}</option>
-                        {% endfor %}
-                    </select>
-                    <select name="region" class="p-2.5 bg-slate-50 border border-slate-100 rounded-xl text-sm">
-                        <option value="">Tüm bölgeler</option>
-                        {% for r in customer_regions %}
-                        <option value="{{ r }}" {% if request.GET.region == r %}selected{% endif %}>{{ r }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="flex flex-wrap gap-2 mt-4">
-                    <button type="submit" class="px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700">Filtrele</button>
-                    <a href="{{ service_tab_urls.active }}"
-                       class="px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Temizle</a>
-                </div>
             </div>
         </form>
         {% if user_perms.services_whatsapp %}
@@ -303,6 +260,7 @@
                             </p>
                         </td>
                         <td class="px-3 md:px-6 py-3 md:py-4">
+                            <div class="flex flex-col gap-1">
                             {% if user_perms.services_manage %}
                             <div class="relative inline-block quick-update-wrap" data-service-id="{{ s.id }}" data-field="status">
                                 <button type="button"
@@ -329,6 +287,18 @@
                                 {{ s.status.name }}
                             </span>
                             {% endif %}
+                            {% if s.discounted_price %}
+                            <span class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-orange-50 border border-orange-200 text-orange-700 text-[11px] font-bold w-fit">
+                                <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                {{ s.discounted_price|floatformat:2 }} ₺
+                            </span>
+                            {% elif s.list_price %}
+                            <span class="inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-amber-50 border border-amber-200 text-amber-700 text-[11px] font-bold w-fit">
+                                <svg class="w-3 h-3 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                {{ s.list_price|floatformat:2 }} ₺
+                            </span>
+                            {% endif %}
+                            </div>
                         </td>
                         <td class="px-3 md:px-6 py-3 md:py-4 hidden sm:table-cell">
                             {% if user_perms.services_manage %}
@@ -391,7 +361,7 @@
                                     <i data-lucide="inbox" class="w-7 h-7 text-slate-400"></i>
                                 </span>
                                 <p class="font-semibold text-slate-700">Kayıt bulunamadı</p>
-                                <p class="text-sm max-w-md">Bu sekme ve filtreler için servis yok. Sekmeyi değiştirin veya filtreleri temizleyin.</p>
+                                <p class="text-sm max-w-md">Bu sekme için servis yok. Sekmeyi değiştirin veya arama terimini güncelleyin.</p>
                                 {% if user_perms.services_manage %}
                                 <a href="{% url 'service_create' %}" class="mt-2 px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700">Yeni servis ekle</a>
                                 {% endif %}
@@ -483,6 +453,101 @@
 </div>
 
 <script>
+    /* ── Durum sekmesi çoklu seçim ── */
+    (function () {
+        const urlParams = new URLSearchParams(window.location.search);
+        const selectedIds = new Set(urlParams.getAll('status'));
+
+        const buttons = document.querySelectorAll('.status-tab-btn');
+        const actionsWrap = document.getElementById('statusTabActions');
+        const clearBtn = document.getElementById('statusTabClear');
+        const filterBtn = document.getElementById('statusTabFilter');
+        const printBtn = document.getElementById('statusTabPrint');
+        const countLabel = document.getElementById('statusTabCountLabel');
+        const printBase = '{% url "service_bulk_print" %}';
+
+        function buildStatusUrl(basePath) {
+            const q = new URLSearchParams(window.location.search);
+            q.delete('status');
+            q.delete('tab');
+            q.delete('page');
+            selectedIds.forEach(id => q.append('status', id));
+            const qs = q.toString();
+            return qs ? basePath + '?' + qs : basePath;
+        }
+
+        function applyButtonStyles() {
+            buttons.forEach(btn => {
+                const id = btn.dataset.statusId;
+                const color = btn.dataset.color;
+                if (selectedIds.has(id)) {
+                    btn.style.backgroundColor = 'white';
+                    btn.style.color = color;
+                    btn.style.boxShadow = '0 1px 3px 0 rgb(0 0 0 / 0.1)';
+                } else {
+                    btn.style.backgroundColor = '';
+                    btn.style.color = '';
+                    btn.style.boxShadow = '';
+                    btn.classList.add('text-slate-600');
+                }
+            });
+
+            const hasSelection = selectedIds.size > 0;
+
+            // "Tümü" butonu — seçim yoksa vurgula
+            if (clearBtn) {
+                if (!hasSelection) {
+                    clearBtn.style.backgroundColor = 'white';
+                    clearBtn.style.color = '#1e293b';
+                    clearBtn.style.boxShadow = '0 1px 3px 0 rgb(0 0 0 / 0.1)';
+                } else {
+                    clearBtn.style.backgroundColor = '';
+                    clearBtn.style.color = '';
+                    clearBtn.style.boxShadow = '';
+                }
+            }
+
+            // Aksiyon butonlarını göster/gizle
+            if (actionsWrap) {
+                actionsWrap.classList.toggle('hidden', !hasSelection);
+                actionsWrap.classList.toggle('flex', hasSelection);
+            }
+
+            // Seçim sayısını güncelle
+            if (countLabel) {
+                countLabel.textContent = hasSelection ? `${selectedIds.size} durum seçili` : '';
+            }
+        }
+
+        buttons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.dataset.statusId;
+                if (selectedIds.has(id)) {
+                    selectedIds.delete(id);
+                } else {
+                    selectedIds.add(id);
+                }
+                applyButtonStyles();
+            });
+        });
+
+        clearBtn?.addEventListener('click', () => {
+            selectedIds.clear();
+            applyButtonStyles();
+            window.location.href = '{{ service_tab_urls.all }}';
+        });
+
+        filterBtn?.addEventListener('click', () => {
+            window.location.href = buildStatusUrl(window.location.pathname);
+        });
+
+        printBtn?.addEventListener('click', () => {
+            window.location.href = buildStatusUrl(printBase);
+        });
+
+        applyButtonStyles();
+    })();
+
     document.querySelectorAll('[data-set-view]').forEach((btn) => {
         btn.addEventListener('click', () => {
             const input = document.getElementById('listViewModeInput');

@@ -38,7 +38,7 @@ if defined LAN_IP (
 ) else (
   call :log "WiFi IP bulunamadi; ipconfig ile kontrol edin."
 )
-call :log "Durdurmak: Ctrl+C  ^|  Log: %LOG_FILE%"
+call :log "Durdurmak: Ctrl+C  --  Log: %LOG_FILE%"
 
 REM WhatsApp koprusu — Django ile birlikte otomatik (port 3939)
 if exist "tools\whatsapp_bridge\server.js" (

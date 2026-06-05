@@ -157,7 +157,12 @@
         <input id="bulkRegionInput" type="text" placeholder="Bölge adı" class="p-2 bg-white border border-slate-200 rounded-xl text-xs w-28">
         <button type="button" id="setRegionBtn" disabled class="px-3 py-1.5 bg-teal-600 text-white rounded-xl text-xs font-bold disabled:opacity-40">Bölge ata</button>
         <button type="button" id="deleteSelectedBtn" disabled class="px-3 py-1.5 bg-red-100 text-red-700 rounded-xl text-xs font-bold disabled:opacity-40">Seçilenleri sil</button>
+        <span class="text-[10px] text-violet-700 leading-snug max-w-xs">Çözüm ortağı kayıtları rehberden silinemez; önce Çözüm ağından kaldırın.</span>
         <button type="button" id="addFirmBtn" class="px-3 py-1.5 bg-brand-600 text-white rounded-xl text-xs font-bold">Manuel kayıt ekle</button>
+        <a id="exportMemoryCsvBtn" href="{% url 'contact_firms_export_csv' %}"
+           class="px-3 py-1.5 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-900 inline-flex items-center gap-1">
+            <i data-lucide="download" class="w-3.5 h-3.5"></i> CSV indir
+        </a>
         <a href="{% url 'tools_csv_hub' %}?open=firms" class="px-3 py-1.5 bg-rose-50 text-rose-800 border border-rose-200 rounded-xl text-xs font-bold hover:bg-rose-100 inline-flex items-center gap-1">
             <i data-lucide="upload" class="w-3.5 h-3.5"></i> CSV yükle
         </a>
@@ -398,16 +403,18 @@
         rows.forEach(function (r) {
             const tr = document.createElement('tr');
             tr.className = 'hover:bg-slate-50';
-            const selectable = !!r.firm_id;
+            const protectedDelete = !!r.delete_protected;
+            const selectable = !!r.firm_id && !protectedDelete;
+            const deleteTitle = protectedDelete ? escapeHtml(r.delete_block_reason || 'Çözüm ortağı silinemez.') : '';
             const msgCell = (r.globally_messaged || (r.messages_sent || 0) > 0)
                 ? `<a href="${FIRM_MESSAGES_PAGE}?firm_id=${r.firm_id}" class="text-xs text-rose-600 font-semibold underline">${r.messages_sent || 1} mesaj →</a>`
                 : messageBadge(r);
             tr.innerHTML = `
                 <td class="px-4 py-3">
                     <input type="checkbox" class="memory-row-check w-4 h-4 accent-green-600 rounded" data-firm-id="${r.firm_id}"
-                        ${selectable ? '' : 'disabled'}>
+                        ${selectable ? '' : 'disabled'}${deleteTitle ? ` title="${deleteTitle}"` : ''}>
                 </td>
-                <td class="px-4 py-3 font-semibold">${escapeHtml(r.name)}</td>
+                <td class="px-4 py-3 font-semibold">${escapeHtml(r.name)}${protectedDelete ? ' <span class="ml-1 text-[10px] font-bold text-violet-600" title="' + deleteTitle + '">🔒</span>' : ''}</td>
                 <td class="px-4 py-3">${kindBadge(r)}</td>
                 <td class="px-4 py-3">${tagBadges(r.tags)}</td>
                 <td class="px-4 py-3 text-xs text-slate-600">${escapeHtml(r.region || '-')}</td>
@@ -515,6 +522,25 @@
         return new URLSearchParams(window.location.search).get('kind') || 'all';
     }
 
+    function exportMemoryCsvUrl() {
+        const params = new URLSearchParams();
+        const q = memorySearchInput?.value.trim();
+        if (q) params.set('q', q);
+        const kind = currentKind();
+        if (kind && kind !== 'all') params.set('kind', kind);
+        const tagId = document.getElementById('tagFilterSelect')?.value;
+        if (tagId) params.set('tag_id', tagId);
+        const region = document.getElementById('regionFilterSelect')?.value;
+        if (region) params.set('region', region);
+        const qs = params.toString();
+        return '{% url "contact_firms_export_csv" %}' + (qs ? '?' + qs : '');
+    }
+
+    function updateExportMemoryCsvLink() {
+        const btn = document.getElementById('exportMemoryCsvBtn');
+        if (btn) btn.href = exportMemoryCsvUrl();
+    }
+
     async function loadMemory(q) {
         if (!memoryBody) return;
         const params = new URLSearchParams({ page_size: '100' });
@@ -530,6 +556,7 @@
         populateRegionFilter(data.regions || []);
         renderMemoryRows(data.results || []);
         refreshStats(data);
+        updateExportMemoryCsvLink();
     }
 
     searchForm?.addEventListener('submit', e => { e.preventDefault(); runScrape('mobile'); });
@@ -636,7 +663,9 @@
                 body: JSON.stringify({ mode: 'selected', firm_ids: ids }),
             });
             if (!data.ok) throw new Error(data.error);
-            statusText.textContent = `${data.deleted} firma silindi.`;
+            let msg = `${data.deleted} firma silindi.`;
+            if (data.warning) msg += ` ${data.warning}`;
+            statusText.textContent = msg;
             refreshStats(data);
             await loadMemory(memorySearchInput?.value.trim() || '');
             await loadTags();
@@ -644,7 +673,7 @@
     });
 
     document.getElementById('clearMemoryBtn')?.addEventListener('click', async () => {
-        if (!confirm('TÜM hafıza silinecek. Mesaj geçmişi korunur. Emin misiniz?')) return;
+        if (!confirm('TÜM hafıza silinecek (çözüm ortakları korunur). Mesaj geçmişi korunur. Emin misiniz?')) return;
         const confirmText = prompt('Onaylamak için TEMIZLE yazın:');
         if (confirmText !== 'TEMIZLE') return alert('İptal edildi.');
         try {
@@ -654,7 +683,9 @@
                 body: JSON.stringify({ mode: 'all', confirm: 'TEMIZLE' }),
             });
             if (!data.ok) throw new Error(data.error);
-            statusText.textContent = `Hafıza temizlendi (${data.deleted} kayıt).`;
+            let msg = `Hafıza temizlendi (${data.deleted} kayıt).`;
+            if (data.blocked) msg += ` ${data.blocked} çözüm ortağı korundu.`;
+            statusText.textContent = msg;
             refreshStats(data);
             await loadMemory('');
             await loadTags();
@@ -720,6 +751,7 @@
         if (memorySearchInput && initialQuery) {
             memorySearchInput.value = initialQuery;
         }
+        updateExportMemoryCsvLink();
         loadMemory(initialQuery).catch(() => {
             memoryBody.innerHTML = '<tr><td colspan="8" class="px-4 py-8 text-center text-slate-400">Rehber yüklenemedi.</td></tr>';
         });

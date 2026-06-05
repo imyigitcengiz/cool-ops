@@ -63,7 +63,7 @@ PARTICLES: tuple[dict, ...] = (
     {
         'slug': 'p.contact.personnel',
         'name': 'Personel & kadro',
-        'summary': 'Personel ağı, departman/ünvan ve ekip ataması — Rehber modülü.',
+        'summary': 'Personeller, departman/ünvan ve ekip ataması — Rehber modülü.',
         'category': 'rehber',
         'parent_module': 'contact',
         'route_prefixes': ('/contact/personel/',),
@@ -245,7 +245,7 @@ VERTICAL_CATALOG_PRESETS: dict[str, dict[str, tuple[str, ...]]] = {
     'nonprofit': {
         'modules': (
             'contact', 'outreach',
-            'integration_whatsapp_api', 'integration_media',
+            'integration_whatsapp_api', 'integration_bulk_messaging', 'integration_media',
         ),
         'particles': (
             'p.contact.customers', 'p.contact.firms', 'p.outreach.campaigns',
@@ -263,6 +263,7 @@ LEGACY_MODULE_ALIASES: dict[str, tuple[str, ...]] = {
     'tools': (
         'integration_whatsapp_bridge',
         'integration_whatsapp_api',
+        'integration_bulk_messaging',
         'integration_media',
     ),
 }

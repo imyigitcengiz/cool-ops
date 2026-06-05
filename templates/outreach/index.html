@@ -9,6 +9,7 @@
 
 {% block content %}
 <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+    {% if modules_nav.integration_bulk_messaging %}
     <a href="{% url 'outreach_campaigns' %}" class="group bg-white rounded-2xl border border-slate-200 p-6 hover:border-brand-300 hover:shadow-md transition-all">
         <div class="w-11 h-11 rounded-xl bg-brand-50 text-brand-600 flex items-center justify-center mb-4">
             <i data-lucide="megaphone" class="w-5 h-5"></i>
@@ -16,6 +17,7 @@
         <h2 class="font-bold text-slate-900">Kampanyalar</h2>
         <p class="text-sm text-slate-500 mt-2">Firma rehberinden alıcı seçin, toplu mesajı WhatsApp Business API ile gönderin.</p>
     </a>
+    {% endif %}
     <a href="{% url 'outreach_campaign_messages' %}" class="group bg-white rounded-2xl border border-slate-200 p-6 hover:border-slate-300 hover:shadow-md transition-all">
         <div class="w-11 h-11 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center mb-4">
             <i data-lucide="scroll-text" class="w-5 h-5"></i>

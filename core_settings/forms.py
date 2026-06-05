@@ -54,6 +54,7 @@ class GeneralSiteSettingsForm(forms.ModelForm):
         fields = [
             'site_name', 'logo', 'company_phone', 'company_address',
             'currency_code', 'weather_city',
+            'warranty_years', 'warranty_months', 'warranty_days',
         ]
         widgets = {
             'site_name': forms.TextInput(attrs={'class': INPUT}),
@@ -63,6 +64,9 @@ class GeneralSiteSettingsForm(forms.ModelForm):
             'weather_city': forms.TextInput(
                 attrs={'class': INPUT, 'placeholder': 'İstanbul'},
             ),
+            'warranty_years': forms.NumberInput(attrs={'class': INPUT, 'min': 0}),
+            'warranty_months': forms.NumberInput(attrs={'class': INPUT, 'min': 0}),
+            'warranty_days': forms.NumberInput(attrs={'class': INPUT, 'min': 0}),
         }
 
 

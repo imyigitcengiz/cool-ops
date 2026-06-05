@@ -38,9 +38,9 @@ def apply_service_list_visibility(queryset, request):
     """Varsayılan: yalnızca aktif servisler; sekme veya eski show_* parametreleri."""
     from core_settings.models import StatusOption
 
-    explicit_status = (request.GET.get('status') or '').strip()
-    if explicit_status and explicit_status.isdigit():
-        return queryset.filter(status_id=int(explicit_status))
+    explicit_statuses = [s for s in request.GET.getlist('status') if s.isdigit()]
+    if explicit_statuses:
+        return queryset.filter(status_id__in=[int(s) for s in explicit_statuses])
 
     tab = resolve_list_tab(request)
     if tab == 'all':

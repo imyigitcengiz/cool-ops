@@ -113,8 +113,8 @@ def _build_service_snapshot(service):
             'assigned_to_id': service.assigned_to_id,
             'service_personnel_id': service.service_personnel_id,
             'warranty_status': service.warranty_status,
-            'list_price': service.list_price,
-            'discounted_price': service.discounted_price,
+            'list_price': str(service.list_price) if service.list_price is not None else None,
+            'discounted_price': str(service.discounted_price) if service.discounted_price is not None else None,
             'notes': service.notes or '',
             'product_ids': list(service.products.values_list('id', flat=True)),
             'service_type_ids': list(service.service_types.values_list('id', flat=True)),
@@ -282,13 +282,6 @@ class ServiceListView(PermissionRequiredMixin, ListView):
             self.request,
         )
         q = self.request.GET.get('q')
-        status = self.request.GET.get('status')
-        priority = self.request.GET.get('priority')
-        product = self.request.GET.get('product')
-        warranty = self.request.GET.get('warranty')
-        team = self.request.GET.get('team')
-        personnel = self.request.GET.get('personnel')
-        region = (self.request.GET.get('region') or '').strip()
 
         if q:
             queryset = queryset.filter(
@@ -300,24 +293,6 @@ class ServiceListView(PermissionRequiredMixin, ListView):
                 Q(service_types__name__icontains=q)
             )
         queryset = apply_service_list_visibility(queryset, self.request)
-        if priority:
-            queryset = queryset.filter(priority_id=priority)
-        if product:
-            queryset = queryset.filter(products__id=product)
-        if team and team.isdigit():
-            queryset = queryset.filter(service_personnel__team_id=int(team))
-        if personnel and personnel.isdigit():
-            queryset = queryset.filter(service_personnel_id=int(personnel))
-        if region:
-            queryset = queryset.filter(customer__region__iexact=region)
-        
-        if warranty == 'expired':
-            queryset = queryset.filter(
-                Q(warranty_status='expired') | Q(status__name__icontains='ücretli')
-            )
-        elif warranty == 'active':
-            queryset = queryset.filter(warranty_status='active').exclude(status__name__icontains='ücretli')
-
         queryset = queryset.distinct()
         view_mode = (self.request.GET.get('view') or 'customer').strip().lower()
         if view_mode not in ('customer', 'record'):
@@ -347,21 +322,13 @@ class ServiceListView(PermissionRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         from core_settings.models import ProductOption, StatusOption, PriorityOption, ServiceTypeOption
-        from customers.models import Customer
         context['products'] = ProductOption.objects.all()
         context['statuses'] = StatusOption.objects.order_by('sort_order', 'name')
         context['priorities'] = PriorityOption.objects.all()
         context['service_types'] = ServiceTypeOption.objects.order_by('name')
-        context['teams'] = ServiceTeam.objects.filter(is_active=True).order_by('name')
         context['personnel_list'] = filter_by_brand(
             ServicePersonnel.objects.filter(is_active=True).select_related('team').order_by('name'),
             self.request,
-        )
-        context['customer_regions'] = list(
-            Customer.objects.exclude(Q(region__isnull=True) | Q(region=''))
-            .values_list('region', flat=True)
-            .distinct()
-            .order_by('region')
         )
         context['show_hidden'] = resolve_list_tab(self.request) == 'closed'
         context['show_pending'] = resolve_list_tab(self.request) in ('open', 'pending')
@@ -370,11 +337,26 @@ class ServiceListView(PermissionRequiredMixin, ListView):
             key: service_list_tab_url(self.request, key)
             for key in ('active', 'pending', 'closed', 'all')
         }
-        context['has_active_filters'] = any(
-            (self.request.GET.get(k) or '').strip()
-            for k in ('status', 'priority', 'product', 'warranty', 'team', 'personnel', 'region', 'q')
-        )
-        context['visibility_active'] = not (self.request.GET.get('status') or '').strip()
+        # Dinamik sekme: her durum kendi filtre URL'siyle
+        from django.http import QueryDict
+        active_status_filter = (self.request.GET.get('status') or '').strip()
+        context['active_status_filter'] = active_status_filter
+        all_statuses_for_tabs = StatusOption.objects.order_by('sort_order', 'name')
+        status_tabs = []
+        for st in all_statuses_for_tabs:
+            q = self.request.GET.copy()
+            for key in ('tab', 'show_hidden', 'show_pending', 'page'):
+                q.pop(key, None)
+            q['status'] = str(st.id)
+            status_tabs.append({
+                'id': st.id,
+                'name': st.name,
+                'color_hex': st.color_hex,
+                'url': f'?{q.urlencode()}',
+                'active': active_status_filter == str(st.id),
+            })
+        context['status_tabs'] = status_tabs
+        context['visibility_active'] = not bool(self.request.GET.getlist('status'))
         context['whatsapp_prompt_queue'] = pop_whatsapp_status_prompt_queue(self.request)
         view_mode = (self.request.GET.get('view') or 'customer').strip().lower()
         if view_mode not in ('customer', 'record'):
@@ -632,11 +614,8 @@ class ServiceBulkPrintView(ServiceListView):
         context['current_sort'] = self._resolve_sort_key()
         context['filter_summary'] = self._build_filter_summary()
         context['record_count'] = self.get_queryset().count()
-        site_name = 'CoolOPS'
-        if context.get('site_settings') and context['site_settings'].site_name:
-            site_name = context['site_settings'].site_name
         for service in context['services']:
-            service.bulk_qr = build_bulk_print_qr(service, site_name=site_name)
+            service.bulk_qr = build_bulk_print_qr(service)
         return context
 
     def get(self, request, *args, **kwargs):

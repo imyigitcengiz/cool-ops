@@ -139,6 +139,7 @@
         <input id="bulkRegionInput" type="text" placeholder="Bölge adı" class="p-2 bg-white border border-slate-200 rounded-xl text-xs w-28">
         <button type="button" id="setRegionBtn" disabled class="px-3 py-1.5 bg-teal-600 text-white rounded-xl text-xs font-bold disabled:opacity-40">Bölge ata</button>
         <button type="button" id="deleteSelectedBtn" disabled class="px-3 py-1.5 bg-red-100 text-red-700 rounded-xl text-xs font-bold disabled:opacity-40">Seçilenleri sil</button>
+        <span class="text-[10px] text-violet-700 leading-snug max-w-xs">Çözüm ortağı kayıtları rehberden silinemez; önce Çözüm ağından kaldırın.</span>
         <button type="button" id="createCampaignBtn" disabled class="px-3 py-1.5 bg-violet-600 text-white rounded-xl text-xs font-bold disabled:opacity-40">Kampanya oluştur</button>
         <button type="button" id="clearMemoryBtn" class="px-3 py-1.5 bg-red-600 text-white rounded-xl text-xs font-bold">Hafızayı temizle</button>
         <button type="button" id="showMessagesTabBtn" class="px-3 py-1.5 bg-slate-800 text-white rounded-xl text-xs font-bold ml-auto">Gönderilen mesajlar</button>
@@ -367,16 +368,18 @@
         rows.forEach(function (r) {
             const tr = document.createElement('tr');
             tr.className = 'hover:bg-slate-50';
-            const selectable = !!r.firm_id;
+            const protectedDelete = !!r.delete_protected;
+            const selectable = !!r.firm_id && !protectedDelete;
+            const deleteTitle = protectedDelete ? escapeHtml(r.delete_block_reason || 'Çözüm ortağı silinemez.') : '';
             const msgCell = (r.globally_messaged || (r.messages_sent || 0) > 0)
                 ? `<button type="button" class="view-msgs text-xs text-violet-600 font-semibold underline" data-firm-id="${r.firm_id}">${r.messages_sent || 1} mesaj →</button>`
                 : messageBadge(r);
             tr.innerHTML = `
                 <td class="px-4 py-3">
                     <input type="checkbox" class="memory-row-check w-4 h-4 accent-green-600 rounded" data-firm-id="${r.firm_id}"
-                        ${selectable ? '' : 'disabled'}>
+                        ${selectable ? '' : 'disabled'}${deleteTitle ? ` title="${deleteTitle}"` : ''}>
                 </td>
-                <td class="px-4 py-3 font-semibold">${escapeHtml(r.name)}</td>
+                <td class="px-4 py-3 font-semibold">${escapeHtml(r.name)}${protectedDelete ? ' <span class="ml-1 text-[10px] font-bold text-violet-600" title="' + deleteTitle + '">🔒</span>' : ''}</td>
                 <td class="px-4 py-3">${tagBadges(r.tags)}</td>
                 <td class="px-4 py-3 text-xs text-slate-600">${escapeHtml(r.region || '-')}</td>
                 <td class="px-4 py-3">${escapeHtml(r.phone || '-')}</td>
@@ -621,7 +624,9 @@
             });
             const data = await res.json();
             if (!data.ok) throw new Error(data.error);
-            statusText.textContent = `${data.deleted} firma silindi.`;
+            let msg = `${data.deleted} firma silindi.`;
+            if (data.warning) msg += ` ${data.warning}`;
+            statusText.textContent = msg;
             refreshStats(data);
             await loadMemory(memorySearchInput.value.trim());
             await loadTags();
@@ -629,7 +634,7 @@
     });
 
     document.getElementById('clearMemoryBtn').addEventListener('click', async () => {
-        if (!confirm('TÜM hafıza silinecek. Mesaj geçmişi korunur. Emin misiniz?')) return;
+        if (!confirm('TÜM hafıza silinecek (çözüm ortakları korunur). Mesaj geçmişi korunur. Emin misiniz?')) return;
         const confirmText = prompt('Onaylamak için TEMIZLE yazın:');
         if (confirmText !== 'TEMIZLE') return alert('İptal edildi.');
         try {
@@ -640,7 +645,9 @@
             });
             const data = await res.json();
             if (!data.ok) throw new Error(data.error);
-            statusText.textContent = `Hafıza temizlendi (${data.deleted} kayıt).`;
+            let msg = `Hafıza temizlendi (${data.deleted} kayıt).`;
+            if (data.blocked) msg += ` ${data.blocked} çözüm ortağı korundu.`;
+            statusText.textContent = msg;
             refreshStats(data);
             await loadMemory('');
             await loadTags();

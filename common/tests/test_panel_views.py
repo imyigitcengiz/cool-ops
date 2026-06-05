@@ -89,6 +89,7 @@ class PanelViewsTests(TestCase):
         response = self.client.get('/panel/yetenekler/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Entegrasyon')
+        self.assertContains(response, 'Toplu mesaj gönderici')
 
     def test_introducer_knowledge_base_public(self):
         response = self.client.get('/bilgi-bankasi/')

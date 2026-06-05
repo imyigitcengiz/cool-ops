@@ -9,6 +9,7 @@ from tools.models import FirmTag, MapsScrapedFirm
 from tools.outreach_memory import get_last_message_at, get_sent_count, has_been_messaged_globally, merge_firm_records
 
 from tools.phone_utils import is_turkish_landline, is_whatsapp_eligible, normalize_phone, whatsapp_url
+from tools.firm_delete_guard import PARTNER_DELETE_MESSAGE, is_partner_protected
 
 
 
@@ -339,6 +340,10 @@ def serialize_firm(firm: MapsScrapedFirm, *, already_in_memory: bool | None = No
         'can_message': wa_eligible and not has_been_messaged_globally(phone_norm),
 
         'globally_messaged': has_been_messaged_globally(phone_norm) if phone_norm else False,
+
+        'delete_protected': is_partner_protected(firm),
+
+        'delete_block_reason': PARTNER_DELETE_MESSAGE if is_partner_protected(firm) else '',
 
     }
 

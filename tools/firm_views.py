@@ -5,6 +5,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
 
+from tools.firm_delete_guard import delete_firms_response
 from tools.firm_directory import create_manual_firm, sync_all_partners_to_directory, sync_partner_to_directory
 from tools.firm_memory import serialize_firm
 from tools.models import FirmTag, MapsScrapedFirm, WhatsappOutboundMessage
@@ -99,8 +100,10 @@ def firms_bulk_api(request):
     firms = MapsScrapedFirm.objects.filter(pk__in=firm_ids)
 
     if action == 'delete':
-        deleted, _ = firms.delete()
-        return JsonResponse({'ok': True, 'deleted': deleted, 'action': action})
+        payload = delete_firms_response(firms)
+        status = 200 if payload.get('ok') else 400
+        payload['action'] = action
+        return JsonResponse(payload, status=status)
 
     if action == 'add_tag':
         tag_name = (body.get('tag_name') or '').strip()
@@ -224,14 +227,22 @@ def firms_memory_clear_api(request):
     if mode == 'all':
         if confirm != 'TEMIZLE':
             return JsonResponse({'ok': False, 'error': 'Onay için confirm: "TEMIZLE" gönderin.'}, status=400)
-        deleted, _ = MapsScrapedFirm.objects.all().delete()
-        return JsonResponse({'ok': True, 'deleted': deleted, 'mode': 'all', **memory_stats()})
+        payload = delete_firms_response(MapsScrapedFirm.objects.all())
+        if not payload.get('ok'):
+            return JsonResponse(payload, status=400)
+        payload['mode'] = 'all'
+        payload.update(memory_stats())
+        return JsonResponse(payload)
 
     firm_ids = _parse_firm_ids(body)
     if not firm_ids:
         return JsonResponse({'ok': False, 'error': 'Silinecek firma seçin.'}, status=400)
-    deleted, _ = MapsScrapedFirm.objects.filter(pk__in=firm_ids).delete()
-    return JsonResponse({'ok': True, 'deleted': deleted, 'mode': 'selected', **memory_stats()})
+    payload = delete_firms_response(MapsScrapedFirm.objects.filter(pk__in=firm_ids))
+    if not payload.get('ok'):
+        return JsonResponse(payload, status=400)
+    payload['mode'] = 'selected'
+    payload.update(memory_stats())
+    return JsonResponse(payload)
 
 
 @require_http_methods(['GET'])

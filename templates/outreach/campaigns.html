@@ -2,7 +2,7 @@
 {% block title %}Kampanyalar{% endblock %}
 {% block header %}
 <h1 class="text-xl font-bold text-slate-900">WhatsApp Kampanyaları</h1>
-<p class="text-sm text-slate-500 mt-0.5">Firma rehberinden alıcı ekleyin — gönderim yalnızca WhatsApp Business API ile yapılır.</p>
+<p class="text-sm text-slate-500 mt-0.5">Firma rehberinden alıcı ekleyin — WhatsApp Business API veya QR köprüsü ile tek tek gönderim.</p>
 {% endblock %}
 {% block content %}
 {% csrf_token %}
@@ -25,19 +25,52 @@
             <button type="button" id="createCampaignBtn" class="px-3 py-2 bg-violet-600 text-white rounded-lg text-sm font-bold shrink-0">+</button>
         </div>
         <ul id="campaignList" class="space-y-1 overflow-y-auto flex-1 text-sm"></ul>
+        <p class="text-[10px] text-slate-400 mt-2 leading-relaxed">Listede kalem simgesi ile kampanya adını değiştirebilirsiniz.</p>
     </aside>
     <!-- Orta: Kampanya içeriği -->
     <main class="lg:col-span-6 space-y-4 min-w-0">
         <section class="bg-white rounded-2xl border border-slate-200 p-5 space-y-4">
-            <div class="flex items-center gap-3 flex-wrap">
-                <input id="campaignNameInput" type="text" class="text-xl font-bold text-slate-900 bg-transparent outline-none flex-1 min-w-[160px] border-b border-transparent focus:border-violet-300" placeholder="Kampanya adı">
-                <span id="memberCountBadge" class="text-xs font-bold px-2.5 py-1 rounded-full bg-violet-50 text-violet-700">0 alıcı</span>
+            <div class="rounded-xl border border-slate-100 bg-slate-50/80 p-4 space-y-3">
+                <div class="flex items-center justify-between gap-2 flex-wrap">
+                    <label for="campaignNameInput" class="text-xs font-bold text-slate-400 uppercase tracking-wide">Kampanya adı</label>
+                    <span id="campaignNameStatus" class="hidden text-[11px] font-semibold text-emerald-600">Kaydedildi</span>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <input id="campaignNameInput" type="text"
+                           class="flex-1 min-w-[180px] px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-base font-bold text-slate-900 outline-none focus:ring-2 focus:ring-violet-300"
+                           placeholder="Kampanya adı">
+                    <button type="button" id="saveCampaignNameBtn"
+                            class="px-3 py-2 rounded-xl bg-violet-600 text-white text-xs font-bold hover:bg-violet-700 disabled:opacity-40"
+                            disabled>
+                        Adı kaydet
+                    </button>
+                    <span id="memberCountBadge" class="text-xs font-bold px-2.5 py-1 rounded-full bg-violet-100 text-violet-700">0 alıcı</span>
+                </div>
             </div>
-            <div>
-                <label class="block text-xs font-bold text-slate-400 uppercase mb-1">Mesaj şablonu</label>
-                <textarea id="messageTemplate" rows="3" class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm resize-y"></textarea>
-                <p class="text-[11px] text-slate-400 mt-1">{firma} {adres} {telefon} {puan} {bolge}</p>
-                <p class="text-[11px] text-slate-400">Kampanya şablonu varsayılandır; alıcı listesinden kişiye özel mesaj da yazabilirsiniz.</p>
+            <div class="rounded-xl border border-slate-100 p-4 space-y-3">
+                <div class="flex items-center justify-between gap-2 flex-wrap">
+                    <label for="messageTemplate" class="text-xs font-bold text-slate-400 uppercase tracking-wide">Mesaj şablonu</label>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" id="resetTemplateBtn"
+                                class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-xs font-semibold text-slate-600 hover:bg-slate-50">
+                            Varsayılana dön
+                        </button>
+                        <button type="button" id="saveTemplateBtn"
+                                class="px-2.5 py-1.5 rounded-lg bg-violet-600 text-white text-xs font-bold hover:bg-violet-700 disabled:opacity-40"
+                                disabled>
+                            Şablonu kaydet
+                        </button>
+                    </div>
+                </div>
+                <div id="templatePlaceholders" class="flex flex-wrap gap-1.5"></div>
+                <textarea id="messageTemplate" rows="5"
+                          class="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm resize-y font-mono leading-relaxed"
+                          placeholder="Merhaba {firma}, …"></textarea>
+                <div class="rounded-xl bg-violet-50 border border-violet-100 p-3">
+                    <p class="text-[10px] font-bold uppercase tracking-wide text-violet-500 mb-1.5">Önizleme (örnek alıcı)</p>
+                    <p id="templatePreviewText" class="text-sm text-violet-950 whitespace-pre-wrap leading-relaxed"></p>
+                </div>
+                <p class="text-[11px] text-slate-400">Alıcı listesindeki <strong>Mesaj</strong> ile kişiye özel metin yazabilirsiniz; boş bırakılanlar bu şablonu kullanır.</p>
             </div>
             <div class="grid grid-cols-2 gap-2 text-xs">
                 <label class="flex gap-2 p-2.5 rounded-lg bg-slate-50 cursor-pointer">
@@ -50,12 +83,24 @@
                 </label>
             </div>
             <div class="flex flex-wrap items-center gap-2 pt-1 border-t border-slate-100">
-                <label class="text-xs text-slate-500">Bekleme</label>
-                <input id="delayInput" type="number" min="1" max="30" value="4" class="w-14 p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-center">
+                <label class="text-xs text-slate-500">Taban bekleme</label>
+                <input id="delayInput" type="number" min="4" max="120" value="12" class="w-14 p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm text-center">
                 <span class="text-xs text-slate-400">sn</span>
+                <span id="delayHint" class="text-[10px] text-slate-400 hidden sm:inline">Köprü: değişken tempo · API: sabit aralık</span>
                 <button type="button" id="saveCampaignBtn" class="px-3 py-1.5 bg-slate-700 text-white rounded-lg text-xs font-bold">Kaydet</button>
-                <button type="button" id="startSendBtn" disabled class="ml-auto px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-bold disabled:opacity-40">Gönderimi başlat</button>
-                <button type="button" id="stopSendBtn" disabled class="px-3 py-2 bg-red-50 text-red-600 rounded-xl text-sm font-bold disabled:opacity-40">Durdur</button>
+                <div class="ml-auto flex flex-wrap gap-2">
+                    {% if modules_nav.integration_whatsapp_bridge %}
+                    <button type="button" id="startSendBridgeBtn" disabled
+                            class="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-bold disabled:opacity-40">
+                        Köprü ile gönder
+                    </button>
+                    {% endif %}
+                    <button type="button" id="startSendBtn" disabled
+                            class="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-bold disabled:opacity-40">
+                        API ile gönder
+                    </button>
+                    <button type="button" id="stopSendBtn" disabled class="px-3 py-2 bg-red-50 text-red-600 rounded-xl text-sm font-bold disabled:opacity-40">Durdur</button>
+                </div>
             </div>
             <div id="sendStats" class="flex gap-2 text-[11px] font-semibold hidden">
                 <span id="statSent" class="px-2 py-0.5 rounded bg-green-50 text-green-700">0 gönderildi</span>
@@ -111,16 +156,32 @@
             </div>
         </section>
     </main>
-    <!-- Sağ: WhatsApp API -->
-    <aside class="lg:col-span-3 bg-white rounded-2xl border border-slate-200 p-5 space-y-4 lg:sticky lg:top-4 lg:self-start">
-        <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">WhatsApp Business API</h2>
-        <div id="waStatusPill" class="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600">Kontrol ediliyor…</div>
-        <p id="waStatusDetail" class="text-xs text-slate-500"></p>
-        <div id="waReadyBox" class="hidden p-3 rounded-xl bg-green-50 border border-green-200 text-green-800 text-sm">
-            <span class="font-bold">API hazır</span>
-            <p id="waReadyName" class="text-xs mt-1 opacity-80"></p>
+    <!-- Sağ: Gönderim kanalları -->
+    <aside class="lg:col-span-3 bg-white rounded-2xl border border-slate-200 p-5 space-y-5 lg:sticky lg:top-4 lg:self-start">
+        {% if modules_nav.integration_whatsapp_bridge %}
+        <div class="space-y-3 pb-4 border-b border-slate-100">
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">WhatsApp Köprüsü (QR)</h2>
+            <div id="bridgeStatusPill" class="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600">Kontrol ediliyor…</div>
+            <p id="bridgeStatusDetail" class="text-xs text-slate-500"></p>
+            <div id="bridgeReadyBox" class="hidden p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
+                <span class="font-bold">Hat hazır</span>
+                <p id="bridgeReadyName" class="text-xs mt-1 opacity-80"></p>
+            </div>
+            <select id="bridgeConnectionSelect" class="hidden w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm"></select>
+            <a href="{% url 'tools_whatsapp_baglan' %}" class="block w-full py-2.5 text-center bg-emerald-600 text-white rounded-xl text-sm font-bold hover:bg-emerald-700">QR ile bağlan</a>
+            <p class="text-[10px] text-slate-400 leading-relaxed">Köprü gönderimi mesajları tek tek iletir; tempo otomatik değişir (10 sn taban, ara molalar).</p>
         </div>
-        <a href="{% url 'tools_whatsapp_api_settings' %}" class="block w-full py-2.5 text-center bg-brand-600 text-white rounded-xl text-sm font-bold hover:bg-brand-700">API ayarları</a>
+        {% endif %}
+        <div class="space-y-3 pb-4 border-b border-slate-100">
+            <h2 class="text-xs font-bold text-slate-400 uppercase tracking-wider">WhatsApp Business API</h2>
+            <div id="waStatusPill" class="inline-flex px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600">Kontrol ediliyor…</div>
+            <p id="waStatusDetail" class="text-xs text-slate-500"></p>
+            <div id="waReadyBox" class="hidden p-3 rounded-xl bg-green-50 border border-green-200 text-green-800 text-sm">
+                <span class="font-bold">API hazır</span>
+                <p id="waReadyName" class="text-xs mt-1 opacity-80"></p>
+            </div>
+            <a href="{% url 'tools_whatsapp_api_settings' %}" class="block w-full py-2.5 text-center bg-brand-600 text-white rounded-xl text-sm font-bold hover:bg-brand-700">API ayarları</a>
+        </div>
         <div id="sendLog" class="h-40 overflow-y-auto rounded-xl bg-slate-900 text-green-400 font-mono text-[10px] p-2.5 space-y-0.5">
             <div class="text-slate-500">Hazır.</div>
         </div>
@@ -179,20 +240,144 @@
     const MEMORY_URL = '{% url "outreach_firms_memory" %}';
     const TAGS_URL = '{% url "outreach_tags" %}';
     const API_STATUS_URL = '{% url "outreach_whatsapp_api_status" %}';
+    const BRIDGE_STATUS_URL = '{% url "outreach_bridge_status" %}';
     const SEND_NEXT_URL = '{% url "outreach_send_next" %}';
     const QUEUE_STATUS_URL = '{% url "outreach_queue_status" %}';
     const MESSAGES_URL = '{% url "outreach_sent_messages" %}';
+    const BRIDGE_ENABLED = {% if modules_nav.integration_whatsapp_bridge %}true{% else %}false{% endif %};
     let activeCampaignId = null;
     let activeCampaign = null;
     let batchId = null;
     let sending = false;
     let stopRequested = false;
     let apiReady = false;
+    let bridgeReady = false;
+    let bridgeConnectionId = null;
     let apiPollTimer = null;
+    let bridgePollTimer = null;
     let memoryFirms = [];
     let editingMemberId = null;
     let currentMembers = [];
+    let defaultMessageTemplate = '';
+    let templatePlaceholders = [];
+    let savedCampaignName = '';
+    let savedMessageTemplate = '';
     function csrf() { return document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''; }
+    function applyTemplatePreview(template) {
+        const sample = {
+            '{firma}': 'Örnek Klima Ltd.',
+            '{telefon}': '0532 000 00 00',
+            '{bolge}': 'Kadıköy',
+            '{adres}': 'Bağdat Cad. No:12',
+            '{puan}': '4.8',
+        };
+        let text = template || '';
+        Object.entries(sample).forEach(([key, value]) => {
+            text = text.split(key).join(value);
+        });
+        return text.trim();
+    }
+    function renderTemplatePlaceholders() {
+        const box = document.getElementById('templatePlaceholders');
+        if (!box) return;
+        box.innerHTML = '';
+        (templatePlaceholders || []).forEach((ph) => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'px-2 py-1 rounded-lg bg-white border border-slate-200 text-[11px] font-mono text-violet-700 hover:bg-violet-50';
+            btn.title = ph.label || ph.key;
+            btn.textContent = ph.token || ('{' + ph.key + '}');
+            btn.addEventListener('click', () => insertTemplateToken(ph.token || ('{' + ph.key + '}')));
+            box.appendChild(btn);
+        });
+    }
+    function insertTemplateToken(token) {
+        const ta = document.getElementById('messageTemplate');
+        if (!ta) return;
+        const start = ta.selectionStart ?? ta.value.length;
+        const end = ta.selectionEnd ?? ta.value.length;
+        ta.value = ta.value.slice(0, start) + token + ta.value.slice(end);
+        ta.focus();
+        ta.selectionStart = ta.selectionEnd = start + token.length;
+        markTemplateDirty();
+        updateTemplatePreview();
+    }
+    function updateTemplatePreview() {
+        const el = document.getElementById('templatePreviewText');
+        if (!el) return;
+        el.textContent = applyTemplatePreview(document.getElementById('messageTemplate')?.value || '');
+    }
+    function markNameDirty() {
+        const name = document.getElementById('campaignNameInput')?.value.trim() || '';
+        const btn = document.getElementById('saveCampaignNameBtn');
+        const dirty = !!activeCampaignId && name !== savedCampaignName && name.length > 0;
+        if (btn) btn.disabled = !dirty || sending;
+    }
+    function markTemplateDirty() {
+        const tpl = document.getElementById('messageTemplate')?.value || '';
+        const btn = document.getElementById('saveTemplateBtn');
+        const dirty = !!activeCampaignId && tpl !== savedMessageTemplate && tpl.trim().length > 0;
+        if (btn) btn.disabled = !dirty || sending;
+    }
+    function flashSaved(id) {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.remove('hidden');
+        setTimeout(() => el.classList.add('hidden'), 2000);
+    }
+    async function patchCampaign(fields) {
+        if (!activeCampaignId) return;
+        const res = await fetch(campaignUrl(activeCampaignId), {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+            body: JSON.stringify(fields),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || 'Kaydedilemedi.');
+        return data.collection;
+    }
+    async function saveCampaignName() {
+        const name = document.getElementById('campaignNameInput').value.trim();
+        if (!name) return alert('Kampanya adı boş olamaz.');
+        const col = await patchCampaign({ name });
+        savedCampaignName = col.name;
+        markNameDirty();
+        flashSaved('campaignNameStatus');
+        log('Kampanya adı güncellendi.', 'ok');
+        await loadCampaigns(activeCampaignId);
+    }
+    async function saveMessageTemplate() {
+        const message_template = document.getElementById('messageTemplate').value;
+        if (!message_template.trim()) return alert('Mesaj şablonu boş olamaz.');
+        const col = await patchCampaign({ message_template });
+        savedMessageTemplate = col.message_template;
+        document.getElementById('messageTemplate').value = col.message_template;
+        updateTemplatePreview();
+        markTemplateDirty();
+        log('Mesaj şablonu kaydedildi.', 'ok');
+    }
+    function resetMessageTemplate() {
+        if (!defaultMessageTemplate) return;
+        if (!confirm('Şablon varsayılan metne dönsün mü? Kaydetmeden önce değişiklikler kaybolur.')) return;
+        document.getElementById('messageTemplate').value = defaultMessageTemplate;
+        updateTemplatePreview();
+        markTemplateDirty();
+    }
+    async function renameCampaign(id, currentName) {
+        const name = window.prompt('Kampanya adı', currentName);
+        if (name === null) return;
+        const trimmed = name.trim();
+        if (!trimmed || trimmed === currentName) return;
+        const res = await fetch(campaignUrl(id), {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
+            body: JSON.stringify({ name: trimmed }),
+        });
+        const data = await res.json();
+        if (!data.ok) return alert(data.error || 'Ad değiştirilemedi.');
+        log(`"${trimmed}" olarak yeniden adlandırıldı.`, 'ok');
+        await loadCampaigns(id);
+    }
     function esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
     function campaignUrl(id, suffix) { return `/iletisim/api/kampanyalar/${id}/${suffix || ''}`; }
     function log(msg, type) {
@@ -202,21 +387,35 @@
         document.getElementById('sendLog').appendChild(el);
         document.getElementById('sendLog').scrollTop = 99999;
     }
-    async function loadCampaigns(selectId) {
+    async function loadCampaigns(selectId, options = {}) {
+        const { sidebarOnly = false } = options;
         const res = await fetch(CAMPAIGNS_URL);
         const data = await res.json();
         if (!data.ok) throw new Error(data.error || 'Kampanyalar yüklenemedi.');
+        if (data.default_message_template) defaultMessageTemplate = data.default_message_template;
+        if (data.template_placeholders?.length) templatePlaceholders = data.template_placeholders;
         const list = document.getElementById('campaignList');
         list.innerHTML = '';
         (data.collections || []).forEach(c => {
             const li = document.createElement('li');
             const active = c.id === activeCampaignId;
-            li.innerHTML = `<button type="button" data-id="${c.id}" class="campaign-pick w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${active ? 'bg-violet-600 text-white shadow-sm' : 'hover:bg-slate-50 text-slate-700'}">${esc(c.name)}<span class="block text-[10px] opacity-70 mt-0.5">${c.member_count} alıcı</span></button>`;
+            li.className = 'flex items-stretch gap-1';
+            li.innerHTML = `
+                <button type="button" data-id="${c.id}" class="campaign-pick flex-1 text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${active ? 'bg-violet-600 text-white shadow-sm' : 'hover:bg-slate-50 text-slate-700'}">
+                    ${esc(c.name)}
+                    <span class="block text-[10px] opacity-70 mt-0.5">${c.member_count} alıcı</span>
+                </button>
+                <button type="button" class="campaign-rename shrink-0 px-2 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-violet-600"
+                        title="Adı değiştir" aria-label="Adı değiştir">✎</button>`;
+            li.querySelector('.campaign-pick').addEventListener('click', () => selectCampaign(c.id));
+            li.querySelector('.campaign-rename').addEventListener('click', (e) => {
+                e.stopPropagation();
+                renameCampaign(c.id, c.name);
+            });
             list.appendChild(li);
         });
-        list.querySelectorAll('.campaign-pick').forEach(btn => {
-            btn.addEventListener('click', () => selectCampaign(parseInt(btn.dataset.id, 10)));
-        });
+        if (templatePlaceholders.length) renderTemplatePlaceholders();
+        if (sidebarOnly) return;
         if (selectId) await selectCampaign(selectId);
         else if (!activeCampaignId && data.collections.length) await selectCampaign(data.collections[0].id);
     }
@@ -226,14 +425,24 @@
         const data = await res.json();
         if (!data.ok) throw new Error(data.error || 'Kampanya yüklenemedi.');
         activeCampaign = data.collection;
+        if (activeCampaign.default_message_template) defaultMessageTemplate = activeCampaign.default_message_template;
+        if (activeCampaign.template_placeholders?.length) {
+            templatePlaceholders = activeCampaign.template_placeholders;
+            renderTemplatePlaceholders();
+        }
+        savedCampaignName = activeCampaign.name;
+        savedMessageTemplate = activeCampaign.message_template;
         document.getElementById('campaignNameInput').value = activeCampaign.name;
         document.getElementById('messageTemplate').value = activeCampaign.message_template;
         document.getElementById('skipGloballyCheck').checked = activeCampaign.skip_globally_messaged;
         document.getElementById('allowRepeatCheck').checked = activeCampaign.allow_repeat_in_campaign;
-        document.getElementById('delayInput').value = activeCampaign.delay_seconds || 4;
+        document.getElementById('delayInput').value = activeCampaign.delay_seconds || 12;
         document.getElementById('memberCountBadge').textContent = `${activeCampaign.member_count} alıcı`;
+        updateTemplatePreview();
+        markNameDirty();
+        markTemplateDirty();
         renderMembers(activeCampaign.members || []);
-        await loadCampaigns(id);
+        await loadCampaigns(id, { sidebarOnly: true });
         updateSendBtn();
         loadMessageHistory();
     }
@@ -308,24 +517,29 @@
     document.getElementById('customMsgSaveBtn').addEventListener('click', () => saveCustomMessage(false).catch(e => alert(e.message)));
     document.getElementById('customMsgClearBtn').addEventListener('click', () => saveCustomMessage(true).catch(e => alert(e.message)));
     function updateSendBtn() {
-        document.getElementById('startSendBtn').disabled = !activeCampaign?.member_count || !apiReady || sending;
+        const hasMembers = !!activeCampaign?.member_count;
+        document.getElementById('startSendBtn').disabled = !hasMembers || !apiReady || sending;
+        const bridgeBtn = document.getElementById('startSendBridgeBtn');
+        if (bridgeBtn) bridgeBtn.disabled = !hasMembers || !bridgeReady || sending;
     }
     async function saveCampaignSettings() {
         if (!activeCampaignId) return;
-        const res = await fetch(campaignUrl(activeCampaignId), {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
-            body: JSON.stringify({
-                name: document.getElementById('campaignNameInput').value.trim(),
-                message_template: document.getElementById('messageTemplate').value,
-                skip_globally_messaged: document.getElementById('skipGloballyCheck').checked,
-                allow_repeat_in_campaign: document.getElementById('allowRepeatCheck').checked,
-                delay_seconds: parseInt(document.getElementById('delayInput').value, 10) || 4,
-            }),
+        const name = document.getElementById('campaignNameInput').value.trim();
+        const message_template = document.getElementById('messageTemplate').value;
+        if (!name) throw new Error('Kampanya adı boş olamaz.');
+        if (!message_template.trim()) throw new Error('Mesaj şablonu boş olamaz.');
+        const col = await patchCampaign({
+            name,
+            message_template,
+            skip_globally_messaged: document.getElementById('skipGloballyCheck').checked,
+            allow_repeat_in_campaign: document.getElementById('allowRepeatCheck').checked,
+            delay_seconds: parseInt(document.getElementById('delayInput').value, 10) || 12,
         });
-        const data = await res.json();
-        if (!data.ok) throw new Error(data.error || 'Kaydedilemedi.');
-        log('Ayarlar kaydedildi.', 'ok');
+        savedCampaignName = col.name;
+        savedMessageTemplate = col.message_template;
+        markNameDirty();
+        markTemplateDirty();
+        log('Kampanya ayarları kaydedildi.', 'ok');
         await selectCampaign(activeCampaignId);
     }
     function setApiStatus(data) {
@@ -359,11 +573,86 @@
             return null;
         }
     }
+    function setBridgeStatus(data) {
+        if (!BRIDGE_ENABLED) return;
+        const pill = document.getElementById('bridgeStatusPill');
+        const sel = document.getElementById('bridgeConnectionSelect');
+        const readyBox = document.getElementById('bridgeReadyBox');
+        if (!pill) return;
+        bridgeReady = !!(data && data.ready && !data.bridge_offline);
+        const readyConns = (data?.connections || []).filter(c => c.ready);
+        if (data?.bridge_offline) {
+            pill.textContent = 'Köprü kapalı';
+            pill.className = 'inline-flex px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800';
+            document.getElementById('bridgeStatusDetail').textContent = data.error || 'WhatsApp köprüsünü başlatın.';
+            readyBox?.classList.add('hidden');
+            sel?.classList.add('hidden');
+            bridgeConnectionId = null;
+            updateSendBtn();
+            return;
+        }
+        if (!readyConns.length) {
+            pill.textContent = 'Hat bağlı değil';
+            pill.className = 'inline-flex px-3 py-1 rounded-full text-xs font-bold bg-slate-100 text-slate-600';
+            document.getElementById('bridgeStatusDetail').textContent = 'QR ile telefonunuzu bağlayın.';
+            readyBox?.classList.add('hidden');
+            sel?.classList.add('hidden');
+            bridgeConnectionId = null;
+            bridgeReady = false;
+            updateSendBtn();
+            return;
+        }
+        pill.textContent = `${readyConns.length} hat hazır`;
+        pill.className = 'inline-flex px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800';
+        readyBox?.classList.remove('hidden');
+        const first = readyConns[0];
+        document.getElementById('bridgeReadyName').textContent = [first.pushname, first.phone].filter(Boolean).join(' · ') || first.name;
+        document.getElementById('bridgeStatusDetail').textContent = 'Mesajlar tek tek, değişken aralıklarla gönderilir.';
+        if (readyConns.length > 1 && sel) {
+            sel.classList.remove('hidden');
+            sel.innerHTML = readyConns.map(c =>
+                `<option value="${c.id}">${esc(c.name)}${c.phone ? ' · ' + esc(c.phone) : ''}</option>`
+            ).join('');
+            bridgeConnectionId = parseInt(sel.value, 10);
+        } else {
+            sel?.classList.add('hidden');
+            bridgeConnectionId = first.id;
+        }
+        updateSendBtn();
+    }
+    async function pollBridge() {
+        if (!BRIDGE_ENABLED) return null;
+        try {
+            const res = await fetch(BRIDGE_STATUS_URL);
+            const data = await res.json();
+            setBridgeStatus(data);
+            return data;
+        } catch (e) {
+            setBridgeStatus({ bridge_offline: true, ready: false });
+            return null;
+        }
+    }
     async function initWhatsAppApi() {
         await pollApi();
         if (!apiPollTimer) apiPollTimer = setInterval(pollApi, 15000);
     }
+    async function initWhatsAppBridge() {
+        if (!BRIDGE_ENABLED) return;
+        document.getElementById('bridgeConnectionSelect')?.addEventListener('change', (e) => {
+            bridgeConnectionId = parseInt(e.target.value, 10) || null;
+        });
+        await pollBridge();
+        if (!bridgePollTimer) bridgePollTimer = setInterval(pollBridge, 12000);
+    }
     document.getElementById('retryApiBtn')?.addEventListener('click', pollApi);
+    document.getElementById('saveCampaignNameBtn')?.addEventListener('click', () => saveCampaignName().catch(e => alert(e.message)));
+    document.getElementById('saveTemplateBtn')?.addEventListener('click', () => saveMessageTemplate().catch(e => alert(e.message)));
+    document.getElementById('resetTemplateBtn')?.addEventListener('click', resetMessageTemplate);
+    document.getElementById('campaignNameInput')?.addEventListener('input', markNameDirty);
+    document.getElementById('messageTemplate')?.addEventListener('input', () => {
+        markTemplateDirty();
+        updateTemplatePreview();
+    });
     document.getElementById('createCampaignBtn').addEventListener('click', async () => {
         const name = document.getElementById('newCampaignName').value.trim();
         if (!name) return alert('Kampanya adı girin.');
@@ -490,9 +779,10 @@
         document.getElementById('statSkipped').textContent = `${data.skipped || 0} atlandı`;
         document.getElementById('statRemaining').textContent = `${data.pending} kalan`;
     }
-    document.getElementById('startSendBtn').addEventListener('click', async () => {
+    async function runSendLoop(transport) {
         if (!activeCampaignId) return;
-        if (!apiReady) return alert('Önce Site ayarlarından WhatsApp Business API bilgilerini girin.');
+        if (transport === 'cloud' && !apiReady) return alert('Önce WhatsApp Business API bilgilerini girin.');
+        if (transport === 'bridge' && !bridgeReady) return alert('Önce WhatsApp köprüsünde QR ile hat bağlayın.');
         await saveCampaignSettings();
         const qRes = await fetch(campaignUrl(activeCampaignId, 'kuyruk/'), {
             method: 'POST',
@@ -503,27 +793,41 @@
         if (!qData.ok) return alert(qData.error || 'Kuyruk oluşturulamadı.');
         batchId = qData.batch_id;
         if (qData.skipped) log(`${qData.skipped} atlandı.`);
-        log(`${qData.queued} mesaj kuyruğa alındı.`, 'ok');
+        log(`${qData.queued} mesaj kuyruğa alındı (${transport === 'bridge' ? 'köprü' : 'API'}).`, 'ok');
         if (!qData.queued) return;
         sending = true;
         stopRequested = false;
         updateSendBtn();
         document.getElementById('stopSendBtn').disabled = false;
-        const delayMs = (parseInt(document.getElementById('delayInput').value, 10) || 4) * 1000;
+        const baseDelay = parseInt(document.getElementById('delayInput').value, 10) || (transport === 'bridge' ? 12 : 4);
         while (!stopRequested) {
+            const payload = {
+                batch_id: batchId,
+                transport,
+                base_delay_seconds: baseDelay,
+            };
+            if (transport === 'bridge' && bridgeConnectionId) payload.connection_id = bridgeConnectionId;
             const res = await fetch(SEND_NEXT_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf() },
-                body: JSON.stringify({ batch_id: batchId }),
+                body: JSON.stringify(payload),
             });
             const data = await res.json();
             await refreshQueueStats();
             if (data.done) { log('Gönderim tamamlandı.', 'ok'); break; }
             if (!data.ok && !data.skipped) {
                 log(data.error || 'Hata', 'error');
-                if (data.error && data.error.includes('API')) { await pollApi(); break; }
+                if (transport === 'cloud' && data.error && data.error.includes('API')) { await pollApi(); break; }
+                if (transport === 'bridge' && data.offline) { await pollBridge(); break; }
             } else if (data.ok && !data.skipped) {
                 log(`→ ${data.recipient_name}`, 'ok');
+            }
+            let delayMs;
+            if (transport === 'bridge' && data.wait_seconds) {
+                delayMs = Math.round(data.wait_seconds * 1000);
+                log(`Bekleme ${data.wait_seconds}s…`);
+            } else {
+                delayMs = baseDelay * 1000;
             }
             await new Promise(r => setTimeout(r, delayMs));
         }
@@ -532,7 +836,9 @@
         updateSendBtn();
         await selectCampaign(activeCampaignId);
         loadMessageHistory();
-    });
+    }
+    document.getElementById('startSendBtn').addEventListener('click', () => runSendLoop('cloud').catch(e => alert(e.message)));
+    document.getElementById('startSendBridgeBtn')?.addEventListener('click', () => runSendLoop('bridge').catch(e => alert(e.message)));
     document.getElementById('stopSendBtn').addEventListener('click', () => { stopRequested = true; log('Durduruluyor…'); });
     function histLabel(st) { return { sent: 'Gönderildi', failed: 'Hata', skipped: 'Atlandı' }[st] || st; }
     async function loadMessageHistory() {
@@ -575,6 +881,7 @@
         await selectCampaign(activeCampaignId);
     }
     initWhatsAppApi();
+    initWhatsAppBridge();
     loadTagsForMemory();
     loadMemoryFirms().catch(() => {});
     loadCampaigns().then(async () => {

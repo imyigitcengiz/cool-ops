@@ -44,6 +44,13 @@ def integration_status_hint(slug: str) -> str:
         except Exception:
             pass
         return 'Token girilmedi'
+    if slug == 'integration_bulk_messaging':
+        try:
+            from tools.models import OutreachCollection
+            n = OutreachCollection.objects.count()
+            return f'{n} kampanya' if n else 'Kampanya yok'
+        except Exception:
+            return 'Kampanya gönderimi'
     return 'Hazır'
 
 

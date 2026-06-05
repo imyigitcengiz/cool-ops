@@ -48,10 +48,26 @@
         </div>
         <h2 class="text-lg font-bold text-slate-900">WhatsApp Business API</h2>
         <p class="text-sm text-slate-500 mt-2 leading-relaxed">
-            Kazılan firmalara toplu kampanya — Meta Cloud API token ve telefon ID.
+            Meta Cloud API token ve telefon ID — toplu mesaj gönderici için gerekli.
         </p>
         <span class="inline-flex items-center gap-2 mt-5 text-sm font-semibold text-violet-600 group-hover:text-violet-700">
             API ayarları
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+        </span>
+    </a>
+    {% endif %}
+    {% if user_perms.access_outreach and modules_nav.integration_bulk_messaging %}
+    <a href="{% url 'outreach_campaigns' %}"
+       class="group block bg-white rounded-3xl border border-slate-200 shadow-sm hover:shadow-xl hover:border-brand-200 transition-all p-6">
+        <div class="w-12 h-12 rounded-2xl bg-brand-50 text-brand-600 flex items-center justify-center mb-4 group-hover:bg-brand-600 group-hover:text-white transition-colors">
+            <i data-lucide="megaphone" class="w-6 h-6"></i>
+        </div>
+        <h2 class="text-lg font-bold text-slate-900">Toplu mesaj gönderici</h2>
+        <p class="text-sm text-slate-500 mt-2 leading-relaxed">
+            Kampanya listeleri, hedef seçimi ve WhatsApp toplu gönderim.
+        </p>
+        <span class="inline-flex items-center gap-2 mt-5 text-sm font-semibold text-brand-600 group-hover:text-brand-700">
+            Kampanyalar
             <i data-lucide="arrow-right" class="w-4 h-4"></i>
         </span>
     </a>
@@ -75,7 +91,7 @@
     {% endif %}
 
 </div>
-{% if not modules_nav.integration_whatsapp_bridge and not modules_nav.integration_whatsapp_api and not modules_nav.integration_media %}
+{% if not modules_nav.integration_whatsapp_bridge and not modules_nav.integration_whatsapp_api and not modules_nav.integration_bulk_messaging and not modules_nav.integration_media %}
 <p class="mt-8 text-sm text-slate-500">Bu modülde görüntüleyebileceğiniz araç bulunmuyor.</p>
 {% endif %}
 {% endblock %}

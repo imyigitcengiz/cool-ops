@@ -51,6 +51,27 @@ class ModuleGateTests(TestCase):
         response = self.client.get('/tools/whatsapp-api/')
         self.assertEqual(response.status_code, 302)
 
+    def test_outreach_closed_hides_bulk_messaging_even_if_integration_on(self):
+        settings = SiteSettings.objects.first()
+        slugs = list(get_enabled_module_slugs()) + ['integration_bulk_messaging']
+        slugs = [s for s in slugs if s != 'outreach']
+        settings.enabled_module_slugs = slugs
+        settings.save()
+        self.assertFalse(module_route_allowed('integration_bulk_messaging'))
+        response = self.client.get('/iletisim/kampanyalar/')
+        self.assertEqual(response.status_code, 302)
+
+    def test_bulk_messaging_closed_blocks_campaign_url(self):
+        settings = SiteSettings.objects.first()
+        slugs = [s for s in get_enabled_module_slugs() if s != 'integration_bulk_messaging']
+        if 'outreach' not in slugs:
+            slugs.append('outreach')
+        settings.enabled_module_slugs = slugs
+        settings.save()
+        self.assertFalse(module_route_allowed('integration_bulk_messaging'))
+        response = self.client.get('/iletisim/kampanyalar/')
+        self.assertEqual(response.status_code, 302)
+
     def test_whatsapp_bridge_works_without_outreach(self):
         role = Role.objects.filter(slug='admin').first()
         if role:

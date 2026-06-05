@@ -62,17 +62,12 @@
     <i data-lucide="file-text" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">{{ gy.sb_teklifler }}</span>
 </a>
 {% endif %}
-{% if user_perms.sales_reports or user_perms.sales_manage %}
-<a href="{% url 'accounting_receivables' %}" class="erp-nav-link {% if url_name == 'accounting_receivables' %}erp-nav-link--active{% endif %}">
-    <i data-lucide="hand-coins" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">{{ gy.mh_alacaklar }}</span>
-</a>
 {% endif %}
 {% endif %}
 {% if user_perms.contact_payroll or user_perms.sales_reports %}
 <a href="{% url 'accounting_reports' %}" class="erp-nav-link {% if url_name == 'accounting_reports' or url_name == 'accounting_payroll_reports' or url_name == 'accounting_payroll_export' or url_name == 'accounting_payroll_reports_print' or url_name == 'accounting_finance_print' or url_name == 'sales_lead_reports' or url_name == 'sales_lead_reports_print' %}erp-nav-link--active{% endif %}">
     <i data-lucide="bar-chart-3" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">{{ gy.mh_raporlar }}</span>
 </a>
-{% endif %}
 {% endif %}
 {% endif %}
 {% endif %}

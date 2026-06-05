@@ -43,11 +43,29 @@
                         </button>
                     </div>
                 </div>
+                {% if not object %}
                 <div class="space-y-2">
-                    <label class="text-sm font-semibold text-slate-700">Çözüm Ortağı (Taşeron/Nakliye/Dış Servisçi)</label>
-                    {{ form.solution_partner }}
-                    <p class="text-[10px] text-slate-400">Problem çözümünde görev alan harici kaynak.</p>
+                    <div class="p-5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-4">
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="id_has_partner" form="serviceRecordForm" class="w-5 h-5 accent-brand-600 rounded cursor-pointer">
+                            <label for="id_has_partner" class="text-sm font-semibold text-slate-700 cursor-pointer">Çözüm ortağı tanımla</label>
+                        </div>
+                        
+                        <div id="partnerFieldsContainer" class="hidden grid grid-cols-1 gap-4 border-t border-slate-200/60 pt-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                            <div class="space-y-2">
+                                <label class="text-xs font-semibold text-slate-700">Çözüm Ortağı (Taşeron/Nakliye/Dış Servisçi)</label>
+                                {{ form.solution_partner }}
+                                <p class="text-[10px] text-slate-400">Problem çözümünde görev alan harici kaynak.</p>
+                            </div>
+                            <div class="space-y-2">
+                                <label class="text-xs font-semibold text-slate-700">Ödenecek Ücret</label>
+                                {{ form.partner_fee }}
+                                <p class="text-[10px] text-slate-400">Çözüm ortağına ödenecek tutar (opsiyonel).</p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+                {% endif %}
             </div>
             <div id="customerOpenServicesPanel" class="hidden"></div>
 
@@ -92,9 +110,10 @@
                     </div>
                     <div>
                         <p class="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Sözleşme Tarihi</p>
-                        <div class="flex items-center gap-1">
+                        <div class="flex items-center gap-2 flex-wrap">
                             <p id="qvContract" class="text-sm font-bold text-brand-600">-</p>
                             <span id="qvContractAge" class="text-[10px] text-slate-400 font-medium"></span>
+                            <span id="qvWarrantyBadge" class="hidden px-2 py-0.5 rounded text-[10px] font-bold border"></span>
                         </div>
                     </div>
                     <div>
@@ -111,9 +130,27 @@
                 </div>
             </div>
 
-            <div class="space-y-2">
-                <label class="text-sm font-semibold text-slate-700">Garanti Durumu</label>
-                {{ form.warranty_status }}
+            <div class="space-y-4 p-5 bg-slate-50 border border-slate-200/80 rounded-2xl">
+                <div class="space-y-2">
+                    <label class="text-sm font-semibold text-slate-700">Garanti Durumu</label>
+                    <div class="flex items-center gap-4 mb-2">
+                        <select id="id_warranty_status_display" class="flex-1 p-3 bg-slate-100 border-none rounded-xl text-slate-500 cursor-not-allowed" disabled>
+                            <option value="active" {% if form.warranty_status.value == 'active' %}selected{% endif %}>Garanti Devam Ediyor</option>
+                            <option value="expired" {% if form.warranty_status.value == 'expired' %}selected{% endif %}>Garanti Bitti</option>
+                        </select>
+                        <div class="flex items-center gap-1.5 shrink-0 bg-white px-3 py-2.5 rounded-xl border border-slate-200 shadow-sm">
+                            <input type="checkbox" id="id_manual_warranty" class="w-4 h-4 accent-brand-600 rounded cursor-pointer">
+                            <label for="id_manual_warranty" class="text-xs font-semibold text-slate-600 cursor-pointer">Manuel Belirle</label>
+                        </div>
+                    </div>
+                    <input type="hidden" name="warranty_status" value="{{ form.warranty_status.value|default:'active' }}">
+                </div>
+
+                <div id="warrantyNoteContainer" class="hidden space-y-2 border-t border-slate-200/60 pt-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <label class="text-sm font-semibold text-slate-700">Garanti Bitiş Sebebi / Notu</label>
+                    {{ form.warranty_note }}
+                    <p class="text-[10px] text-slate-400">Garanti durumunun bitme nedenini veya detaylarını açıklayabilirsiniz.</p>
+                </div>
             </div>
 
             <div id="paidServicePricing" class="hidden space-y-4 p-5 bg-amber-50 border border-amber-200 rounded-2xl">
@@ -176,12 +213,7 @@
             </div>
 
             <div class="space-y-2">
-                <label class="text-sm font-semibold text-slate-700">Atanan Kişi / Ekip</label>
-                {{ form.assigned_to }}
-            </div>
-
-            <div class="space-y-2">
-                <label class="text-sm font-semibold text-slate-700">Sorumlu Servis Personeli</label>
+                <label class="text-sm font-semibold text-slate-700">Sorumlu Servis Personeli / Ekip</label>
                 {{ form.service_personnel }}
             </div>
 
@@ -248,6 +280,30 @@
                 {% empty %}
                 <p class="text-sm text-slate-400 text-center py-8">Henüz işlem geçmişi yok.</p>
                 {% endfor %}
+            </div>
+        </section>
+
+        <!-- Solution Partner block under Transaction History -->
+        <section class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+            <div class="flex items-center gap-2">
+                <input type="checkbox" id="id_has_partner" form="serviceRecordForm" class="w-5 h-5 accent-brand-600 rounded cursor-pointer">
+                <label for="id_has_partner" class="text-sm font-semibold text-slate-700 cursor-pointer flex items-center gap-2">
+                    <i data-lucide="handshake" class="w-4 h-4 text-brand-600"></i>
+                    Çözüm ortağı tanımla
+                </label>
+            </div>
+            
+            <div id="partnerFieldsContainer" class="hidden grid grid-cols-1 gap-4 border-t border-slate-100 pt-4 animate-in fade-in slide-in-from-top-2 duration-200">
+                <div class="space-y-2">
+                    <label class="text-xs font-semibold text-slate-700">Çözüm Ortağı (Taşeron/Nakliye/Dış Servisçi)</label>
+                    {{ form.solution_partner }}
+                    <p class="text-[10px] text-slate-400">Problem çözümünde görev alan harici kaynak.</p>
+                </div>
+                <div class="space-y-2">
+                    <label class="text-xs font-semibold text-slate-700">Ödenecek Ücret</label>
+                    {{ form.partner_fee }}
+                    <p class="text-[10px] text-slate-400">Çözüm ortağına ödenecek tutar (opsiyonel).</p>
+                </div>
             </div>
         </section>
     </div>
@@ -331,11 +387,12 @@
 <script src="{% static 'js/product-service-type-sync.js' %}"></script>
 <script src="{% static 'js/service-form-options.js' %}"></script>
 <script src="/static/js/service-customer-hints.js"></script>
+<script src="/static/js/customer-search-selector.js"></script>
 <script>
     (function () {
         const pricingBox = document.getElementById('paidServicePricing');
         const statusSelect = document.querySelector('select[name="status"]');
-        const warrantySelect = document.querySelector('select[name="warranty_status"]');
+        const warrantySelect = document.getElementById('id_warranty_status_display') || document.querySelector('select[name="warranty_status"]');
         let catalog = {};
         try {
             catalog = JSON.parse(document.getElementById('optionsCatalogData')?.textContent || '{}');
@@ -359,6 +416,111 @@
     })();
 </script>
 <script>
+    function calculateWarrantyStatus(contractDateStr, years, months, days) {
+        if (!contractDateStr) return 'active';
+        const contractDate = new Date(contractDateStr);
+        if (isNaN(contractDate.getTime())) return 'active';
+
+        const endDate = new Date(contractDate);
+        endDate.setFullYear(endDate.getFullYear() + Number(years || 0));
+        endDate.setMonth(endDate.getMonth() + Number(months || 0));
+        endDate.setDate(endDate.getDate() + Number(days || 0));
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        endDate.setHours(0, 0, 0, 0);
+
+        return today <= endDate ? 'active' : 'expired';
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        const hasPartnerCheckbox = document.getElementById('id_has_partner');
+        const partnerFieldsContainer = document.getElementById('partnerFieldsContainer');
+        const partnerSelect = document.querySelector('select[name="solution_partner"]');
+        const partnerFeeInput = document.querySelector('input[name="partner_fee"]');
+
+        function togglePartnerFields() {
+            if (hasPartnerCheckbox.checked) {
+                partnerFieldsContainer.classList.remove('hidden');
+            } else {
+                partnerFieldsContainer.classList.add('hidden');
+                if (partnerSelect) partnerSelect.value = "";
+                if (partnerFeeInput) partnerFeeInput.value = "";
+            }
+        }
+
+        if (hasPartnerCheckbox && partnerFieldsContainer) {
+            const hasInitialPartner = (partnerSelect && partnerSelect.value) || (partnerFeeInput && partnerFeeInput.value);
+            if (hasInitialPartner) {
+                hasPartnerCheckbox.checked = true;
+            }
+            togglePartnerFields();
+            hasPartnerCheckbox.addEventListener('change', togglePartnerFields);
+        }
+
+        // Manual Warranty Override and Note Visibility Logic
+        const manualWarrantyCheckbox = document.getElementById('id_manual_warranty');
+        const warrantyDisplay = document.getElementById('id_warranty_status_display');
+        const warrantyHidden = document.querySelector('input[name="warranty_status"]');
+        const warrantyNoteContainer = document.getElementById('warrantyNoteContainer');
+
+        function updateWarrantyNoteVisibility() {
+            const currentStatus = warrantyHidden ? warrantyHidden.value : (warrantyDisplay ? warrantyDisplay.value : 'active');
+            if (currentStatus === 'expired') {
+                warrantyNoteContainer?.classList.remove('hidden');
+            } else {
+                warrantyNoteContainer?.classList.add('hidden');
+            }
+        }
+
+        function toggleManualWarranty() {
+            if (!warrantyDisplay) return;
+            if (manualWarrantyCheckbox && manualWarrantyCheckbox.checked) {
+                warrantyDisplay.removeAttribute('disabled');
+                warrantyDisplay.classList.remove('cursor-not-allowed', 'bg-slate-100', 'text-slate-500');
+                warrantyDisplay.classList.add('cursor-pointer', 'bg-white', 'text-slate-900');
+            } else {
+                warrantyDisplay.setAttribute('disabled', 'disabled');
+                warrantyDisplay.classList.add('cursor-not-allowed', 'bg-slate-100', 'text-slate-500');
+                warrantyDisplay.classList.remove('cursor-pointer', 'bg-white', 'text-slate-900');
+                
+                // Recalculate status automatically
+                const customerSelect = document.querySelector('select[name="customer"]');
+                if (customerSelect && customerSelect.value) {
+                    fetchCustomerDetails(customerSelect.value, !isEditingService);
+                }
+            }
+        }
+
+        if (manualWarrantyCheckbox && warrantyDisplay) {
+            manualWarrantyCheckbox.addEventListener('change', toggleManualWarranty);
+            
+            // If the note has a value on load, let's keep the override enabled
+            const noteTextarea = document.querySelector('textarea[name="warranty_note"]');
+            if (noteTextarea && noteTextarea.value.trim() !== '') {
+                manualWarrantyCheckbox.checked = true;
+                toggleManualWarranty();
+            }
+
+            // Sync hidden input when display changes manually
+            warrantyDisplay.addEventListener('change', () => {
+                if (manualWarrantyCheckbox.checked && warrantyHidden) {
+                    warrantyHidden.value = warrantyDisplay.value;
+                    warrantyHidden.dispatchEvent(new Event('change'));
+                }
+                updateWarrantyNoteVisibility();
+            });
+        }
+
+        // Run initially
+        updateWarrantyNoteVisibility();
+
+        // Listen on hidden input changes to update note visibility
+        if (warrantyHidden) {
+            warrantyHidden.addEventListener('change', updateWarrantyNoteVisibility);
+        }
+    });
+
     const customerSelect = document.querySelector('select[name="customer"]');
     const isEditingService = {% if object %}true{% else %}false{% endif %};
     const serviceProductIds = new Set(
@@ -438,6 +600,8 @@
     async function fetchCustomerDetails(id, syncProducts = false) {
         if (!id) {
             document.getElementById('customerQuickView').classList.add('hidden');
+            const badge = document.getElementById('qvWarrantyBadge');
+            if (badge) badge.classList.add('hidden');
             originalProductIds = [];
             rebuildProductCheckboxes([], []);
             return;
@@ -502,6 +666,41 @@
                         : [];
                 }
                 rebuildProductCheckboxes(catalogProducts, checkedIds);
+
+                if (data.contract_date_raw) {
+                    const years = {{ site_settings.warranty_years|default:1 }};
+                    const months = {{ site_settings.warranty_months|default:0 }};
+                    const days = {{ site_settings.warranty_days|default:0 }};
+                    
+                    const computedStatus = calculateWarrantyStatus(data.contract_date_raw, years, months, days);
+                    
+                    const manualWarrantyCheckbox = document.getElementById('id_manual_warranty');
+                    const isManual = manualWarrantyCheckbox && manualWarrantyCheckbox.checked;
+
+                    const warrantyDisplay = document.getElementById('id_warranty_status_display');
+                    const warrantyHidden = document.querySelector('input[name="warranty_status"]');
+                    if (warrantyDisplay && warrantyHidden && !isManual) {
+                        warrantyDisplay.value = computedStatus;
+                        warrantyHidden.value = computedStatus;
+                        warrantyDisplay.dispatchEvent(new Event('change'));
+                    }
+
+                    const badge = document.getElementById('qvWarrantyBadge');
+                    if (badge) {
+                        badge.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-700', 'border-emerald-200', 'bg-red-50', 'text-red-700', 'border-red-200');
+                        if (computedStatus === 'active') {
+                            badge.innerText = 'Garanti Devam Ediyor';
+                            badge.classList.add('bg-emerald-50', 'text-emerald-700', 'border-emerald-200');
+                        } else {
+                            badge.innerText = 'Garanti Bitti';
+                            badge.classList.add('bg-red-50', 'text-red-700', 'border-red-200');
+                        }
+                        badge.classList.remove('hidden');
+                    }
+                } else {
+                    const badge = document.getElementById('qvWarrantyBadge');
+                    if (badge) badge.classList.add('hidden');
+                }
 
                 lucide.createIcons();
             }

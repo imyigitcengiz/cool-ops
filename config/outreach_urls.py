@@ -16,6 +16,7 @@ from tools.collection_views import (
 from tools.views import firms_memory_list
 from tools.whatsapp_send_views import (
     whatsapp_cloud_status_api,
+    campaign_bridge_status_api,
     campaign_send_next_api,
     campaign_queue_status_api,
 )
@@ -64,6 +65,7 @@ urlpatterns = [
     path('api/kampanyalar/<int:pk>/kuyruk/', collection_queue_api, name='outreach_collection_queue'),
     path('api/gonder/sonraki/', campaign_send_next_api, name='outreach_send_next'),
     path('api/kuyruk/durum/', campaign_queue_status_api, name='outreach_queue_status'),
+    path('api/whatsapp-kopru/durum/', campaign_bridge_status_api, name='outreach_bridge_status'),
     path('api/whatsapp-api/durum/', whatsapp_cloud_status_api, name='outreach_whatsapp_api_status'),
     path('api/mesajlar/', sent_messages_api, name='outreach_sent_messages'),
     path('api/etiketler/', tags_api, name='outreach_tags'),

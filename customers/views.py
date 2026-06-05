@@ -202,6 +202,7 @@ def customer_detail_api(request, pk):
             'address': c.address or '-',
             'location_link': c.location_link or '',
             'contract_date': c.contract_date.strftime('%d.%m.%Y') if c.contract_date else '-',
+            'contract_date_raw': c.contract_date.isoformat() if c.contract_date else '',
             'contract_age': f"({c.contract_age} önce)" if c.contract_age else '',
             'contract_years_label': c.contract_years_label or '',
             'product_ids': [p.id for p in customer_products],

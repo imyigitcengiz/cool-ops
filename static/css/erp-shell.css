@@ -341,12 +341,609 @@ body.erp-sidebar-body-lock .erp-fab-stack {
 }
 
 .erp-sidebar-backdrop {
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
-/* Sidebar — sade gezinme */
+/* ═══════════════════════════════════════════════
+   SIDEBAR TEMEL YAPISI
+   ═══════════════════════════════════════════════ */
+#appSidebar {
+  background: linear-gradient(160deg, #0d1117 0%, #0f172a 45%, #111827 100%);
+  border-right: 1px solid rgba(255,255,255,0.05);
+  box-shadow: 4px 0 24px rgba(0,0,0,0.35);
+}
+
+/* ═══════════════════════════════════════════════
+   MARKA ALANI
+   ═══════════════════════════════════════════════ */
+.erp-sidebar-brand {
+  padding: 1.25rem 1rem 1.125rem;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.erp-sidebar-brand--border {
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.erp-sidebar-brand__link {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #f1f5f9;
+  text-decoration: none;
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  transition: opacity 0.15s ease;
+}
+
+.erp-sidebar-brand__link:hover { opacity: 0.9; }
+
+.erp-sidebar-brand__icon {
+  width: 2.375rem;
+  height: 2.375rem;
+  border-radius: 0.875rem;
+  background: linear-gradient(135deg, var(--brand-500, #0ea5e9), var(--brand-700, #0369a1));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(14,165,233,0.35), inset 0 1px 0 rgba(255,255,255,0.2);
+}
+
+.erp-sidebar-brand__logo {
+  width: 2.375rem;
+  height: 2.375rem;
+  border-radius: 0.875rem;
+  object-fit: contain;
+  flex-shrink: 0;
+  background: rgba(255,255,255,0.08);
+  padding: 0.2rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+.erp-sidebar-brand__title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.erp-sidebar-brand__subtitle {
+  margin: 0.3rem 0 0;
+  padding-left: 0.125rem;
+  font-size: 0.6rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: rgba(148,163,184,0.6);
+}
+
+/* ═══════════════════════════════════════════════
+   BÖLÜM ETİKETLERİ
+   ═══════════════════════════════════════════════ */
+.erp-sidebar-section {
+  padding: 0 0.625rem;
+  margin-bottom: 0.25rem;
+}
+
+.erp-sidebar-section:first-of-type {
+  margin-top: 0.75rem;
+}
+
+.erp-sidebar-section__label {
+  margin: 0.875rem 0.375rem 0.375rem;
+  font-size: 0.575rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(100,116,139,0.7);
+}
+
+/* ═══════════════════════════════════════════════
+   NAV LİNKLER
+   ═══════════════════════════════════════════════ */
 .erp-nav-link {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: 0.625rem;
+  color: rgba(148,163,184,0.85);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.25;
+  text-decoration: none;
+  transition: color 0.15s ease, background-color 0.15s ease, transform 0.1s ease;
+  position: relative;
+}
+
+.erp-nav-link:hover {
+  color: #e2e8f0;
+  background: rgba(255,255,255,0.06);
+  transform: translateX(2px);
+}
+
+.erp-nav-link--active {
+  color: #fff;
+  background: linear-gradient(135deg, var(--brand-600,#0284c7), var(--brand-700,#0369a1));
+  box-shadow: 0 4px 16px rgba(2,132,199,0.3), inset 0 1px 0 rgba(255,255,255,0.15);
+  font-weight: 600;
+  transform: none;
+}
+
+.erp-nav-link--active:hover {
+  opacity: 0.95;
+  transform: none;
+}
+
+.erp-nav-link--compact {
+  padding: 0.4rem 0.625rem;
+  font-size: 0.78125rem;
+}
+
+.erp-nav-link--more {
+  opacity: 0.75;
+  font-size: 0.78125rem;
+}
+
+.erp-nav-link--danger {
+  color: rgba(252,165,165,0.7);
+}
+
+.erp-nav-link--danger:hover {
+  background: rgba(127,29,29,0.25);
+  color: #fca5a5;
+}
+
+.erp-nav-link--danger.erp-nav-link--active {
+  background: linear-gradient(135deg,#dc2626,#b91c1c);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(220,38,38,0.3);
+}
+
+.erp-nav-link:focus-visible {
+  outline: 2px solid var(--brand-400,#38bdf8);
+  outline-offset: 2px;
+}
+
+.erp-nav-link__icon {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
+.erp-nav-link--active .erp-nav-link__icon {
+  opacity: 1;
+}
+
+.erp-nav-link__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════
+   GRUP ETİKETİ + AYIRAÇ
+   ═══════════════════════════════════════════════ */
+.erp-nav-group-label {
+  margin: 0.625rem 0.625rem 0.25rem;
+  font-size: 0.575rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: rgba(100,116,139,0.65);
+}
+
+.erp-nav-group-label--tools { color: rgba(148,163,184,0.5); }
+.erp-nav-group-label--danger { color: rgba(248,113,113,0.7); }
+
+.erp-sidebar-divider {
+  height: 1px;
+  margin: 0.625rem 0.5rem;
+  background: rgba(255,255,255,0.05);
+}
+
+/* ═══════════════════════════════════════════════
+   MODÜL BLOKLARI
+   ═══════════════════════════════════════════════ */
+.erp-sidebar-module {
+  margin-bottom: 0.125rem;
+}
+
+/* Modül renk değişkenleri */
+.erp-sidebar-module--contact   { --erp-mod-accent:#a78bfa; --erp-mod-active:#7c3aed; --erp-mod-bg:rgba(124,58,237,0.18); }
+.erp-sidebar-module--services  { --erp-mod-accent:#38bdf8; --erp-mod-active:#0284c7; --erp-mod-bg:rgba(2,132,199,0.18); }
+.erp-sidebar-module--accounting{ --erp-mod-accent:#34d399; --erp-mod-active:#059669; --erp-mod-bg:rgba(5,150,105,0.18); }
+.erp-sidebar-module--outreach  { --erp-mod-accent:#60a5fa; --erp-mod-active:#2563eb; --erp-mod-bg:rgba(37,99,235,0.18); }
+.erp-sidebar-module--settings  { --erp-mod-accent:#fbbf24; --erp-mod-active:#d97706; --erp-mod-bg:rgba(217,119,6,0.18); }
+.erp-sidebar-module--tools     { --erp-mod-accent:#f472b6; --erp-mod-active:#be185d; --erp-mod-bg:rgba(190,24,93,0.18); }
+
+/* Hub satırı */
+.erp-sidebar-module__hub-row {
+  display: flex;
+  align-items: stretch;
+  gap: 0.125rem;
+  border-radius: 0.75rem;
+  transition: background-color 0.15s ease;
+}
+
+.erp-sidebar-module__hub-row:hover {
+  background: rgba(255,255,255,0.04);
+}
+
+.erp-sidebar-module--expanded .erp-sidebar-module__hub-row {
+  background: rgba(255,255,255,0.05);
+}
+
+.erp-sidebar-module__hub-row .erp-sidebar-module__hub {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Hub bağlantısı */
+.erp-sidebar-module__hub {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.5rem 0.5rem 0.5rem;
+  border-radius: 0.75rem;
+  text-decoration: none;
+  color: rgba(203,213,225,0.8);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  transition: color 0.15s ease;
+}
+
+.erp-sidebar-module__hub:hover {
+  color: #f1f5f9;
+}
+
+.erp-sidebar-module__hub--current {
+  color: #fff;
+}
+
+/* İkon rozeti */
+.erp-sidebar-module__icon-wrap {
+  width: 1.875rem;
+  height: 1.875rem;
+  border-radius: 0.5rem;
+  background: var(--erp-mod-bg, rgba(51,65,85,0.5));
+  border: 1px solid rgba(255,255,255,0.07);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+.erp-sidebar-module__hub:hover .erp-sidebar-module__icon-wrap,
+.erp-sidebar-module__hub--current .erp-sidebar-module__icon-wrap {
+  background: var(--erp-mod-bg, rgba(51,65,85,0.7));
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.1), 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.erp-sidebar-module__hub--current .erp-sidebar-module__icon-wrap {
+  box-shadow: 0 0 12px var(--erp-mod-accent, #64748b), 0 0 0 1px rgba(255,255,255,0.12);
+}
+
+.erp-sidebar-module__icon {
+  width: 1rem;
+  height: 1rem;
+  flex-shrink: 0;
+  color: var(--erp-mod-accent, #94a3b8);
+}
+
+.erp-sidebar-module__label {
+  min-width: 0;
+  flex: 1;
+}
+
+.erp-sidebar-module__title {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Genişlet/daralt butonu */
+.erp-sidebar-module__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 0.625rem;
+  background: transparent;
+  color: rgba(148,163,184,0.5);
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.erp-sidebar-module__toggle:hover {
+  background: rgba(255,255,255,0.07);
+  color: #cbd5e1;
+}
+
+.erp-sidebar-module__toggle-icon {
+  width: 0.875rem;
+  height: 0.875rem;
+  transition: transform 0.2s ease;
+}
+
+.erp-sidebar-module--expanded .erp-sidebar-module__toggle-icon {
+  transform: rotate(90deg);
+}
+
+/* Alt menü */
+.erp-sidebar-module__menu {
+  display: none;
+  padding: 0.25rem 0 0.25rem 0.625rem;
+  margin: 0.125rem 0 0 0.9375rem;
+  border-left: 1px solid rgba(255,255,255,0.06);
+}
+
+.erp-sidebar-module--expanded .erp-sidebar-module__menu {
+  display: block;
+}
+
+.erp-sidebar-menu-heading {
+  font-size: 0.575rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--erp-mod-accent, #64748b);
+  margin: 0.375rem 0.375rem 0.375rem;
+  opacity: 0.8;
+}
+
+/* Aktif link rengi modüle özel */
+.erp-sidebar-module--expanded .erp-nav-link--active {
+  background: linear-gradient(135deg, var(--erp-mod-active), color-mix(in srgb, var(--erp-mod-active) 80%, #000));
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--erp-mod-active) 45%, transparent),
+              inset 0 1px 0 rgba(255,255,255,0.15);
+}
+
+.erp-sidebar-module--expanded .erp-nav-link:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+/* Masaüstü: popup menü */
+@media (max-width: 1023px) {
+  .erp-unified-sidebar-nav .erp-sidebar-module--expanded .erp-sidebar-module__menu {
+    position: static;
+    opacity: 1;
+    pointer-events: auto;
+    width: auto;
+    max-width: none;
+    border: none;
+    border-left: 1px solid rgba(255,255,255,0.06);
+    border-radius: 0;
+    box-shadow: none;
+    max-height: min(55dvh, 22rem);
+    overflow-y: auto;
+  }
+}
+
+@media (min-width: 1024px) {
+  .erp-sidebar-module--expanded .erp-sidebar-module__menu {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: min(15rem, 32vw);
+    max-width: calc(100vw - 1rem);
+    height: auto;
+    margin: 0;
+    padding: 0.375rem 0.375rem 0.5rem;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 1rem;
+    background: linear-gradient(160deg, #141c2e 0%, #0f172a 100%);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3);
+    overflow: visible;
+    z-index: 70;
+    visibility: hidden;
+    pointer-events: none;
+    scrollbar-width: none;
+  }
+
+  .erp-sidebar-module--expanded .erp-sidebar-module__menu::-webkit-scrollbar { display: none; }
+
+  .erp-sidebar-module--expanded .erp-sidebar-module__menu.is-popover-ready {
+    display: block;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .erp-sidebar-module--expanded .erp-sidebar-module__menu .erp-nav-link {
+    padding-top: 0.375rem;
+    padding-bottom: 0.375rem;
+    border-radius: 0.5rem;
+  }
+
+  .erp-sidebar-module--expanded .erp-sidebar-module__hub-row {
+    background: rgba(255,255,255,0.05);
+    border-radius: 0.75rem;
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   SIDEBAR GENIŞLIĞI
+   ═══════════════════════════════════════════════ */
+.erp-unified-sidebar-nav { scroll-behavior: smooth; }
+
+.erp-unified-shell #appSidebar {
+  --erp-sidebar-width: min(17rem, 88vw);
+  width: var(--erp-sidebar-width);
+}
+
+@media (min-width: 1024px) {
+  .erp-unified-shell #appSidebar {
+    --erp-sidebar-width: 16.5rem;
+    width: var(--erp-sidebar-width);
+  }
+}
+
+/* ═══════════════════════════════════════════════
+   FOOTER (Bilgi bankası, Ayarlar, Admin)
+   ═══════════════════════════════════════════════ */
+.erp-sidebar-footer {
+  flex-shrink: 0;
+  padding: 0.5rem 0.625rem;
+  border-top: 1px solid rgba(255,255,255,0.05);
+}
+
+/* ═══════════════════════════════════════════════
+   PROFIL KARTI
+   ═══════════════════════════════════════════════ */
+.erp-sidebar-profile {
+  flex-shrink: 0;
+  padding: 0.625rem 0.75rem 0.875rem;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  background: rgba(0,0,0,0.2);
+}
+
+.erp-sidebar-profile__link {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 0.5rem;
+  border-radius: 0.75rem;
+  text-decoration: none;
+  color: inherit;
+  transition: background-color 0.15s ease;
+}
+
+.erp-sidebar-profile__link:hover,
+.erp-sidebar-profile__link--active {
+  background: rgba(255,255,255,0.07);
+}
+
+.erp-sidebar-profile__avatar {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.625rem;
+  background: linear-gradient(135deg, #334155, #1e293b);
+  border: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+
+.erp-sidebar-profile__avatar img {
+  width: 100%; height: 100%; object-fit: cover;
+}
+
+.erp-sidebar-profile__initials {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+.erp-sidebar-profile__meta {
+  min-width: 0;
+  flex: 1;
+}
+
+.erp-sidebar-profile__name {
+  display: block;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.erp-sidebar-profile__role {
+  display: block;
+  font-size: 0.65rem;
+  color: rgba(100,116,139,0.8);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 0.0625rem;
+}
+
+.erp-sidebar-profile__chevron {
+  flex-shrink: 0;
+  color: rgba(71,85,105,0.7);
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.erp-sidebar-profile__logout {
+  margin-top: 0.25rem;
+  padding: 0 0.5rem;
+}
+
+.erp-sidebar-profile__logout button {
+  width: 100%;
+  text-align: left;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: rgba(100,116,139,0.7);
+  padding: 0.3rem 0.375rem;
+  border-radius: 0.4rem;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: color 0.12s ease, background-color 0.12s ease;
+}
+
+.erp-sidebar-profile__logout button:hover {
+  color: #f87171;
+  background: rgba(127,29,29,0.2);
+}
+
+/* Platform linkleri */
+.erp-platform-quick-links {
+  display: flex; flex-wrap: wrap; gap: 0.375rem;
+}
+
+.erp-platform-quick-links__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: 0.5rem;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: rgba(148,163,184,0.8);
+  text-decoration: none;
+  transition: border-color 0.12s, color 0.12s, background-color 0.12s;
+}
+
+.erp-platform-quick-links__item:hover {
+  border-color: rgba(255,255,255,0.15);
+  color: #e2e8f0;
+  background: rgba(255,255,255,0.08);
+}
+
+.erp-platform-quick-links__item--accent {
+  border-color: rgba(251,191,36,0.3);
+  color: #fcd34d;
+  background: rgba(251,191,36,0.08);
+}
+
+.erp-platform-quick-links__item--accent:hover {
+  background: rgba(251,191,36,0.14);
+  border-color: rgba(251,191,36,0.5);
+}
+
+
   display: flex;
   align-items: center;
   gap: 0.75rem;

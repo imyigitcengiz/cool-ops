@@ -45,6 +45,7 @@ SECTOR_PRESETS: dict[str, dict[str, tuple[str, ...] | str]] = {
             'contact', 'services', 'accounting', 'outreach', 'settings',
             'e_invoice_bridge',
             'integration_data_harvest', 'integration_whatsapp_bridge',
+            'integration_whatsapp_api', 'integration_bulk_messaging',
             'integration_csv_exchange', 'integration_media', 'integration_weather',
         ),
         'particles': (
@@ -61,7 +62,7 @@ SECTOR_PRESETS: dict[str, dict[str, tuple[str, ...] | str]] = {
         'modules': (
             'contact', 'services', 'accounting', 'outreach', 'settings',
             'e_invoice_bridge',
-            'integration_whatsapp_bridge', 'integration_csv_exchange',
+            'integration_whatsapp_bridge', 'integration_bulk_messaging', 'integration_csv_exchange',
             'integration_media', 'integration_weather',
         ),
         'particles': (
@@ -80,7 +81,7 @@ SECTOR_PRESETS: dict[str, dict[str, tuple[str, ...] | str]] = {
         'modules': (
             'contact', 'accounting', 'outreach', 'settings',
             'e_invoice_bridge',
-            'integration_whatsapp_bridge', 'integration_whatsapp_api',
+            'integration_whatsapp_bridge', 'integration_whatsapp_api', 'integration_bulk_messaging',
             'integration_csv_exchange', 'integration_media', 'integration_weather',
         ),
         'particles': (
@@ -95,7 +96,7 @@ SECTOR_PRESETS: dict[str, dict[str, tuple[str, ...] | str]] = {
         'fit': FIT_ORTA,
         'modules': (
             'contact', 'services', 'outreach', 'settings',
-            'integration_whatsapp_bridge', 'integration_media', 'integration_weather',
+            'integration_whatsapp_bridge', 'integration_bulk_messaging', 'integration_media', 'integration_weather',
         ),
         'particles': (
             'p.contact.customers', 'p.contact.teams',
@@ -106,7 +107,7 @@ SECTOR_PRESETS: dict[str, dict[str, tuple[str, ...] | str]] = {
         'fit': FIT_KISMI,
         'modules': (
             'contact', 'outreach', 'settings',
-            'integration_whatsapp_api', 'integration_media', 'integration_weather',
+            'integration_whatsapp_api', 'integration_bulk_messaging', 'integration_media', 'integration_weather',
         ),
         'particles': (
             'p.contact.customers', 'p.contact.firms', 'p.outreach.campaigns',

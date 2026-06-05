@@ -23,6 +23,10 @@ class SiteSettings(models.Model):
     logo = models.ImageField(upload_to=site_logo_upload_to, null=True, blank=True)
     company_phone = models.CharField(max_length=50, blank=True, null=True, verbose_name="Firma Telefonu")
     company_address = models.TextField(blank=True, null=True, verbose_name="Firma Adresi")
+    
+    warranty_years = models.PositiveIntegerField(default=1, verbose_name="Garanti Süresi (Yıl)")
+    warranty_months = models.PositiveIntegerField(default=0, verbose_name="Garanti Süresi (Ay)")
+    warranty_days = models.PositiveIntegerField(default=0, verbose_name="Garanti Süresi (Gün)")
     currency_code = models.CharField(
         max_length=3,
         choices=CURRENCY_CODE_CHOICES,

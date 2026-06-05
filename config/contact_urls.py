@@ -31,6 +31,7 @@ from core_settings.views import (
 from tools.views import (
     FirmaBulView,
     FirmalarView,
+    FirmsExportCsvView,
     google_maps_search,
     google_maps_export_csv,
     firms_memory_list,
@@ -78,6 +79,7 @@ urlpatterns = [
     path('firma-kazi/search/', google_maps_search),
     path('firma-kazi/export-csv/', google_maps_export_csv),
     path('firmalar/', FirmalarView.as_view(), name='contact_firmalar'),
+    path('firmalar/export-csv/', FirmsExportCsvView.as_view(), name='contact_firms_export_csv'),
     path('firmalar/hafiza/', firms_memory_list, name='contact_firms_memory'),
     path('firmalar/hafiza/temizle/', firms_memory_clear_api, name='contact_firms_memory_clear'),
     path('firmalar/hafiza/toplu/', firms_bulk_api, name='contact_firms_bulk'),

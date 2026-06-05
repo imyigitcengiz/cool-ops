@@ -26,6 +26,15 @@ class ToolsHubView(TemplateView):
         return redirect('capabilities_hub')
 
 
+class FirmsExportCsvView(PermissionRequiredMixin, View):
+    permission_required = 'contact.firms'
+
+    def get(self, request):
+        from tools.firm_csv_export import export_firms_csv_response
+
+        return export_firms_csv_response(request)
+
+
 class FirmalarView(TemplateView):
     """Birleşik firma rehberi: manuel kayıt, kazınan, çözüm ortağı, bayi, iş ortağı."""
     template_name = 'crm/firms_hub.html'
@@ -223,28 +232,9 @@ def firms_memory_list(request):
     page_size = min(max(int(request.GET.get('page_size') or 50), 1), 200)
 
     kind = (request.GET.get('kind') or '').strip()
-    qs = (
-        MapsScrapedFirm.objects.prefetch_related('tags', 'solution_partner__partner_type')
-        .exclude(notes=CUSTOMER_SHADOW_NOTE)
-        .order_by('-last_scraped_at')
-    )
-    if kind and kind != 'all':
-        qs = qs.filter(firm_kind=kind)
-    if q:
-        qs = qs.filter(
-            Q(name__icontains=q)
-            | Q(phone__icontains=q)
-            | Q(address__icontains=q)
-            | Q(notes__icontains=q)
-            | Q(region__icontains=q)
-        )
-    if region:
-        qs = qs.filter(region__iexact=region)
-    if tag_id:
-        try:
-            qs = qs.filter(tags__id=int(tag_id))
-        except (TypeError, ValueError):
-            pass
+    from tools.firm_csv_export import firms_directory_queryset
+
+    qs = firms_directory_queryset(q=q, kind=kind, region=region, tag_id=tag_id)
 
     total = qs.count()
     start = (page - 1) * page_size

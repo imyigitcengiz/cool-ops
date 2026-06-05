@@ -14,7 +14,7 @@ ILETISIM_MERKEZI = 'İletişim Merkezi'
 REHBER = 'Rehber'
 YARDIM_MASASI = 'Yardım Masası'
 SATIS_BIRIMI = 'Satış Birimi'
-MUHASEBE = 'Muhasebe'
+MUHASEBE = 'Satış Birimi'
 
 # Yardım Masası altı
 YM_OZET = 'Durum özeti'
@@ -55,7 +55,7 @@ MH_DIS_AKTARIM = 'Dış aktarım'
 MH_ZAMAN = 'Zaman kaydı'
 MH_PROJELER = 'Montaj programı'
 MH_MAAS_RAPORU = 'Maaş & avans raporu'
-MH_TAGLINE = 'Maaş, avans, gelir & gider ve satış'
+MH_TAGLINE = 'Satış, maaş, avans, gelir & gider'
 SB_RAPOR = 'Satış raporu'
 
 ORTAK_URUNLER = 'Ürünler (ortak katalog)'

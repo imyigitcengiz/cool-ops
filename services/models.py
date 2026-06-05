@@ -44,6 +44,14 @@ class ServiceRecord(models.Model):
         ('expired', 'Garanti Bitti'),
     ]
     warranty_status = models.CharField(max_length=20, choices=WARRANTY_STATUS_CHOICES, default='active', verbose_name="Garanti Durumu")
+    partner_fee = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        verbose_name="Ödenecek Ücret",
+    )
+    warranty_note = models.TextField(blank=True, null=True, verbose_name="Garanti Açıklaması / Notu")
 
     list_price = models.DecimalField(
         max_digits=12,

@@ -9,42 +9,65 @@ from core_settings.models import ServiceTypeOption, ProductOption, SolutionPartn
 
 
 class ServiceRecordForm(forms.ModelForm):
+    list_price = forms.CharField(
+        required=False,
+        widget=forms.NumberInput(attrs={
+            'class': 'w-full p-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-brand-500',
+            'step': '0.01',
+            'min': '0',
+            'placeholder': '0,00',
+        })
+    )
+    discounted_price = forms.CharField(
+        required=False,
+        widget=forms.NumberInput(attrs={
+            'class': 'w-full p-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-brand-500',
+            'step': '0.01',
+            'min': '0',
+            'placeholder': '0,00',
+        })
+    )
+    partner_fee = forms.CharField(
+        required=False,
+        widget=forms.NumberInput(attrs={
+            'class': 'w-full p-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-brand-500',
+            'step': '0.01',
+            'min': '0',
+            'placeholder': '0,00',
+            'form': 'serviceRecordForm',
+        })
+    )
+
     class Meta:
         model = ServiceRecord
         fields = [
-            'customer', 'solution_partner', 'status', 'priority', 'products',
-            'service_types', 'notes', 'assigned_to', 'service_personnel',
-            'warranty_status', 'list_price', 'discounted_price', 'scheduled_at',
+            'customer', 'solution_partner', 'partner_fee', 'status', 'priority', 'products',
+            'service_types', 'notes', 'service_personnel',
+            'warranty_status', 'warranty_note', 'list_price', 'discounted_price', 'scheduled_at',
         ]
         widgets = {
             'customer': forms.Select(attrs={'class': 'w-full p-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-brand-500'}),
-            'solution_partner': forms.Select(attrs={'class': 'w-full p-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-brand-500'}),
+            'solution_partner': forms.Select(attrs={
+                'class': 'w-full p-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-brand-500',
+                'form': 'serviceRecordForm',
+            }),
             'status': forms.Select(attrs={'class': 'w-full p-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-brand-500'}),
             'priority': forms.Select(attrs={'class': 'w-full p-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-brand-500'}),
             'products': forms.CheckboxSelectMultiple(attrs={'class': 'grid grid-cols-2 gap-4'}),
             'service_types': forms.CheckboxSelectMultiple(attrs={'class': 'grid grid-cols-2 gap-4'}),
             'notes': forms.Textarea(attrs={'class': 'w-full p-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-brand-500', 'rows': 3}),
-            'assigned_to': forms.Select(attrs={'class': 'w-full p-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-brand-500'}),
             'service_personnel': forms.Select(attrs={'class': 'w-full p-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-brand-500'}),
             'warranty_status': forms.Select(attrs={'class': 'w-full p-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-brand-500'}),
-            'list_price': forms.NumberInput(attrs={
+            'warranty_note': forms.Textarea(attrs={
                 'class': 'w-full p-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-brand-500',
-                'step': '0.01',
-                'min': '0',
-                'placeholder': '0,00',
-            }),
-            'discounted_price': forms.NumberInput(attrs={
-                'class': 'w-full p-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-brand-500',
-                'step': '0.01',
-                'min': '0',
-                'placeholder': '0,00',
+                'rows': 2,
+                'placeholder': 'Garanti bitiş sebebini açıklayın...',
             }),
             'scheduled_at': forms.DateTimeInput(attrs={
                 'class': 'w-full p-3 bg-slate-50 border-none rounded-xl focus:ring-2 focus:ring-brand-500',
                 'type': 'datetime-local',
             }),
         }
-
     def _resolve_customer(self):
         if self.instance and self.instance.pk and self.instance.customer_id:
             return self.instance.customer
@@ -69,13 +92,16 @@ class ServiceRecordForm(forms.ModelForm):
         self.fields['solution_partner'].queryset = partner_qs
         self.fields['solution_partner'].empty_label = 'Çözüm ortağı seçin (opsiyonel)'
         self.fields['service_personnel'].queryset = personnel_qs
-        self.fields['service_personnel'].empty_label = 'Servis personeli seçin (opsiyonel)'
+        self.fields['service_personnel'].label = 'Sorumlu Servis Personeli / Ekip'
+        self.fields['service_personnel'].empty_label = 'Servis personeli / ekip seçin (opsiyonel)'
+        self.fields['service_personnel'].label_from_instance = lambda obj: f"{obj.name} ({obj.team.name})" if obj.team else obj.name
         from core_settings.models import SiteSettings
         from common.currency import currency_from_settings
 
         sym = currency_from_settings(SiteSettings.objects.first()).symbol
         self.fields['list_price'].label = f'Normal fiyat ({sym})'
         self.fields['discounted_price'].label = f'İndirimli fiyat ({sym})'
+        self.fields['partner_fee'].label = f'Ödenecek Ücret ({sym})'
 
         customer = self._resolve_customer()
         if customer:
@@ -138,3 +164,6 @@ class ServiceRecordForm(forms.ModelForm):
 
     def clean_discounted_price(self):
         return self._clean_price_field('discounted_price')
+
+    def clean_partner_fee(self):
+        return self._clean_price_field('partner_fee')

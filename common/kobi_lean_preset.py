@@ -34,7 +34,7 @@ LEGACY_BLOATED_MODULES: frozenset[str] = frozenset({
     'supplier_payables', 'e_invoice_bridge', 'project_costing', 'multi_cash',
     'projects', 'timesheet',  # eski ayrı modül slug'ları (artık parçacık)
     'integration_data_harvest', 'integration_whatsapp_bridge',
-    'integration_whatsapp_api', 'integration_media', 'integration_weather',
+    'integration_whatsapp_api', 'integration_bulk_messaging', 'integration_media', 'integration_weather',
 })
 
 LEGACY_BLOATED_PARTICLES: frozenset[str] = frozenset({

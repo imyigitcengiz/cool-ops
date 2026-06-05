@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from django.db.models import DecimalField, Q, Sum, Value
+from django.db.models import DecimalField, Q, Sum, Value, Subquery, OuterRef
 from django.db.models.functions import Coalesce
 
 from core_settings.models import FinanceRecord
@@ -42,18 +42,37 @@ def remaining_balance_for_lead(lead) -> Decimal:
 
 def annotate_sales_collection(qs):
     """Liste sorguları için tahsilat toplamları."""
+    from sales_leads.models import SalesLeadInterimPayment
+
+    interim_sub = (
+        SalesLeadInterimPayment.objects.filter(sales_lead_id=OuterRef('pk'))
+        .order_by()
+        .values('sales_lead_id')
+        .annotate(total=Sum('amount'))
+        .values('total')
+    )
+
+    finance_sub = (
+        FinanceRecord.objects.filter(
+            sales_lead_id=OuterRef('pk'),
+            record_type=FinanceRecord.TYPE_INCOME
+        )
+        .order_by()
+        .values('sales_lead_id')
+        .annotate(total=Sum('amount'))
+        .values('total')
+    )
+
     return qs.annotate(
         _interim_total=Coalesce(
-            Sum('interim_payments__amount'),
+            Subquery(interim_sub, output_field=DecimalField(max_digits=14, decimal_places=2)),
             Value(Decimal('0')),
             output_field=DecimalField(max_digits=14, decimal_places=2),
         ),
         _finance_income_total=Coalesce(
-            Sum(
-                'finance_records__amount',
-                filter=Q(finance_records__record_type=FinanceRecord.TYPE_INCOME),
-            ),
+            Subquery(finance_sub, output_field=DecimalField(max_digits=14, decimal_places=2)),
             Value(Decimal('0')),
             output_field=DecimalField(max_digits=14, decimal_places=2),
         ),
     )
+

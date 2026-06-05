@@ -100,6 +100,7 @@
             </div>
         </div>
         <div class="flex flex-wrap gap-2">
+            <a href="{% url 'contact_firms_export_csv' %}" class="px-4 py-2 rounded-xl bg-slate-800 text-white text-sm font-bold hover:bg-slate-900">CSV indir</a>
             <a href="{% url 'contact_firmalar' %}" class="px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-700 hover:bg-slate-50">Firma rehberine git</a>
             <a href="{% url 'csv_import_wizard' %}?type=firms&next={{ request.get_full_path|urlencode }}" class="px-4 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-800 text-sm font-bold hover:bg-rose-100">CSV yükle</a>
         </div>

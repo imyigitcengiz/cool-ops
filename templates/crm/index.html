@@ -20,15 +20,9 @@
     </div>
     {% if user_access.sales or user_access.accounting %}
     <div class="rounded-2xl bg-amber-50 border border-amber-100 px-4 py-3">
-        <p class="text-[10px] font-bold uppercase text-amber-700">Toplam alacak</p>
+        <p class="text-[10px] font-bold uppercase text-amber-700">Açık satış</p>
         <p class="text-xl font-black text-amber-900">{{ total_receivable|floatformat:2|default:"0" }} {{ currency_symbol }}</p>
     </div>
-    {% if user_perms.sales_reports or user_perms.sales_manage %}
-    <a href="{% url 'accounting_receivables' %}" class="rounded-2xl bg-amber-50/80 border border-amber-200 px-4 py-3 hover:border-amber-400 transition-colors">
-        <p class="text-[10px] font-bold uppercase text-amber-700">Alacak listesi →</p>
-        <p class="text-sm font-semibold text-amber-900 mt-1">Detaylı takip</p>
-    </a>
-    {% endif %}
     {% endif %}
 </div>
 {% endif %}
@@ -90,7 +84,7 @@
             <i data-lucide="id-card" class="w-6 h-6"></i>
         </div>
         <h2 class="text-lg font-bold text-slate-900">{{ gy.mh_personel }}</h2>
-        <p class="text-sm text-slate-500 mt-2">Personel kayıtları ve ekip atamaları — muhasebe modülünde.</p>
+        <p class="text-sm text-slate-500 mt-2">Personel kayıtları ve ekip atamaları — satış birimi.</p>
     </a>
     {% endif %}
 </div>

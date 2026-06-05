@@ -41,7 +41,7 @@ PERMISSIONS = [
     ('contact.teams', 'Ekip yönetimi', 'Rehber', PERMISSION_KIND_ACTION, 240,
      'Servis ekiplerini tanımlama, düzenleme ve silme.'),
     ('contact.personnel', 'Personel kayıtları', 'Rehber', PERMISSION_KIND_ACTION, 245,
-     'Personel ağı ve yönetimi — departman, ünvan, ekip (/contact/personel/).'),
+     'Personeller ve yönetimi — departman, ünvan, ekip (/contact/personel/).'),
     ('contact.payroll', 'Maaş & avans kayıtları', 'Muhasebe', PERMISSION_KIND_ACTION, 250,
      'Personel maaş ve avans ödemesi ekleme ve silme.'),
     ('accounting.finance', 'Gelir & gider kayıtları', 'Muhasebe', PERMISSION_KIND_ACTION, 255,

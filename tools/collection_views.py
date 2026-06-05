@@ -14,10 +14,12 @@ from django.views.decorators.http import require_http_methods
 
 from tools.collections import (
     DEFAULT_TEMPLATE,
+    TEMPLATE_PLACEHOLDERS,
     add_firm_to_collection,
     add_manual_to_collection,
     add_customer_to_collection,
     get_or_create_default_collection,
+    preview_message_template,
     serialize_collection,
 )
 from customers.models import Customer
@@ -56,7 +58,15 @@ def collections_api(request):
 
             items = [serialize_collection(default)]
 
-        return JsonResponse({'ok': True, 'collections': items})
+        return JsonResponse({
+            'ok': True,
+            'collections': items,
+            'default_message_template': DEFAULT_TEMPLATE,
+            'template_placeholders': [
+                {'key': key, 'label': label, 'token': '{' + key + '}'}
+                for key, label in TEMPLATE_PLACEHOLDERS
+            ],
+        })
 
 
 
@@ -107,12 +117,15 @@ def collection_detail_api(request, pk):
     body = _json_body(request) or {}
 
     if 'name' in body:
-
-        col.name = (body.get('name') or col.name).strip()[:120]
+        new_name = (body.get('name') or '').strip()[:120]
+        if not new_name:
+            return JsonResponse({'ok': False, 'error': 'Kampanya adı boş olamaz.'}, status=400)
+        col.name = new_name
 
     if 'message_template' in body:
-
-        col.message_template = body.get('message_template') or col.message_template
+        col.message_template = (body.get('message_template') or '').strip()
+        if not col.message_template:
+            return JsonResponse({'ok': False, 'error': 'Mesaj şablonu boş olamaz.'}, status=400)
 
     if 'skip_globally_messaged' in body:
 
@@ -124,7 +137,7 @@ def collection_detail_api(request, pk):
 
     if 'delay_seconds' in body:
 
-        col.delay_seconds = max(1, min(int(body.get('delay_seconds') or 4), 30))
+        col.delay_seconds = max(1, min(int(body.get('delay_seconds') or 4), 120))
 
     col.save()
 
