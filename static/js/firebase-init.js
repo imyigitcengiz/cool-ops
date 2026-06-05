@@ -2,12 +2,12 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 
 // Firebase configuration from user request
 const firebaseConfig = {
-  apiKey: "AIzaSyDKwMqrryelevM1l-4YVhKBEHhh5av65jw",
-  authDomain: "coolops-bf6a0.firebaseapp.com",
-  projectId: "coolops-bf6a0",
-  storageBucket: "coolops-bf6a0.firebasestorage.app",
-  messagingSenderId: "1063306383609",
-  appId: "1:1063306383609:web:79105eaaaba29e2eecd228"
+  apiKey: "AIzaSyCr7_6NF3_54EhcvAAx0xdFt-MU-gKf7Zw",
+  authDomain: "coolops-5a2de.firebaseapp.com",
+  projectId: "coolops-5a2de",
+  storageBucket: "coolops-5a2de.firebasestorage.app",
+  messagingSenderId: "812333634392",
+  appId: "1:812333634392:web:78b9c231cac7b8230a4b2d"
 };
 
 // Initialize Firebase
