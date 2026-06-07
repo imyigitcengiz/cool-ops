@@ -700,7 +700,7 @@ class AccountingPersonnelView(TemplateView):
     def post(self, request, *args, **kwargs):
         if not can_manage_payroll_personnel(request.user):
             messages.error(request, 'Personel yönetimi için yetkiniz yok.')
-            return redirect('contact_personnel')
+            return redirect('accounting_personnel')
 
         period_qs = ''
         if request.GET.get('period'):
@@ -758,7 +758,7 @@ class AccountingPersonnelView(TemplateView):
         elif 'delete_personnel' in request.POST:
             ServicePersonnel.objects.filter(id=request.POST.get('id')).delete()
             messages.info(request, 'Personel silindi.')
-        return redirect(f"{reverse('contact_personnel')}{period_qs}")
+        return redirect(f"{reverse('accounting_personnel')}{period_qs}")
 
 
 class AccountingHubView(TemplateView):

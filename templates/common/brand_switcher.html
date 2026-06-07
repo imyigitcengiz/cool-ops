@@ -13,14 +13,12 @@
         </span>
         {% endif %}
         <span class="truncate">{% if active_brand %}{{ active_brand.name }}{% else %}{{ site_settings.site_name }}{% endif %}</span>
-        {% if has_multiple_brands %}
         <i data-lucide="chevron-down" class="w-4 h-4 shrink-0 text-slate-400"></i>
-        {% endif %}
     </button>
-    {% if has_multiple_brands %}
     <div class="erp-brand-switcher__menu hidden absolute right-0 top-full mt-1 min-w-[12rem] z-50 bg-white border border-slate-200 rounded-xl shadow-lg py-1"
          role="listbox"
          data-erp-brand-menu>
+        {% if has_multiple_brands %}
         {% for b in user_brands %}
         <form method="post" action="{% url 'brand_switch' %}" class="block">
             {% csrf_token %}
@@ -40,14 +38,13 @@
             </button>
         </form>
         {% endfor %}
-        <div class="border-t border-slate-100 mt-1 pt-1">
-            <a href="{% url 'profile_settings' %}#marka-firma"
-               class="block px-3 py-2 text-xs font-semibold text-slate-500 hover:text-brand-700 hover:bg-slate-50">
-                Marka / firma ekle…
-            </a>
-        </div>
+        <div class="border-t border-slate-100 mt-1 pt-1"></div>
+        {% endif %}
+        <a href="{% url 'subscription_dashboard' %}"
+           class="block px-3 py-2 text-xs font-semibold text-slate-500 hover:text-brand-700 hover:bg-slate-50">
+            Abonelik & bayi yönetimi…
+        </a>
     </div>
-    {% endif %}
 </div>
 <script>
 (function () {

@@ -1,0 +1,41 @@
+{% extends 'users/yonetim/base.html' %}
+{% block title %}Marka sil{% endblock %}
+{% block content %}
+<div class="max-w-lg bg-white rounded-3xl border border-red-100 p-6 shadow-sm">
+    <h1 class="text-xl font-bold text-slate-900">Marka kalıcı silinsin mi?</h1>
+    <p class="text-sm text-slate-600 mt-2">
+        <span class="font-semibold text-slate-900">{{ object.name }}</span>
+        ({{ object.slug }}) ve ilişkili veriler geri alınamaz şekilde silinecek.
+    </p>
+    {% if brand_delete_warning %}
+    <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        {{ brand_delete_warning }}
+    </div>
+    {% endif %}
+    <dl class="mt-4 text-sm space-y-1 text-slate-700">
+        <div class="flex justify-between"><dt>Müşteri</dt><dd class="font-bold">{{ brand_delete_stats.customers }}</dd></div>
+        <div class="flex justify-between"><dt>Servis</dt><dd class="font-bold">{{ brand_delete_stats.services }}</dd></div>
+        <div class="flex justify-between"><dt>Üyelik</dt><dd class="font-bold">{{ brand_delete_stats.memberships }}</dd></div>
+        <div class="flex justify-between"><dt>Bayi paneli</dt><dd class="font-bold">{{ brand_delete_stats.dealers }}</dd></div>
+    </dl>
+    <form method="post" class="mt-6 space-y-4">
+        {% csrf_token %}
+        <div>
+            <label class="text-sm font-semibold text-slate-700">Onay — marka adını yazın</label>
+            <input type="text" name="confirm_name" required autocomplete="off" placeholder="{{ object.name }}"
+                class="mt-1 w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-sm">
+        </div>
+        {% if brand_requires_wipe %}
+        <label class="flex items-start gap-2 text-sm text-slate-700">
+            <input type="checkbox" name="confirm_wipe" class="mt-1 w-4 h-4 accent-red-600">
+            <span>Müşteri, servis ve bağlı bayi verilerinin silinmesini onaylıyorum.</span>
+        </label>
+        {% endif %}
+        <div class="flex gap-3 pt-2">
+            <a href="{% url 'admin_brand_detail' object.pk %}" class="px-5 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold">Vazgeç</a>
+            <button type="submit" class="px-5 py-2.5 rounded-xl bg-red-600 text-white font-bold hover:bg-red-700">Kalıcı sil</button>
+        </div>
+    </form>
+    <p class="text-xs text-slate-500 mt-4">Yalnızca erişimi kapatmak için <a href="{% url 'admin_brand_edit' object.pk %}" class="text-brand-700 font-semibold">pasifleştirme</a> yeterlidir.</p>
+</div>
+{% endblock %}

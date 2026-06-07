@@ -1,9 +1,10 @@
 import os
 from pathlib import Path
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.hashers import make_password
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 
 from users.models import Role
 
@@ -46,6 +47,11 @@ class Command(BaseCommand):
 
         if created or options['reset_password']:
             password = os.environ.get('DJANGO_SUPERADMIN_PASSWORD', '').strip() or 'admin'
+            if not settings.DEBUG and password == 'admin':
+                raise CommandError(
+                    'Üretim ortamında varsayılan admin şifresi kullanılamaz. '
+                    'DJANGO_SUPERADMIN_PASSWORD ortam değişkenini ayarlayın.'
+                )
             user.password = make_password(password)
             data_dir = Path(os.environ.get('DATA_DIR', '/data'))
             pwd_file = data_dir / '.initial_admin_password'

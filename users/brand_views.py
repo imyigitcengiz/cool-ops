@@ -4,7 +4,7 @@ from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views import View
 
-from common.brand_scope import create_brand_for_user, set_active_brand
+from common.brand_scope import set_active_brand
 
 
 class BrandSwitchView(LoginRequiredMixin, View):
@@ -17,7 +17,7 @@ class BrandSwitchView(LoginRequiredMixin, View):
             brand_id = int(raw)
         except (TypeError, ValueError):
             messages.error(request, 'Geçersiz marka seçimi.')
-            return redirect('profile_settings')
+            return redirect(next_url)
         if set_active_brand(request, brand_id):
             messages.success(request, 'Aktif marka güncellendi.')
         else:

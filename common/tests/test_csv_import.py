@@ -104,7 +104,41 @@ class CsvMappingTests(TestCase):
 
 class CsvImportWizardTests(TestCase):
     def setUp(self):
-        self.user = User.objects.create_user(username='csvadmin', password='test12345', is_superuser=True)
+        from common.brand_scope import create_brand_for_user
+        from core_settings.models import SiteSettings
+        from users.models import Permission, Role
+
+        from common.module_runtime import get_enabled_module_slugs
+
+        settings = SiteSettings.objects.create(site_name='CSV Wizard')
+        enabled = list(get_enabled_module_slugs())
+        if 'integration_csv_exchange' not in enabled:
+            settings.enabled_module_slugs = enabled + ['integration_csv_exchange']
+            settings.save()
+        role = Role.objects.create(slug='csv-wizard', name='CSV Wizard', is_system=False)
+        for codename in (
+            'access.contact',
+            'contact.customers',
+            'contact.payroll',
+            'accounting.finance',
+            'sales.manage',
+            'access.tools',
+        ):
+            perm, _ = Permission.objects.get_or_create(
+                codename=codename,
+                defaults={'name': codename, 'module': 'Test', 'kind': 'action', 'sort_order': 0},
+            )
+            role.permissions.add(perm)
+        self.user = User.objects.create_user(username='csvadmin', password='test12345', role=role)
+        self.brand = create_brand_for_user(self.user, 'CSV Marka')
+
+    def _login(self):
+        from common.brand_scope import SESSION_ACTIVE_BRAND
+
+        self.client.force_login(self.user)
+        session = self.client.session
+        session[SESSION_ACTIVE_BRAND] = self.brand.pk
+        session.save()
 
     def test_finance_import_with_custom_mapping(self):
         rows = [{'desc': 'Kira', 'tip': 'gider', 'price': '500'}]
@@ -189,7 +223,7 @@ class CsvImportWizardTests(TestCase):
         self.assertEqual(Customer.objects.get(name='Ali Veli').region, 'İzmir')
 
     def test_wizard_upload_and_import_flow(self):
-        self.client.force_login(self.user)
+        self._login()
         csv_text = 'Personel;Tür;Tutar\nAhmet Yılmaz;avans;250\n'
         ServicePersonnel.objects.create(name='Ahmet Yılmaz', monthly_salary=10000)
         uploaded = SimpleUploadedFile('payroll.csv', csv_text.encode('utf-8-sig'), content_type='text/csv')
@@ -224,10 +258,15 @@ class CsvImportWizardTests(TestCase):
         self.assertEqual(PersonnelPayment.objects.count(), 1)
 
     def test_customer_export_csv(self):
-        c = Customer.objects.create(name='Export Test', phone='0500', region='Ankara')
+        c = Customer.objects.create(
+            name='Export Test',
+            phone='0500',
+            region='Ankara',
+            brand=self.brand,
+        )
         ProductOption.objects.create(name='Test Ürün')
         c.products.add(ProductOption.objects.get(name='Test Ürün'))
-        self.client.force_login(self.user)
+        self._login()
         resp = self.client.get('/contact/musteriler/export-csv/')
         self.assertEqual(resp.status_code, 200)
         body = resp.content.decode('utf-8-sig')

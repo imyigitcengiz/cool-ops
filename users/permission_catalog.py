@@ -127,6 +127,7 @@ DEFAULT_ROLES = {
 ROUTE_PERMISSIONS = [
     ('/api/bildirimler/', None),
     ('/api/hizli-arama/', None),
+    ('/panel/ekip/', 'access.home'),
     ('/yonetim/', None),
     ('/profil/', None),
     ('/chat/', None),
@@ -246,10 +247,12 @@ ROUTE_PERMISSIONS = [
     ('/tools/', 'access.tools'),
     ('/admin/', None),
     ('/media/', None),
+    ('/panel/abonelik/modul-toggle/', 'access.home'),
     ('/panel/moduller/toggle/', 'access.home'),
     ('/panel/moduller/', 'access.home'),
+    ('/panel/abonelik/', 'access.home'),
     ('/panel/', 'access.home'),
 ]
 
-LOGIN_EXEMPT_PREFIXES = ('/giris/', '/static/', '/healthz/', '/bilgi-bankasi/')
-SUPERUSER_ONLY_PREFIXES = ('/yonetim/', '/ayarlar/yedekler/')
+LOGIN_EXEMPT_PREFIXES = ('/giris/', '/kayit/', '/static/', '/healthz/', '/bilgi-bankasi/')
+SUPERUSER_ONLY_PREFIXES = ('/yonetim/',)

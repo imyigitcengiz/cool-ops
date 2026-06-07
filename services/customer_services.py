@@ -54,13 +54,17 @@ def serialize_service_brief(service, *, include_edit_url=True):
     return payload
 
 
-def customer_services_payload(customer_id, *, timeline_limit=40):
+def customer_services_payload(customer_id, *, timeline_limit=40, request=None):
     from .models import ServiceRecord
 
     ensure_default_statuses()
+    qs = ServiceRecord.objects.filter(customer_id=customer_id)
+    if request is not None:
+        from common.brand_scope import filter_services
+
+        qs = filter_services(qs, request)
     qs = (
-        ServiceRecord.objects.filter(customer_id=customer_id)
-        .select_related('status', 'priority', 'customer')
+        qs.select_related('status', 'priority', 'customer')
         .prefetch_related('service_types', 'products')
         .order_by('-created_at')
     )

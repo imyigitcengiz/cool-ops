@@ -6,8 +6,8 @@
     </a>
     {% endif %}
     {% if can_manage_modules %}
-    <a href="{% url 'module_hub' %}" class="erp-platform-quick-links__item">
-        <i data-lucide="puzzle" class="w-4 h-4"></i> {{ gy.modul_merkezi }}
+    <a href="{% url 'subscription_dashboard' %}#moduller" class="erp-platform-quick-links__item">
+        <i data-lucide="puzzle" class="w-4 h-4"></i> Abonelik modülleri
     </a>
     {% endif %}
     {% if panel_integrations or can_manage_modules %}

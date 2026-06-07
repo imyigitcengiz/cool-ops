@@ -12,11 +12,6 @@
 <a href="{% url 'settings_tags' %}" class="erp-nav-link{% if active == 'settings_tags' or active == 'settings_partner_types' %} erp-nav-link--active{% endif %}">
     <i data-lucide="tags" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">Etiketler & türler</span>
 </a>
-{% if user.is_superuser %}
-<a href="{% url 'settings_system_backup' %}" class="erp-nav-link erp-nav-link--danger{% if active == 'settings_system_backup' %} erp-nav-link--active{% endif %}">
-    <i data-lucide="database-backup" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">Yedekleme</span>
-</a>
-{% endif %}
 {% if user_perms.tools_ai %}
 <a href="{% url 'settings_ai_settings' %}" class="erp-nav-link{% if active == 'settings_ai_settings' or active == 'settings_ai_reporting' %} erp-nav-link--active{% endif %}">
     <i data-lucide="sparkles" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">AI</span>

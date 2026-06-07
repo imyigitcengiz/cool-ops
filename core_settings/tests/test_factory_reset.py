@@ -58,13 +58,13 @@ class FactoryResetDatabaseTests(TestCase):
         )
         client = Client()
         client.force_login(user)
-        response = client.get(reverse('settings_system_backup'))
+        response = client.get(reverse('admin_system_backup'))
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, reverse('home'))
 
     def test_factory_reset_post_validates_confirmation(self):
         client, user = _superuser_client(password='secret123')
-        url = reverse('settings_system_backup')
+        url = reverse('admin_system_backup')
         response = client.post(url, {
             'factory_reset_database': '1',
             'acknowledge_data_loss': 'on',
@@ -77,7 +77,7 @@ class FactoryResetDatabaseTests(TestCase):
     @patch('core_settings.system_backup_handlers.import_sqlite_file', return_value=(True, 'SQLite yüklendi.'))
     def test_import_sqlite_success_logs_out(self, _mock_import):
         client, _user = _superuser_client(password='secret123')
-        url = reverse('settings_system_backup')
+        url = reverse('admin_system_backup')
         uploaded = SimpleUploadedFile('test.sqlite3', b'SQLite format 3\x00' + b'\x00' * 200)
         response = client.post(url, {'import_sqlite': '1', 'sqlite_file': uploaded})
         self.assertEqual(response.status_code, 302)
@@ -86,7 +86,7 @@ class FactoryResetDatabaseTests(TestCase):
     def test_factory_reset_post_success_logs_out(self):
         client, user = _superuser_client(password='secret123')
         Customer.objects.create(name='Kayıt')
-        url = reverse('settings_system_backup')
+        url = reverse('admin_system_backup')
         response = client.post(url, {
             'factory_reset_database': '1',
             'acknowledge_data_loss': 'on',

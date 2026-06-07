@@ -85,10 +85,14 @@ class ServiceRecordForm(forms.ModelForm):
         partner_qs = SolutionPartner.objects.filter(is_active=True).order_by('name')
         personnel_qs = ServicePersonnel.objects.filter(is_active=True).select_related('team', 'department').order_by('name')
         if request:
-            from common.brand_scope import filter_by_brand
+            from common.brand_scope import filter_by_brand, filter_customers
 
             partner_qs = filter_by_brand(partner_qs, request)
             personnel_qs = filter_by_brand(personnel_qs, request)
+            self.fields['customer'].queryset = filter_customers(
+                Customer.objects.order_by('name'),
+                request,
+            )
         self.fields['solution_partner'].queryset = partner_qs
         self.fields['solution_partner'].empty_label = 'Çözüm ortağı seçin (opsiyonel)'
         self.fields['service_personnel'].queryset = personnel_qs
@@ -108,6 +112,15 @@ class ServiceRecordForm(forms.ModelForm):
             self.fields['products'].queryset = customer.products.order_by('name')
         else:
             self.fields['products'].queryset = ProductOption.objects.none()
+
+    def clean_customer(self):
+        customer = self.cleaned_data.get('customer')
+        if customer and self._request:
+            from common.brand_scope import filter_customers
+
+            if not filter_customers(Customer.objects.filter(pk=customer.pk), self._request).exists():
+                raise ValidationError('Seçilen müşteri bu panel kapsamında değil.')
+        return customer
 
     def clean(self):
         cleaned = super().clean()

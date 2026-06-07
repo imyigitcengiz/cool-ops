@@ -1,6 +1,29 @@
 from django.urls import path
+from django.views.generic import RedirectView
 
+from .brand_team_views import (
+    BrandTeamHomeView,
+    BrandTeamRoleCreateView,
+    BrandTeamRoleDeleteView,
+    BrandTeamRoleListView,
+    BrandTeamRoleUpdateView,
+    BrandTeamUserCreateView,
+    BrandTeamUserDeleteView,
+    BrandTeamUserListView,
+    BrandTeamUserUpdateView,
+)
 from .admin_views import (
+    AdminBrandActivateView,
+    AdminBrandCreateView,
+    AdminBrandDeactivateView,
+    AdminBrandDeleteView,
+    AdminBrandDetailView,
+    AdminBrandInspectView,
+    AdminBrandListView,
+    AdminBrandUpdateView,
+    AdminRelationsView,
+    AdminReportsView,
+    AdminUsageReportView,
     AdminUserCreateView,
     AdminUserDeleteView,
     AdminUserListView,
@@ -15,12 +38,25 @@ from .admin_views import (
     RoleUpdateView,
     SuperAdminDashboardView,
 )
-from .impersonation_views import ImpersonateStartView, ImpersonateStopView
+from .admin_platform_views import (
+    AdminAuditLogView,
+    AdminBillingInvoiceCreateView,
+    AdminBillingInvoiceListView,
+    AdminPlanCreateView,
+    AdminPlanListView,
+    AdminPlanUpdateView,
+    AdminSiteSettingsView,
+    AdminUsageReportExportView,
+    AdminUsersExportView,
+)
+from .impersonation_views import ImpersonateStopView
 from .brand_views import BrandSwitchView
-from .views import ProfileSettingsView, UserLoginView, UserLogoutView
+from .views import ProfileSettingsView, UserLoginView, UserLogoutView, UserRegisterView
 
 urlpatterns = [
     path('profil/', ProfileSettingsView.as_view(), name='profile_settings'),
+    path('profil/markalar/', RedirectView.as_view(pattern_name='subscription_dashboard', permanent=False), name='brands_manage'),
+    path('kayit/', UserRegisterView.as_view(), name='register'),
     path('profil/marka/degist/', BrandSwitchView.as_view(), name='brand_switch'),
     path('profil/gecis/bitir/', ImpersonateStopView.as_view(), name='impersonate_stop'),
     path('giris/', UserLoginView.as_view(), name='login'),
@@ -30,11 +66,39 @@ urlpatterns = [
     path('yonetim/roller/yeni/', RoleCreateView.as_view(), name='admin_role_create'),
     path('yonetim/roller/<int:pk>/duzenle/', RoleUpdateView.as_view(), name='admin_role_edit'),
     path('yonetim/roller/<int:pk>/sil/', RoleDeleteView.as_view(), name='admin_role_delete'),
+    path('panel/ekip/', BrandTeamHomeView.as_view(), name='brand_team_home'),
+    path('panel/ekip/kullanicilar/', BrandTeamUserListView.as_view(), name='brand_team_users'),
+    path('panel/ekip/kullanicilar/yeni/', BrandTeamUserCreateView.as_view(), name='brand_team_user_create'),
+    path('panel/ekip/kullanicilar/<int:pk>/duzenle/', BrandTeamUserUpdateView.as_view(), name='brand_team_user_edit'),
+    path('panel/ekip/kullanicilar/<int:pk>/sil/', BrandTeamUserDeleteView.as_view(), name='brand_team_user_delete'),
+    path('panel/ekip/roller/', BrandTeamRoleListView.as_view(), name='brand_team_roles'),
+    path('panel/ekip/roller/yeni/', BrandTeamRoleCreateView.as_view(), name='brand_team_role_create'),
+    path('panel/ekip/roller/<int:pk>/duzenle/', BrandTeamRoleUpdateView.as_view(), name='brand_team_role_edit'),
+    path('panel/ekip/roller/<int:pk>/sil/', BrandTeamRoleDeleteView.as_view(), name='brand_team_role_delete'),
     path('yonetim/kullanicilar/', AdminUserListView.as_view(), name='admin_users'),
     path('yonetim/kullanicilar/yeni/', AdminUserCreateView.as_view(), name='admin_user_create'),
     path('yonetim/kullanicilar/<int:pk>/duzenle/', AdminUserUpdateView.as_view(), name='admin_user_edit'),
     path('yonetim/kullanicilar/<int:pk>/sil/', AdminUserDeleteView.as_view(), name='admin_user_delete'),
-    path('yonetim/kullanicilar/<int:pk>/gecis/', ImpersonateStartView.as_view(), name='admin_impersonate_start'),
+    path('yonetim/kullanicilar/disa-aktar.csv', AdminUsersExportView.as_view(), name='admin_users_export'),
+    path('yonetim/markalar/', AdminBrandListView.as_view(), name='admin_brands'),
+    path('yonetim/markalar/yeni/', AdminBrandCreateView.as_view(), name='admin_brand_create'),
+    path('yonetim/markalar/<int:pk>/', AdminBrandDetailView.as_view(), name='admin_brand_detail'),
+    path('yonetim/markalar/<int:pk>/duzenle/', AdminBrandUpdateView.as_view(), name='admin_brand_edit'),
+    path('yonetim/markalar/<int:pk>/pasifle/', AdminBrandDeactivateView.as_view(), name='admin_brand_deactivate'),
+    path('yonetim/markalar/<int:pk>/aktifle/', AdminBrandActivateView.as_view(), name='admin_brand_activate'),
+    path('yonetim/markalar/<int:pk>/sil/', AdminBrandDeleteView.as_view(), name='admin_brand_delete'),
+    path('yonetim/markalar/<int:pk>/incele/', AdminBrandInspectView.as_view(), name='admin_brand_inspect'),
+    path('yonetim/planlar/', AdminPlanListView.as_view(), name='admin_plans'),
+    path('yonetim/planlar/yeni/', AdminPlanCreateView.as_view(), name='admin_plan_create'),
+    path('yonetim/planlar/<int:pk>/duzenle/', AdminPlanUpdateView.as_view(), name='admin_plan_edit'),
+    path('yonetim/faturalar/', AdminBillingInvoiceListView.as_view(), name='admin_invoices'),
+    path('yonetim/faturalar/yeni/', AdminBillingInvoiceCreateView.as_view(), name='admin_invoice_create'),
+    path('yonetim/ayarlar/', AdminSiteSettingsView.as_view(), name='admin_site_settings'),
+    path('yonetim/denetim/', AdminAuditLogView.as_view(), name='admin_audit_log'),
+    path('yonetim/iliskiler/', AdminRelationsView.as_view(), name='admin_relations'),
+    path('yonetim/raporlar/', AdminReportsView.as_view(), name='admin_reports'),
+    path('yonetim/raporlar/kullanim/', AdminUsageReportView.as_view(), name='admin_reports_usage'),
+    path('yonetim/raporlar/kullanim/disa-aktar.csv', AdminUsageReportExportView.as_view(), name='admin_reports_usage_export'),
     path('yonetim/yedekler/', AdminSystemBackupView.as_view(), name='admin_system_backup'),
     path('yonetim/guncellemeler/', AdminSystemUpdatesView.as_view(), name='admin_system_updates'),
     path('yonetim/guncellemeler/durum/', AdminSystemUpdateStatusApiView.as_view(), name='admin_system_updates_status'),

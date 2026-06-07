@@ -3,54 +3,43 @@
 {% block content %}
 <div class="mb-8">
     <h1 class="text-2xl font-bold text-slate-900">Süper Admin Paneli</h1>
-    <p class="text-slate-500 mt-1">Kullanıcılar, roller ve sistem erişim yönetimi</p>
+    <p class="text-slate-500 mt-1">Kullanıcılar, markalar, raporlar ve platform denetimi</p>
 </div>
 
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
     <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-        <p class="text-xs font-bold uppercase text-slate-500">Kullanıcı</p>
+        <p class="text-xs font-bold uppercase text-slate-500">Abonelik sahibi</p>
         <p class="text-3xl font-black text-slate-900 mt-2">{{ total_users }}</p>
         <p class="text-xs text-emerald-600 mt-1">{{ active_users }} aktif</p>
     </div>
     <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-        <p class="text-xs font-bold uppercase text-slate-500">Rol</p>
-        <p class="text-3xl font-black text-slate-900 mt-2">{{ total_roles }}</p>
+        <p class="text-xs font-bold uppercase text-slate-500">Aktif marka</p>
+        <p class="text-3xl font-black text-slate-900 mt-2">{{ total_brands }}</p>
+        <p class="text-xs text-slate-500 mt-1">{{ hq_brands }} merkez · {{ dealer_brands }} bayi</p>
     </div>
     <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-        <p class="text-xs font-bold uppercase text-slate-500">İzin tanımı</p>
-        <p class="text-3xl font-black text-slate-900 mt-2">{{ total_permissions }}</p>
+        <p class="text-xs font-bold uppercase text-slate-500">Platform kullanıcısı</p>
+        <p class="text-3xl font-black text-slate-900 mt-2">{{ total_platform_users }}</p>
+        <p class="text-xs text-slate-500 mt-1">{{ summary.total_customers }} müşteri kaydı</p>
     </div>
     <div class="bg-white rounded-2xl border border-red-100 p-5 shadow-sm bg-red-50/40">
         <p class="text-xs font-bold uppercase text-red-600">Hızlı işlem</p>
         <div class="mt-3 flex flex-col gap-2">
-            <a href="{% url 'admin_user_create' %}" class="text-sm font-bold text-red-700 hover:underline">+ Kullanıcı ekle</a>
-            <a href="{% url 'admin_role_create' %}" class="text-sm font-bold text-red-700 hover:underline">+ Rol oluştur</a>
+            <a href="{% url 'admin_user_create' %}" class="text-sm font-bold text-red-700 hover:underline">Yeni kullanıcı</a>
+            <a href="{% url 'admin_brand_create' %}" class="text-sm font-bold text-red-700 hover:underline">Yeni marka</a>
+            <a href="{% url 'admin_plans' %}" class="text-sm font-bold text-red-700 hover:underline">Planlar</a>
+            <a href="{% url 'admin_invoices' %}" class="text-sm font-bold text-red-700 hover:underline">Faturalar</a>
+            <a href="{% url 'admin_reports' %}" class="text-sm font-bold text-red-700 hover:underline">Raporlar</a>
+            <a href="{% url 'admin_audit_log' %}" class="text-sm font-bold text-red-700 hover:underline">Denetim</a>
         </div>
     </div>
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
     <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="p-5 border-b border-slate-100 flex justify-between items-center">
-            <h2 class="font-bold text-slate-900">Roller</h2>
-            <a href="{% url 'admin_roles' %}" class="text-sm font-semibold text-brand-600">Tümü</a>
-        </div>
-        <div class="divide-y divide-slate-100">
-            {% for role in roles %}
-            <div class="px-5 py-3 flex items-center justify-between">
-                <div>
-                    <p class="font-semibold text-slate-900">{{ role.name }}</p>
-                    <p class="text-xs text-slate-500">{{ role.user_count }} kullanıcı · {{ role.permissions.count }} izin</p>
-                </div>
-                <a href="{% url 'admin_role_edit' role.pk %}" class="text-xs font-bold text-brand-600">Düzenle</a>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    <div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
-        <div class="p-5 border-b border-slate-100 flex justify-between items-center">
-            <h2 class="font-bold text-slate-900">Son kullanıcılar</h2>
-            <a href="{% url 'admin_users' %}" class="text-sm font-semibold text-brand-600">Tümü</a>
+            <h2 class="font-bold text-slate-900">Son abonelik sahipleri</h2>
+            <a href="{% url 'admin_users' %}?tur=owner" class="text-sm font-semibold text-brand-600">Tümü</a>
         </div>
         <div class="divide-y divide-slate-100">
             {% for u in recent_users %}
@@ -59,15 +48,46 @@
                     <p class="font-semibold text-slate-900">{{ u.display_name }}</p>
                     <p class="text-xs text-slate-500">{{ u.list_subtitle }}</p>
                 </div>
-                <div class="flex items-center gap-3 shrink-0">
-                    {% include 'common/impersonate_user_button.html' with target_user=u label='Görüntüle' button_class='text-xs font-bold text-amber-700 hover:underline' %}
-                    <a href="{% url 'admin_user_edit' u.pk %}" class="text-xs font-bold text-brand-600">Düzenle</a>
+                <div class="flex flex-wrap items-center gap-2 shrink-0">
+                    {% for b in u.admin_owned_brands %}
+                    {% include 'common/admin_brand_inspect_button.html' with brand=b label=b.name button_class='text-xs font-bold text-brand-700 hover:underline' %}
+                    {% empty %}
+                    <span class="text-xs text-slate-400">Marka yok</span>
+                    {% endfor %}
                 </div>
             </div>
             {% empty %}
-            <p class="p-6 text-slate-400 text-sm">Henüz kullanıcı yok.</p>
+            <p class="p-6 text-slate-400 text-sm">Henüz abonelik sahibi yok.</p>
             {% endfor %}
         </div>
     </div>
+    <div class="bg-white rounded-3xl border border-slate-200 p-6">
+        <h2 class="font-bold text-slate-900 mb-4">Platform özeti</h2>
+        <dl class="text-sm space-y-2">
+            <div class="flex justify-between"><dt class="text-slate-500">Servis kaydı</dt><dd class="font-bold">{{ summary.total_services }}</dd></div>
+            <div class="flex justify-between"><dt class="text-slate-500">Marka üyeliği</dt><dd class="font-bold">{{ summary.total_memberships }}</dd></div>
+            <div class="flex justify-between"><dt class="text-slate-500">Pasif marka</dt><dd class="font-bold">{{ inactive_brands }}</dd></div>
+        </dl>
+        <div class="mt-4 flex flex-wrap gap-3">
+            <a href="{% url 'admin_relations' %}" class="text-sm font-bold text-brand-700">İlişkiler →</a>
+            <a href="{% url 'admin_reports_usage' %}" class="text-sm font-bold text-brand-700">Kullanım raporu →</a>
+            <a href="{% url 'admin_plans' %}" class="text-sm font-bold text-brand-700">Planlar →</a>
+        </div>
+    </div>
 </div>
+
+{% if plans %}
+<div class="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 mb-8">
+    <h2 class="font-bold text-slate-900 mb-4">Plana göre abonelik dağılımı</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {% for plan in plans %}
+        <div class="rounded-xl border border-slate-100 px-4 py-3 flex justify-between items-center">
+            <span class="text-sm text-slate-700">{{ plan.name }}</span>
+            <span class="font-bold text-slate-900">{{ plan.owner_count }}</span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+<p class="text-xs text-slate-500">Süper admin olarak markaya girin — üst çubuktaki marka seçici ile mağaza değiştirebilirsiniz.</p>
 {% endblock %}

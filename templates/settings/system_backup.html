@@ -104,7 +104,7 @@
                 <form method="post" enctype="multipart/form-data" class="flex flex-col sm:flex-row gap-3 sm:items-center">
                     {% csrf_token %}
                     <input type="hidden" name="import_backup" value="1">
-                    <input type="file" name="backup_file" accept=".json,.json.gz" class="flex-1 p-2 border border-slate-200 rounded-xl bg-slate-50 text-sm">
+                    <input type="file" name="backup_file" accept=".json,.json.gz,.gz,application/json,application/gzip,application/x-gzip,application/octet-stream" class="flex-1 p-2 border border-slate-200 rounded-xl bg-slate-50 text-sm">
                     <button type="submit" class="px-4 py-2.5 border border-slate-200 text-slate-700 rounded-xl font-bold hover:bg-slate-50 whitespace-nowrap">
                         JSON İçe Aktar
                     </button>

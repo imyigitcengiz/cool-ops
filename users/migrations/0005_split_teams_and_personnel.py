@@ -14,7 +14,7 @@ def grant_teams_to_existing_personnel_roles(apps, schema_editor):
 
 def sync_permissions(apps, schema_editor):
     from users.permission_sync import sync_permissions_to_db
-    sync_permissions_to_db(reset_system_role_permissions=False)
+    sync_permissions_to_db(reset_system_role_permissions=False, apps=apps)
     grant_teams_to_existing_personnel_roles(apps, schema_editor)
 
 

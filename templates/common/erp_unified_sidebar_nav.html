@@ -1,4 +1,5 @@
 {# Sol menü — bölümlü, okunaklı gezinme #}
+{% if not user_is_dealer_only %}
 <div class="erp-sidebar-section">
     <p class="erp-sidebar-section__label">Genel</p>
     {% include 'common/nav_home_link.html' %}
@@ -8,6 +9,7 @@
     <p class="erp-sidebar-section__label">Platform</p>
     {% include 'common/erp_platform_nav.html' %}
 </div>
+{% endif %}
 
 <div class="erp-sidebar-section erp-sidebar-section--modules">
     <p class="erp-sidebar-section__label">Modüller</p>

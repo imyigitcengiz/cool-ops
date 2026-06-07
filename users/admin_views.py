@@ -1,10 +1,36 @@
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.db.models import Prefetch, Q
 from django.shortcuts import redirect, get_object_or_404
 from django.urls import reverse_lazy
-from django.views.generic import TemplateView, ListView, CreateView, UpdateView, DeleteView
+from django.views import View
+from django.views.generic import TemplateView, ListView, CreateView, UpdateView, DeleteView, FormView
 
-from .admin_forms import AdminUserCreateForm, AdminUserUpdateForm, RoleForm
+from common.brand_scope import set_active_brand
+from core_settings.models import BusinessBrand
+
+from .admin_forms import (
+    AdminBrandCreateForm,
+    AdminBrandUpdateForm,
+    AdminPlatformUserCreateForm,
+    AdminUserUpdateForm,
+    RoleForm,
+)
+from .admin_services import (
+    admin_user_delete_context,
+    brand_delete_context,
+    brand_hierarchy_rows,
+    membership_matrix_rows,
+    parse_membership_post,
+    platform_dashboard_stats,
+    platform_relations_context,
+    platform_summary_stats,
+    purge_and_delete_brand,
+    reassign_brand_owner,
+    strip_superuser_brand_memberships,
+    sync_user_brand_memberships,
+    tenant_usage_rows,
+)
 from .mixins import SuperuserRequiredMixin
 from .models import Permission, Role
 
@@ -13,22 +39,71 @@ User = get_user_model()
 
 def production_users_queryset():
     """RBAC test hesaplarını yönetim listelerinden gizler."""
-    return User.objects.select_related('role').exclude(username__startswith='_rbac_')
+    from common.brand_team import production_users_queryset as _qs
+    return _qs()
 
 
 class SuperAdminDashboardView(SuperuserRequiredMixin, TemplateView):
     template_name = 'users/yonetim/dashboard.html'
 
     def get_context_data(self, **kwargs):
-        from django.db.models import Count
         context = super().get_context_data(**kwargs)
-        context['total_users'] = production_users_queryset().count()
-        context['active_users'] = production_users_queryset().filter(is_active=True).count()
-        context['total_roles'] = Role.objects.count()
-        context['total_permissions'] = Permission.objects.count()
-        context['recent_users'] = production_users_queryset().order_by('-date_joined')[:8]
-        context['roles'] = Role.objects.annotate(user_count=Count('users')).order_by('name')
+        stats = platform_dashboard_stats()
+        context.update(stats)
+        context['total_roles'] = Role.objects.filter(is_system=True).count()
+        context['summary'] = platform_summary_stats()
+        from common.brand_team import subscription_owners_queryset
+        from core_settings.models import BrandMembership
+
+        owners = subscription_owners_queryset()
+        context['recent_users'] = owners[:8]
+        for user in context['recent_users']:
+            user.admin_owned_brands = [
+                m.brand
+                for m in user.brand_memberships.all()
+                if m.role == BrandMembership.ROLE_OWNER
+            ]
         return context
+
+
+def _attach_admin_owned_brands(users):
+    from core_settings.models import BrandMembership
+
+    for user in users:
+        memberships = list(user.brand_memberships.all())
+        user.admin_brand_memberships = memberships
+        user.admin_owned_brands = [
+            m.brand
+            for m in memberships
+            if m.role == BrandMembership.ROLE_OWNER
+        ]
+
+
+class AdminBrandInspectView(SuperuserRequiredMixin, View):
+    """Süper admin — markayı doğrudan inceler (impersonate gerekmez)."""
+
+    def post(self, request, pk):
+        brand = get_object_or_404(BusinessBrand, pk=pk, is_active=True)
+        if not set_active_brand(request, brand.pk):
+            messages.error(request, 'Marka oturumu başlatılamadı.')
+            return redirect('admin_users')
+        from users.platform_audit import log_platform_audit
+        from users.models import PlatformAuditLog
+
+        log_platform_audit(
+            request,
+            action=PlatformAuditLog.ACTION_BRAND_INSPECT,
+            brand=brand,
+            detail=brand.name,
+        )
+        messages.success(
+            request,
+            f'"{brand.name}" markasına süper admin olarak girdiniz.',
+        )
+        next_url = (request.POST.get('next') or '').strip()
+        if next_url.startswith('/'):
+            return redirect(next_url)
+        return redirect('home')
 
 
 class RoleListView(SuperuserRequiredMixin, ListView):
@@ -140,20 +215,104 @@ class AdminUserListView(SuperuserRequiredMixin, ListView):
     paginate_by = 25
 
     def get_queryset(self):
-        return production_users_queryset().order_by('-date_joined')
+        from core_settings.models import BrandMembership
+
+        qs = production_users_queryset().order_by('-date_joined').prefetch_related(
+            'brand_memberships__brand',
+            'role',
+            'plan',
+        )
+        user_type = self.request.GET.get('tur', '').strip()
+        if user_type == 'owner':
+            owner_ids = BrandMembership.objects.filter(
+                role=BrandMembership.ROLE_OWNER,
+                brand__is_active=True,
+            ).values_list('user_id', flat=True)
+            qs = qs.filter(Q(pk__in=owner_ids) | Q(plan__isnull=False)).distinct()
+        elif user_type == 'member':
+            owner_ids = BrandMembership.objects.filter(
+                role=BrandMembership.ROLE_OWNER,
+            ).values_list('user_id', flat=True)
+            qs = qs.filter(brand_memberships__isnull=False).exclude(
+                is_superuser=True,
+            ).exclude(pk__in=owner_ids).distinct()
+        elif user_type == 'superuser':
+            qs = qs.filter(is_superuser=True)
+
+        brand_raw = self.request.GET.get('marka', '').strip()
+        if brand_raw.isdigit():
+            qs = qs.filter(brand_memberships__brand_id=int(brand_raw)).distinct()
+
+        status = self.request.GET.get('durum', '').strip()
+        if status == 'active':
+            qs = qs.filter(is_active=True)
+        elif status == 'inactive':
+            qs = qs.filter(is_active=False)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        _attach_admin_owned_brands(context.get('users', []))
+        for user in context.get('users', []):
+            user.admin_delete_ctx = admin_user_delete_context(self.request.user, user)
+        context['filter_brands'] = BusinessBrand.objects.filter(is_active=True).order_by('name')
+        context['active_type_filter'] = self.request.GET.get('tur', '')
+        context['active_brand_filter'] = self.request.GET.get('marka', '')
+        context['active_status_filter'] = self.request.GET.get('durum', '')
+        return context
 
 
 class AdminUserCreateView(SuperuserRequiredMixin, CreateView):
     model = User
-    form_class = AdminUserCreateForm
+    form_class = AdminPlatformUserCreateForm
     template_name = 'users/yonetim/user_form.html'
     success_url = reverse_lazy('admin_users')
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['is_edit'] = False
+        return context
+
     def form_valid(self, form):
-        messages.success(self.request, 'Kullanıcı oluşturuldu.')
+        from common.brand_scope import create_brand_for_user
+        from common.brand_team import attach_user_to_brand
+
         user = form.save()
         from .utils import get_or_create_user_profile
+
         get_or_create_user_profile(user)
+        account_type = form.cleaned_data['account_type']
+        if account_type == AdminPlatformUserCreateForm.ACCOUNT_SUPERUSER:
+            messages.success(
+                self.request,
+                f'Platform yöneticisi "{user.display_name}" oluşturuldu.',
+            )
+            return redirect(self.success_url)
+        if account_type == AdminPlatformUserCreateForm.ACCOUNT_OWNER:
+            brand_name = form.cleaned_data['brand_name']
+            try:
+                brand = create_brand_for_user(user, brand_name, bypass_plan_limit=True)
+            except ValueError as exc:
+                user.delete()
+                form.add_error('brand_name', str(exc))
+                return self.form_invalid(form)
+            messages.success(
+                self.request,
+                f'Abonelik sahibi "{user.display_name}" ve marka "{brand.name}" oluşturuldu.',
+            )
+            return redirect(self.success_url)
+
+        brand = form.cleaned_data['brand']
+        attach_user_to_brand(
+            user,
+            brand,
+            membership_role=form.cleaned_data['membership_role'],
+            is_default=True,
+        )
+        messages.success(
+            self.request,
+            f'"{user.display_name}" kullanıcısı "{brand.name}" markasına eklendi.',
+        )
         return redirect(self.success_url)
 
 
@@ -163,35 +322,40 @@ class AdminUserUpdateView(SuperuserRequiredMixin, UpdateView):
     template_name = 'users/yonetim/user_form.html'
     success_url = reverse_lazy('admin_users')
 
+    def get_queryset(self):
+        return production_users_queryset()
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs['editor'] = self.request.user
         return kwargs
 
     def form_valid(self, form):
+        user = form.save()
+        if user.is_superuser:
+            strip_superuser_brand_memberships(user)
+        else:
+            brand_roles, default_brand_id = parse_membership_post(self.request)
+            sync_user_brand_memberships(
+                user,
+                brand_roles=brand_roles,
+                default_brand_id=default_brand_id,
+            )
         messages.success(self.request, 'Kullanıcı güncellendi.')
-        return super().form_valid(form)
+        return redirect(self.success_url)
 
     def get_context_data(self, **kwargs):
+        from core_settings.models import BrandMembership
+
         context = super().get_context_data(**kwargs)
         context['is_edit'] = True
-        context.update(_user_delete_context(self.request.user, self.object))
+        context['membership_roles'] = BrandMembership.ROLE_CHOICES
+        if self.object and self.object.pk:
+            context['current_memberships'] = list(
+                self.object.brand_memberships.select_related('brand').order_by('brand__name')
+            )
+        context.update(admin_user_delete_context(self.request.user, self.object))
         return context
-
-
-def _user_delete_context(actor, target):
-    can_delete = True
-    blocked_reason = ''
-    if actor.pk == target.pk:
-        can_delete = False
-        blocked_reason = 'Kendi hesabınızı silemezsiniz.'
-    elif target.is_superuser and User.objects.filter(is_superuser=True).count() <= 1:
-        can_delete = False
-        blocked_reason = 'Sistemdeki son süper admin silinemez.'
-    return {
-        'user_can_delete': can_delete,
-        'user_delete_blocked_reason': blocked_reason,
-    }
 
 
 class AdminUserDeleteView(SuperuserRequiredMixin, DeleteView):
@@ -199,14 +363,17 @@ class AdminUserDeleteView(SuperuserRequiredMixin, DeleteView):
     template_name = 'users/yonetim/user_confirm_delete.html'
     success_url = reverse_lazy('admin_users')
 
+    def get_queryset(self):
+        return production_users_queryset().exclude(is_superuser=True)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context.update(_user_delete_context(self.request.user, self.object))
+        context.update(admin_user_delete_context(self.request.user, self.object))
         return context
 
     def get(self, request, *args, **kwargs):
         user = self.get_object()
-        ctx = _user_delete_context(request.user, user)
+        ctx = admin_user_delete_context(request.user, user)
         if not ctx['user_can_delete']:
             messages.error(request, ctx['user_delete_blocked_reason'])
             return redirect('admin_users')
@@ -214,7 +381,7 @@ class AdminUserDeleteView(SuperuserRequiredMixin, DeleteView):
 
     def delete(self, request, *args, **kwargs):
         user = self.get_object()
-        ctx = _user_delete_context(request.user, user)
+        ctx = admin_user_delete_context(request.user, user)
         if not ctx['user_can_delete']:
             messages.error(request, ctx['user_delete_blocked_reason'])
             return redirect('admin_users')
@@ -223,15 +390,272 @@ class AdminUserDeleteView(SuperuserRequiredMixin, DeleteView):
         return super().delete(request, *args, **kwargs)
 
 
+class AdminBrandListView(SuperuserRequiredMixin, ListView):
+    model = BusinessBrand
+    template_name = 'users/yonetim/brand_list.html'
+    context_object_name = 'brands'
+    paginate_by = 25
+
+    def get_queryset(self):
+        from core_settings.models import BrandMembership
+
+        qs = (
+            BusinessBrand.objects.select_related('parent_brand', 'created_by')
+            .prefetch_related(
+                Prefetch(
+                    'memberships',
+                    queryset=BrandMembership.objects.filter(
+                        role=BrandMembership.ROLE_OWNER,
+                    ).select_related('user'),
+                    to_attr='owner_memberships',
+                )
+            )
+            .order_by('name')
+        )
+        show = self.request.GET.get('durum', 'active').strip()
+        if show == 'active':
+            qs = qs.filter(is_active=True)
+        elif show == 'inactive':
+            qs = qs.filter(is_active=False)
+        kind = self.request.GET.get('tur', '').strip()
+        if kind in (BusinessBrand.PANEL_HQ, BusinessBrand.PANEL_DEALER):
+            qs = qs.filter(panel_kind=kind)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        for brand in context.get('brands', []):
+            owners = getattr(brand, 'owner_memberships', [])
+            brand.owner_user = owners[0].user if owners else brand.created_by
+        context['active_status_filter'] = self.request.GET.get('durum', 'active')
+        context['active_kind_filter'] = self.request.GET.get('tur', '')
+        return context
+
+
+class AdminBrandCreateView(SuperuserRequiredMixin, FormView):
+    form_class = AdminBrandCreateForm
+    template_name = 'users/yonetim/brand_form.html'
+    success_url = reverse_lazy('admin_brands')
+
+    def get_context_data(self, **kwargs):
+        from common.tenant import get_tenant_base_domain
+
+        context = super().get_context_data(**kwargs)
+        context['is_edit'] = False
+        context['tenant_base_domain'] = get_tenant_base_domain()
+        return context
+
+    def form_valid(self, form):
+        from common.brand_scope import create_brand_for_user
+        from core_settings.models import BusinessBrand
+
+        owner = form.cleaned_data['owner']
+        panel_kind = form.cleaned_data['panel_kind']
+        parent = form.cleaned_data.get('parent_brand')
+        try:
+            brand = create_brand_for_user(
+                owner,
+                form.cleaned_data['name'],
+                panel_kind=panel_kind,
+                parent_brand=parent if panel_kind == BusinessBrand.PANEL_DEALER else None,
+                tenant_routing=form.cleaned_data['tenant_routing'],
+                host_slug=form.cleaned_data.get('host_slug', ''),
+                legal_name=form.cleaned_data.get('legal_name', ''),
+                phone=form.cleaned_data.get('phone', ''),
+                bypass_plan_limit=True,
+            )
+        except ValueError as exc:
+            form.add_error(None, str(exc))
+            return self.form_invalid(form)
+        messages.success(
+            self.request,
+            f'"{brand.name}" markası "{owner.display_name}" hesabına eklendi.',
+        )
+        return redirect(self.success_url)
+
+
+class AdminBrandDetailView(SuperuserRequiredMixin, TemplateView):
+    template_name = 'users/yonetim/brand_detail.html'
+
+    def get_context_data(self, **kwargs):
+        from core_settings.models import BrandMembership
+        from common.tenant import build_brand_public_url, get_tenant_base_domain
+
+        context = super().get_context_data(**kwargs)
+        brand = get_object_or_404(
+            BusinessBrand.objects.select_related('parent_brand', 'created_by'),
+            pk=self.kwargs['pk'],
+        )
+        memberships = (
+            BrandMembership.objects.filter(brand=brand)
+            .select_related('user', 'user__role')
+            .order_by('role', 'user__username')
+        )
+        owner_mem = memberships.filter(role=BrandMembership.ROLE_OWNER).first()
+        from customers.models import Customer
+
+        context['brand'] = brand
+        context['memberships'] = memberships
+        context['owner_user'] = owner_mem.user if owner_mem else brand.created_by
+        context['dealer_panels'] = brand.dealer_panels.filter(is_active=True).order_by('name')
+        context['tenant_url'] = build_brand_public_url(brand, self.request)
+        context['tenant_key'] = brand.tenant_key
+        context['tenant_base_domain'] = get_tenant_base_domain()
+        context['user_count'] = memberships.count()
+        context['customer_count'] = Customer.objects.filter(brand=brand).count()
+        return context
+
+
+class AdminBrandUpdateView(SuperuserRequiredMixin, UpdateView):
+    model = BusinessBrand
+    form_class = AdminBrandUpdateForm
+    template_name = 'users/yonetim/brand_form.html'
+    success_url = reverse_lazy('admin_brands')
+
+    def get_queryset(self):
+        return BusinessBrand.objects.all()
+
+    def get_context_data(self, **kwargs):
+        from common.tenant import build_brand_public_url, get_tenant_base_domain
+
+        context = super().get_context_data(**kwargs)
+        context['is_edit'] = True
+        context['tenant_url'] = build_brand_public_url(self.object, self.request)
+        context['tenant_base_domain'] = get_tenant_base_domain()
+        context['tenant_key'] = self.object.tenant_key
+        return context
+
+    def get_success_url(self):
+        return reverse_lazy('admin_brand_detail', kwargs={'pk': self.object.pk})
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        owner = form.cleaned_data.get('owner')
+        if owner:
+            reassign_brand_owner(self.object, owner)
+        messages.success(self.request, f'"{form.instance.name}" markası güncellendi.')
+        return response
+
+
+class AdminBrandDeactivateView(SuperuserRequiredMixin, View):
+    def post(self, request, pk):
+        brand = get_object_or_404(BusinessBrand, pk=pk)
+        brand.is_active = False
+        brand.save(update_fields=['is_active', 'updated_at'])
+        messages.success(request, f'"{brand.name}" pasifleştirildi.')
+        next_url = request.POST.get('next', '').strip()
+        if next_url.startswith('/'):
+            return redirect(next_url)
+        return redirect('admin_brands')
+
+
+class AdminBrandActivateView(SuperuserRequiredMixin, View):
+    def post(self, request, pk):
+        brand = get_object_or_404(BusinessBrand, pk=pk)
+        brand.is_active = True
+        brand.save(update_fields=['is_active', 'updated_at'])
+        messages.success(request, f'"{brand.name}" aktifleştirildi.')
+        next_url = request.POST.get('next', '').strip()
+        if next_url.startswith('/'):
+            return redirect(next_url)
+        return redirect('admin_brand_detail', pk=brand.pk)
+
+
+class AdminBrandDeleteView(SuperuserRequiredMixin, DeleteView):
+    model = BusinessBrand
+    template_name = 'users/yonetim/brand_confirm_delete.html'
+    success_url = reverse_lazy('admin_brands')
+
+    def get_queryset(self):
+        return BusinessBrand.objects.all()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(brand_delete_context(self.object))
+        return context
+
+    def get(self, request, *args, **kwargs):
+        brand = self.get_object()
+        ctx = brand_delete_context(brand)
+        if not ctx['brand_can_delete']:
+            messages.error(request, ctx['brand_delete_blocked_reason'])
+            return redirect('admin_brand_detail', pk=brand.pk)
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        brand = self.get_object()
+        ctx = brand_delete_context(brand)
+        if not ctx['brand_can_delete']:
+            messages.error(request, ctx['brand_delete_blocked_reason'])
+            return redirect('admin_brand_detail', pk=brand.pk)
+
+        confirm_name = (request.POST.get('confirm_name') or '').strip()
+        if confirm_name != brand.name:
+            messages.error(request, 'Onay için marka adını aynen yazın.')
+            return redirect('admin_brand_delete', pk=brand.pk)
+
+        if ctx['brand_requires_wipe'] and request.POST.get('confirm_wipe') != 'on':
+            messages.error(request, 'Verilerle birlikte silmeyi onaylayın.')
+            return redirect('admin_brand_delete', pk=brand.pk)
+
+        try:
+            name = purge_and_delete_brand(brand)
+        except Exception as exc:
+            messages.error(request, f'Marka silinemedi: {exc}')
+            return redirect('admin_brand_detail', pk=kwargs['pk'])
+
+        from users.platform_audit import log_platform_audit
+        from users.models import PlatformAuditLog
+
+        log_platform_audit(
+            request,
+            action=PlatformAuditLog.ACTION_BRAND_DELETE,
+            detail=name,
+        )
+        messages.info(request, f'"{name}" markası kalıcı olarak silindi.')
+        return redirect(self.success_url)
+
+
+class AdminRelationsView(SuperuserRequiredMixin, TemplateView):
+    template_name = 'users/yonetim/relations.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(platform_relations_context())
+        context['active_tab'] = self.request.GET.get('tab', 'ozet')
+        return context
+
+
+class AdminReportsView(SuperuserRequiredMixin, TemplateView):
+    template_name = 'users/yonetim/reports.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update(platform_dashboard_stats())
+        context['summary'] = platform_summary_stats()
+        return context
+
+
+class AdminUsageReportView(SuperuserRequiredMixin, TemplateView):
+    template_name = 'users/yonetim/reports_usage.html'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['usage_rows'] = tenant_usage_rows()
+        return context
+
+
 class AdminSystemBackupView(SuperuserRequiredMixin, TemplateView):
-    template_name = 'settings/system_backup.html'
+    template_name = 'users/yonetim/system_backup.html'
 
     def get_context_data(self, **kwargs):
         from core_settings.backup import FACTORY_RESET_CONFIRM_PHRASE, backup_status_summary
+        from core_settings.models import BusinessBrand
+
         context = super().get_context_data(**kwargs)
         context['backup_status'] = backup_status_summary()
         context['factory_reset_confirm_phrase'] = FACTORY_RESET_CONFIRM_PHRASE
-        context['admin_context'] = True
+        context['backup_brands'] = BusinessBrand.objects.filter(is_active=True).order_by('name')
         return context
 
     def post(self, request, *args, **kwargs):

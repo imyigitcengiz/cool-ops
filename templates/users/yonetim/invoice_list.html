@@ -1,0 +1,57 @@
+{% extends 'users/yonetim/base.html' %}
+{% block title %}Faturalar{% endblock %}
+{% block content %}
+<div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900">Faturalar</h1>
+        <p class="text-sm text-slate-500 mt-1">Abonelik faturaları ve manuel kayıtlar.</p>
+    </div>
+    <a href="{% url 'admin_invoice_create' %}" class="px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700">+ Yeni fatura</a>
+</div>
+<form method="get" class="mb-4 flex flex-wrap gap-3 items-end">
+    <div>
+        <label class="text-xs font-bold text-slate-500 uppercase">Durum</label>
+        <select name="durum" class="mt-1 block p-2.5 rounded-xl border border-slate-200 text-sm bg-white">
+            <option value="">Tümü</option>
+            <option value="paid" {% if active_status_filter == 'paid' %}selected{% endif %}>Ödendi</option>
+            <option value="pending" {% if active_status_filter == 'pending' %}selected{% endif %}>Bekliyor</option>
+        </select>
+    </div>
+    <div>
+        <label class="text-xs font-bold text-slate-500 uppercase">Kullanıcı</label>
+        <select name="kullanici" class="mt-1 block p-2.5 rounded-xl border border-slate-200 text-sm bg-white min-w-[10rem]">
+            <option value="">Tümü</option>
+            {% for u in filter_users %}
+            <option value="{{ u.pk }}" {% if active_user_filter == u.pk|stringformat:'s' %}selected{% endif %}>{{ u.display_name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <button type="submit" class="px-4 py-2.5 rounded-xl bg-slate-800 text-white text-sm font-bold">Filtrele</button>
+</form>
+<div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-slate-50">
+            <tr>
+                <th class="px-5 py-3 text-left font-bold text-slate-600">Tarih</th>
+                <th class="px-5 py-3 text-left font-bold text-slate-600">Kullanıcı</th>
+                <th class="px-5 py-3 text-left font-bold text-slate-600">Plan</th>
+                <th class="px-5 py-3 text-left font-bold text-slate-600">Tutar</th>
+                <th class="px-5 py-3 text-left font-bold text-slate-600">Durum</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+            {% for inv in invoices %}
+            <tr>
+                <td class="px-5 py-4 text-slate-600">{{ inv.created_at|date:'d.m.Y H:i' }}</td>
+                <td class="px-5 py-4 font-medium">{{ inv.user.display_name }}</td>
+                <td class="px-5 py-4">{{ inv.plan.name }}</td>
+                <td class="px-5 py-4">{{ inv.amount }} ₺</td>
+                <td class="px-5 py-4">{% if inv.status == 'paid' %}<span class="text-emerald-600 font-bold">Ödendi</span>{% else %}<span class="text-amber-600 font-bold">Bekliyor</span>{% endif %}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="5" class="px-5 py-10 text-center text-slate-400">Fatura yok.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

@@ -3,7 +3,7 @@ from django.db import migrations, models
 
 def sync_permissions(apps, schema_editor):
     from users.permission_sync import sync_permissions_to_db
-    sync_permissions_to_db(reset_system_role_permissions=False)
+    sync_permissions_to_db(reset_system_role_permissions=False, apps=apps)
 
 
 class Migration(migrations.Migration):

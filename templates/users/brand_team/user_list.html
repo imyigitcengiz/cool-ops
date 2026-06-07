@@ -1,0 +1,83 @@
+{% extends 'common/erp_unified_shell.html' %}
+{% block title %}Ekip Yönetimi{% endblock %}
+{% block body_class %} bg-slate-50{% endblock %}
+
+{% block shell_header %}
+<header class="erp-module-header">
+    <div class="erp-module-header__inner">
+        <div class="erp-module-header__top">
+            <div class="erp-module-header__lead">
+                {% include 'common/erp_sidebar_toggle.html' %}
+                <div class="erp-module-header__text min-w-0">
+                    <h1 class="erp-module-header__title truncate">Ekip Yönetimi</h1>
+                    <p class="erp-module-header__subtitle truncate">Firmanıza ait panellerdeki kullanıcılar ve roller</p>
+                </div>
+            </div>
+            <div class="erp-module-header__tools">
+                {% include 'common/erp_module_header_tools.html' %}
+            </div>
+        </div>
+    </div>
+</header>
+{% endblock %}
+
+{% block content_wrapper_class %}erp-page-content mx-auto w-full max-w-5xl py-8 md:py-10{% endblock %}
+
+{% block content %}
+{% include 'users/brand_team/_nav.html' %}
+
+<div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+    <div>
+        <h2 class="text-xl font-bold text-slate-900">Kullanıcılar</h2>
+        <p class="text-sm text-slate-500 mt-1">Yalnızca sizin panellerinize bağlı hesaplar listelenir.</p>
+    </div>
+    <a href="{% url 'brand_team_user_create' %}" class="px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-bold hover:bg-brand-700">+ Yeni kullanıcı</a>
+</div>
+
+{% if owned_brands|length > 1 %}
+<form method="get" class="mb-4 flex flex-wrap items-center gap-3">
+    <label class="text-sm font-semibold text-slate-600">Panel filtresi</label>
+    <select name="marka" onchange="this.form.submit()" class="border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white">
+        <option value="">Tüm paneller</option>
+        {% for b in owned_brands %}
+        <option value="{{ b.pk }}" {% if active_brand_filter == b.pk %}selected{% endif %}>{{ b.name }}</option>
+        {% endfor %}
+    </select>
+</form>
+{% endif %}
+
+<div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-slate-50">
+            <tr>
+                <th class="px-5 py-3 text-left font-bold text-slate-600">Kullanıcı</th>
+                <th class="px-5 py-3 text-left font-bold text-slate-600">Rol</th>
+                <th class="px-5 py-3 text-left font-bold text-slate-600">Durum</th>
+                <th class="px-5 py-3 text-right font-bold text-slate-600">İşlem</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+            {% for u in users %}
+            <tr class="hover:bg-slate-50">
+                <td class="px-5 py-4">
+                    <p class="font-semibold text-slate-900">{{ u.display_name }}</p>
+                    <p class="text-xs text-slate-500">{{ u.list_subtitle }}</p>
+                </td>
+                <td class="px-5 py-4">{{ u.role_label }}</td>
+                <td class="px-5 py-4">
+                    {% if u.is_active %}<span class="text-emerald-600 font-bold">Aktif</span>{% else %}<span class="text-slate-400">Pasif</span>{% endif %}
+                </td>
+                <td class="px-5 py-4 text-right whitespace-nowrap">
+                    <a href="{% url 'brand_team_user_edit' u.pk %}" class="text-brand-600 font-bold mr-3">Düzenle</a>
+                    {% if u.pk != request.user.pk %}
+                    <a href="{% url 'brand_team_user_delete' u.pk %}" class="text-red-600 font-bold hover:underline">Sil</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="4" class="px-5 py-10 text-center text-slate-400">Henüz ekip üyesi yok.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

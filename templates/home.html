@@ -45,7 +45,47 @@
 
 {% include 'common/erp_platform_quick_links.html' %}
 
+{% if user_can_access_platform %}
+<!-- Abonelik & Bayi Özet Kartı -->
+<section class="mb-8">
+    <a href="{% url 'subscription_dashboard' %}" class="group flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white rounded-2xl border border-slate-700/60 shadow-lg hover:shadow-xl hover:border-brand-600/50 transition-all duration-300 p-5 relative overflow-hidden">
+        <div class="absolute inset-0 bg-gradient-to-r from-brand-600/5 via-transparent to-indigo-600/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+        <div class="flex items-center gap-4 relative z-10">
+            <div class="w-11 h-11 rounded-xl bg-brand-500/15 border border-brand-500/25 flex items-center justify-center shrink-0">
+                <i data-lucide="shield-check" class="w-5 h-5 text-brand-400"></i>
+            </div>
+            <div>
+                <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">Abonelik & Bayi / Franchise Yönetimi</p>
+                <div class="flex items-center gap-3 flex-wrap">
+                    <span class="text-sm font-extrabold text-white">{{ active_plan.name }}</span>
+                    <span class="text-[10px] font-bold text-slate-400">·</span>
+                    <span class="text-xs text-slate-400">{{ owned_brands_count }} / {{ active_plan.brands_limit_display }} panel</span>
+                    {% if not user.is_superuser and owned_brands_count >= active_plan.max_brands %}
+                    <span class="text-[10px] font-bold text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-full">Limit dolu</span>
+                    {% else %}
+                    <span class="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded-full">Aktif</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center gap-2 relative z-10 shrink-0">
+            {% if user_brands|length > 1 %}
+            <span class="hidden sm:flex items-center gap-1.5 text-xs text-slate-400 mr-2">
+                <i data-lucide="layers" class="w-3.5 h-3.5"></i> {{ user_brands|length }} panel
+            </span>
+            {% endif %}
+            <span class="inline-flex items-center gap-1.5 text-xs font-bold text-brand-400 bg-brand-500/10 border border-brand-500/20 px-3.5 py-2 rounded-xl group-hover:bg-brand-500/20 transition-colors">
+                Yönet <i data-lucide="arrow-right" class="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform duration-200"></i>
+            </span>
+        </div>
+    </a>
+</section>
+{% endif %}
+
+
+
 {% include 'common/panel_profile_apps.html' %}
+
 
 {% if contact_show_panel %}
 {% include 'common/panel_rehber_section.html' %}

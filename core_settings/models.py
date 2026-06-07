@@ -161,11 +161,113 @@ def business_brand_logo_upload_to(instance, filename):
     return f'brands/{slug}/logo{ext}'
 
 
+class Plan(models.Model):
+    name = models.CharField(max_length=100, verbose_name="Plan adı")
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00, verbose_name="Fiyat")
+    max_brands = models.PositiveIntegerField(default=1, verbose_name="Maksimum marka sayısı")
+    max_hq_brands = models.PositiveIntegerField(
+        default=1,
+        verbose_name='Maksimum merkez panel',
+    )
+    max_dealer_panels = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Maksimum bayi alt panel',
+    )
+    max_users_per_brand = models.PositiveIntegerField(default=3, verbose_name="Marka başına maksimum kullanıcı")
+    max_customers_per_brand = models.PositiveIntegerField(default=100, verbose_name="Marka başına maksimum müşteri")
+    included_module_slugs = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='Plana dahil modüller',
+    )
+    included_particle_slugs = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='Plana dahil parçacıklar',
+    )
+    is_active = models.BooleanField(default=True, verbose_name="Aktif")
+
+    class Meta:
+        verbose_name = 'Plan'
+        verbose_name_plural = 'Planlar'
+
+    @staticmethod
+    def format_limit(value: int) -> str:
+        if value >= 1000:
+            return f'{value:,}'.replace(',', '.')
+        return str(value)
+
+    @property
+    def brands_limit_display(self) -> str:
+        return self.format_limit(self.max_brands)
+
+    @property
+    def users_limit_display(self) -> str:
+        return self.format_limit(self.max_users_per_brand)
+
+    @property
+    def customers_limit_display(self) -> str:
+        return self.format_limit(self.max_customers_per_brand)
+
+    @property
+    def module_count(self) -> int:
+        from common.module_plan import plan_included_modules
+        return len(plan_included_modules(self))
+
+    def save(self, *args, **kwargs):
+        if self.max_hq_brands or self.max_dealer_panels:
+            self.max_brands = (self.max_hq_brands or 0) + (self.max_dealer_panels or 0) or self.max_brands
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.name
+
+
 class BusinessBrand(models.Model):
     """Çalışma markası / firma — veriler marka bazında ayrılır."""
 
+    PANEL_HQ = 'hq'
+    PANEL_DEALER = 'dealer'
+    PANEL_KIND_CHOICES = (
+        (PANEL_HQ, 'Merkez panel'),
+        (PANEL_DEALER, 'Bayi / franchise paneli'),
+    )
+    TENANT_SUBDOMAIN = 'subdomain'
+    TENANT_PATH = 'path'
+    TENANT_ROUTING_CHOICES = (
+        (TENANT_SUBDOMAIN, 'Alt alan adı (bayi.marka.coolops.com)'),
+        (TENANT_PATH, 'Yol öneki (marka.coolops.com/bayi)'),
+    )
+
     name = models.CharField(max_length=255, verbose_name='Marka / firma adı')
     slug = models.SlugField(max_length=80, unique=True)
+    host_slug = models.SlugField(
+        max_length=80,
+        blank=True,
+        default='',
+        verbose_name='Alan adı kısa adı',
+        help_text='Boşsa slug kullanılır. Örn. marka.coolops.com için "marka".',
+    )
+    panel_kind = models.CharField(
+        max_length=10,
+        choices=PANEL_KIND_CHOICES,
+        default=PANEL_HQ,
+        verbose_name='Panel türü',
+    )
+    parent_brand = models.ForeignKey(
+        'self',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='dealer_panels',
+        verbose_name='Bağlı merkez marka',
+    )
+    tenant_routing = models.CharField(
+        max_length=12,
+        choices=TENANT_ROUTING_CHOICES,
+        default=TENANT_SUBDOMAIN,
+        verbose_name='Erişim yapısı',
+    )
     legal_name = models.CharField(max_length=255, blank=True, default='', verbose_name='Ticari ünvan')
     logo = models.ImageField(
         upload_to=business_brand_logo_upload_to,
@@ -206,6 +308,10 @@ class BusinessBrand(models.Model):
     def __str__(self):
         return self.name
 
+    @property
+    def tenant_key(self) -> str:
+        return (self.host_slug or self.slug).strip()
+
     def save(self, *args, **kwargs):
         if not self.slug:
             from django.utils.text import slugify
@@ -217,15 +323,21 @@ class BusinessBrand(models.Model):
                 n += 1
                 slug = f'{base}-{n}'
             self.slug = slug
+        if self.panel_kind == self.PANEL_DEALER and not self.parent_brand_id:
+            raise ValueError('Bayi paneli bir merkez markaya bağlı olmalıdır.')
+        if self.panel_kind == self.PANEL_HQ:
+            self.parent_brand = None
         super().save(*args, **kwargs)
 
 
 class BrandMembership(models.Model):
     ROLE_OWNER = 'owner'
     ROLE_MEMBER = 'member'
+    ROLE_DEALER = 'dealer'
     ROLE_CHOICES = (
         (ROLE_OWNER, 'Sahip'),
         (ROLE_MEMBER, 'Üye'),
+        (ROLE_DEALER, 'Bayi kullanıcısı'),
     )
 
     user = models.ForeignKey(
@@ -1194,4 +1306,35 @@ class EExportSettings(models.Model):
 
     def __str__(self):
         return 'Dış aktarım ayarları'
+
+
+class BillingInvoice(models.Model):
+    user = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        related_name='invoices',
+        verbose_name='Kullanıcı',
+    )
+    plan = models.ForeignKey(
+        'core_settings.Plan',
+        on_delete=models.PROTECT,
+        related_name='invoices',
+        verbose_name='Plan',
+    )
+    amount = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Tutar')
+    status = models.CharField(
+        max_length=20,
+        choices=(('paid', 'Ödendi'), ('pending', 'Bekliyor')),
+        default='paid',
+        verbose_name='Durum',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Oluşturulma tarihi')
+
+    class Meta:
+        verbose_name = 'Fatura'
+        verbose_name_plural = 'Faturalar'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.user.username} - {self.plan.name} ({self.amount} ₺)'
 

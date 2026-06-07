@@ -1,0 +1,61 @@
+{% extends 'users/yonetim/base.html' %}
+{% block title %}Raporlar{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900">Platform raporları</h1>
+        <p class="text-sm text-slate-500 mt-1">Tenant özeti ve operasyonel metrikler.</p>
+    </div>
+    <div class="flex flex-wrap gap-2">
+        <a href="{% url 'admin_users_export' %}" class="px-4 py-2.5 rounded-xl bg-slate-200 text-slate-800 text-sm font-bold">Kullanıcı CSV</a>
+        <a href="{% url 'admin_reports_usage_export' %}" class="px-4 py-2.5 rounded-xl bg-slate-200 text-slate-800 text-sm font-bold">Kullanım CSV</a>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <p class="text-xs font-bold uppercase text-slate-500">Abonelik sahibi</p>
+        <p class="text-3xl font-black text-slate-900 mt-2">{{ total_users }}</p>
+        <p class="text-xs text-emerald-600 mt-1">{{ active_users }} aktif</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <p class="text-xs font-bold uppercase text-slate-500">Platform kullanıcısı</p>
+        <p class="text-3xl font-black text-slate-900 mt-2">{{ total_platform_users }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <p class="text-xs font-bold uppercase text-slate-500">Aktif marka</p>
+        <p class="text-3xl font-black text-slate-900 mt-2">{{ total_brands }}</p>
+        <p class="text-xs text-slate-500 mt-1">{{ hq_brands }} merkez · {{ dealer_brands }} bayi</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <p class="text-xs font-bold uppercase text-slate-500">Pasif marka</p>
+        <p class="text-3xl font-black text-slate-900 mt-2">{{ inactive_brands }}</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+    <div class="bg-white rounded-3xl border border-slate-200 p-6">
+        <h2 class="font-bold text-slate-900 mb-4">Operasyonel özet</h2>
+        <dl class="text-sm space-y-3">
+            <div class="flex justify-between"><dt class="text-slate-500">Toplam müşteri</dt><dd class="font-bold text-slate-900">{{ summary.total_customers }}</dd></div>
+            <div class="flex justify-between"><dt class="text-slate-500">Toplam servis kaydı</dt><dd class="font-bold text-slate-900">{{ summary.total_services }}</dd></div>
+            <div class="flex justify-between"><dt class="text-slate-500">Marka üyeliği</dt><dd class="font-bold text-slate-900">{{ summary.total_memberships }}</dd></div>
+            <div class="flex justify-between"><dt class="text-slate-500">Verili marka</dt><dd class="font-bold text-slate-900">{{ summary.brands_with_data }}</dd></div>
+        </dl>
+    </div>
+    <div class="bg-white rounded-3xl border border-slate-200 p-6">
+        <h2 class="font-bold text-slate-900 mb-4">Plana göre dağılım</h2>
+        <div class="space-y-2">
+            {% for plan in plans %}
+            <div class="flex justify-between text-sm">
+                <span class="text-slate-700">{{ plan.name }}</span>
+                <span class="font-bold text-slate-900">{{ plan.owner_count }} abonelik sahibi</span>
+            </div>
+            {% empty %}
+            <p class="text-sm text-slate-400">Plan tanımlı değil.</p>
+            {% endfor %}
+        </div>
+        <a href="{% url 'admin_reports_usage' %}" class="inline-block mt-4 text-sm font-bold text-brand-700 hover:underline">Detaylı kullanım raporu →</a>
+    </div>
+</div>
+{% endblock %}

@@ -7,7 +7,7 @@ from dateutil.relativedelta import relativedelta
 from django.contrib import messages
 from django.db.models import Count, Q, Sum
 from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import redirect
 from django.utils import timezone
 from django.views.generic import ListView, TemplateView, View
 
@@ -19,6 +19,12 @@ from common.permissions import (
 )
 from users.mixins import PermissionRequiredMixin
 
+from common.brand_scope import (
+    filter_customers,
+    filter_sales_leads,
+    get_customer_for_request,
+    get_sales_lead_for_request,
+)
 from core_settings.models import ProductOption
 from customers.models import Customer
 
@@ -33,12 +39,15 @@ from .forms import SalesLeadForm
 from .models import SalesLead
 
 
-def _completed_leads():
-    return SalesLead.objects.filter(status=SalesLead.STATUS_COMPLETED)
+def _completed_leads(request=None):
+    qs = SalesLead.objects.filter(status=SalesLead.STATUS_COMPLETED)
+    if request is not None:
+        qs = filter_sales_leads(qs, request)
+    return qs
 
 
-def _lead_queryset():
-    return (
+def _lead_queryset(request=None):
+    qs = (
         SalesLead.objects.select_related('customer', 'assigned_to')
         .prefetch_related(
             'products',
@@ -49,6 +58,9 @@ def _lead_queryset():
             'customer__service_records',
         )
     )
+    if request is not None:
+        qs = filter_sales_leads(qs, request)
+    return qs
 
 
 def _products_catalog():
@@ -82,7 +94,7 @@ class SalesLeadDashboardView(PermissionRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         today = timezone.localdate()
         month_start = today.replace(day=1)
-        completed = _completed_leads()
+        completed = _completed_leads(self.request)
 
         context['total_sales'] = completed.count()
         context['month_sales'] = completed.filter(sale_date__gte=month_start).count()
@@ -90,8 +102,11 @@ class SalesLeadDashboardView(PermissionRequiredMixin, TemplateView):
             total=Sum('sale_amount')
         )['total'] or Decimal('0')
         context['total_amount'] = completed.aggregate(total=Sum('sale_amount'))['total'] or Decimal('0')
-        context['total_customers'] = Customer.objects.count()
-        context['pending_sales'] = SalesLead.objects.filter(status=SalesLead.STATUS_PENDING).count()
+        context['total_customers'] = filter_customers(Customer.objects.all(), self.request).count()
+        context['pending_sales'] = filter_sales_leads(
+            SalesLead.objects.filter(status=SalesLead.STATUS_PENDING),
+            self.request,
+        ).count()
 
         days = [today - timedelta(days=i) for i in range(29, -1, -1)]
         context['trend_labels'] = json.dumps([d.strftime('%d.%m') for d in days], ensure_ascii=False)
@@ -115,7 +130,7 @@ class SalesLeadDashboardView(PermissionRequiredMixin, TemplateView):
             .order_by('-total')[:6]
         )
         context['rep_stats'] = rep_stats
-        context['recent_sales'] = _lead_queryset()[:8]
+        context['recent_sales'] = _lead_queryset(self.request)[:8]
         return context
 
 
@@ -127,7 +142,7 @@ class SalesLeadListView(PermissionRequiredMixin, ListView):
     paginate_by = 25
 
     def get_queryset(self):
-        queryset = _lead_queryset()
+        queryset = _lead_queryset(self.request)
         q = self.request.GET.get('q', '').strip()
         status = self.request.GET.get('status', '').strip()
         product = self.request.GET.get('product', '').strip()
@@ -164,7 +179,10 @@ class SalesLeadCreateView(PermissionRequiredMixin, View):
         customer = None
         customer_id = request.GET.get('customer')
         if customer_id and str(customer_id).isdigit():
-            customer = Customer.objects.filter(pk=int(customer_id)).first()
+            customer = filter_customers(
+                Customer.objects.filter(pk=int(customer_id)),
+                request,
+            ).first()
         initial = {'sale_date': timezone.localdate(), 'status': SalesLead.STATUS_COMPLETED}
         if customer:
             initial['use_existing_customer'] = True
@@ -180,7 +198,10 @@ class SalesLeadCreateView(PermissionRequiredMixin, View):
         customer = None
         customer_id = request.POST.get('existing_customer') or request.GET.get('customer')
         if customer_id and str(customer_id).isdigit():
-            customer = Customer.objects.filter(pk=int(customer_id)).first()
+            customer = filter_customers(
+                Customer.objects.filter(pk=int(customer_id)),
+                request,
+            ).first()
         form = SalesLeadForm(request.POST, add_project_for_customer=customer, request=request)
         if form.is_valid():
             lead = form.save()
@@ -195,9 +216,14 @@ class SalesLeadCreateView(PermissionRequiredMixin, View):
         from django.shortcuts import render
         customer_projects = []
         if customer:
-            customer_projects = _lead_queryset().filter(customer=customer).order_by('-sale_date')
+            customer_projects = _lead_queryset(request).filter(customer=customer).order_by('-sale_date')
         elif form.instance:
-            customer_projects = _lead_queryset().filter(customer=form.instance.customer).exclude(pk=form.instance.pk).order_by('-sale_date')
+            customer_projects = (
+                _lead_queryset(request)
+                .filter(customer=form.instance.customer)
+                .exclude(pk=form.instance.pk)
+                .order_by('-sale_date')
+            )
         return render(request, self.template_name, {
             'form': form,
             'is_edit': False,
@@ -217,12 +243,12 @@ class SalesLeadUpdateView(PermissionRequiredMixin, View):
     template_name = 'sales_lead/sales_lead_form.html'
 
     def get(self, request, pk):
-        lead = get_object_or_404(SalesLead, pk=pk)
+        lead = get_sales_lead_for_request(request, pk)
         form = SalesLeadForm(instance=lead, request=request)
         return self._render(request, form, lead)
 
     def post(self, request, pk):
-        lead = get_object_or_404(SalesLead, pk=pk)
+        lead = get_sales_lead_for_request(request, pk)
         prev_status = lead.status
         form = SalesLeadForm(request.POST, instance=lead, request=request)
         if form.is_valid():
@@ -238,7 +264,7 @@ class SalesLeadUpdateView(PermissionRequiredMixin, View):
     def _render(self, request, form, lead):
         from django.shortcuts import render
         customer_projects = (
-            _lead_queryset()
+            _lead_queryset(request)
             .filter(customer=lead.customer)
             .exclude(pk=lead.pk)
             .order_by('-sale_date')
@@ -260,7 +286,7 @@ class SalesLeadUpdateView(PermissionRequiredMixin, View):
 class SalesLeadDeleteView(PermissionRequiredMixin, View):
     permission_required = SALES_DELETE_PERM
     def post(self, request, pk):
-        lead = get_object_or_404(SalesLead, pk=pk)
+        lead = get_sales_lead_for_request(request, pk)
         name = lead.customer.name
         lead.delete()
         messages.success(request, f'Satış kaydı silindi: {name}')
@@ -302,7 +328,7 @@ class SalesLeadImportCsvView(PermissionRequiredMixin, View):
             messages.error(request, 'CSV dosyası seçin.')
             return redirect('tools_csv_hub')
         try:
-            result = import_sales_csv(uploaded, user=request.user)
+            result = import_sales_csv(uploaded, user=request.user, request=request)
             messages.success(request, f'{result["created"]} satış kaydı içe aktarıldı.')
             if result.get('skipped'):
                 messages.warning(request, f'{result["skipped"]} satır atlandı.')
@@ -314,7 +340,7 @@ class SalesLeadImportCsvView(PermissionRequiredMixin, View):
 class SalesLeadExportCsvView(PermissionRequiredMixin, View):
     permission_required = SALES_EXPORT_PERM
     def get(self, request):
-        leads = list(_lead_queryset())
+        leads = list(_lead_queryset(request))
         status = request.GET.get('status', '').strip()
         if status:
             leads = [l for l in leads if l.status == status]

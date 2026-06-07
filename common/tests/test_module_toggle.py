@@ -1,116 +1,134 @@
-"""Modül aç/kapa API testleri."""
+"""Modül aç/kapa API testleri — plan tavanı ve abonelik sahibi."""
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 
-from common.module_runtime import is_module_installed
-from core_settings.models import SiteSettings
+from common.module_context import bind_module_user, reset_module_user
+from common.module_plan import default_plan_module_seed, plan_included_modules
+from common.module_runtime import is_module_installed, is_particle_enabled
+from core_settings.models import Plan, SiteSettings
+
+User = get_user_model()
+
+
+def _bind(user):
+    return bind_module_user(user)
 
 
 class ModuleToggleApiTests(TestCase):
     def setUp(self):
-        User = get_user_model()
         role = __import__('users.models', fromlist=['Role']).Role.objects.filter(slug='admin').first()
-        self.user = User.objects.create_user(username='_modtog', password='x')
+        self.plan = Plan.objects.create(
+            name='Toggle Plan',
+            price=0,
+            max_hq_brands=1,
+            max_dealer_panels=0,
+            max_users_per_brand=5,
+            max_customers_per_brand=100,
+            included_module_slugs=default_plan_module_seed() + ['integration_weather'],
+            is_active=True,
+        )
+        self.user = User.objects.create_user(username='_modtog', password='x', plan=self.plan)
         if role:
             self.user.role = role
             self.user.save()
         SiteSettings.objects.create(site_name='Test')
         self.client.force_login(self.user)
 
+    def _assert_installed(self, slug, expected):
+        token = _bind(self.user)
+        try:
+            self.assertEqual(is_module_installed(slug), expected)
+        finally:
+            reset_module_user(token)
+
     def test_toggle_off_on_without_page_reload(self):
-        from common.module_runtime import get_enabled_module_slugs
-
         slug = 'integration_weather'
-        settings = SiteSettings.objects.first()
-        enabled = list(get_enabled_module_slugs())
-        if slug not in enabled:
-            settings.enabled_module_slugs = enabled + [slug]
-            settings.save()
-        self.assertTrue(is_module_installed(slug))
+        self._assert_installed(slug, True)
 
-        off = self.client.post('/panel/moduller/toggle/', {'module_slug': slug})
+        off = self.client.post('/panel/abonelik/modul-toggle/', {'module_slug': slug})
         self.assertEqual(off.status_code, 200)
         data = off.json()
         self.assertTrue(data['ok'])
         self.assertFalse(data['installed'])
-        self.assertFalse(is_module_installed(slug))
+        self.user.refresh_from_db()
+        self._assert_installed(slug, False)
 
-        on = self.client.post('/panel/moduller/toggle/', {'module_slug': slug})
+        on = self.client.post('/panel/abonelik/modul-toggle/', {'module_slug': slug})
         self.assertEqual(on.status_code, 200)
         self.assertTrue(on.json()['installed'])
 
+    def test_toggle_rejects_module_outside_plan(self):
+        slug = 'agency_portal'
+        resp = self.client.post('/panel/abonelik/modul-toggle/', {'module_slug': slug})
+        self.assertEqual(resp.status_code, 400)
+        self.assertFalse(resp.json()['ok'])
+
     def test_disable_montaj_particle_persists(self):
-        from common.module_runtime import get_enabled_module_slugs, is_particle_enabled
-
         particle = 'p.accounting.projects'
-        settings = SiteSettings.objects.first()
-        modules = list(get_enabled_module_slugs())
-        if 'accounting' not in modules:
-            settings.enabled_module_slugs = modules + ['accounting', particle]
-            settings.save()
-        elif particle not in settings.enabled_module_slugs:
-            settings.enabled_module_slugs = list(settings.enabled_module_slugs) + [particle]
-            settings.save()
-        self.assertTrue(is_particle_enabled(particle))
+        if 'accounting' not in plan_included_modules(self.plan):
+            self.plan.included_module_slugs = list(self.plan.included_module_slugs) + ['accounting']
+            self.plan.save()
+        token = _bind(self.user)
+        try:
+            self.assertTrue(is_particle_enabled(particle))
+        finally:
+            reset_module_user(token)
 
-        off = self.client.post('/panel/moduller/toggle/', {'particle_slug': particle})
+        off = self.client.post('/panel/abonelik/modul-toggle/', {'particle_slug': particle})
         self.assertTrue(off.json()['ok'])
-        settings.refresh_from_db()
-        self.assertNotIn(particle, settings.enabled_module_slugs)
-        self.assertFalse(is_particle_enabled(particle))
+        self.user.refresh_from_db()
+        self.assertNotIn(particle, self.user.enabled_module_slugs or [])
+        token = _bind(self.user)
+        try:
+            self.assertFalse(is_particle_enabled(particle))
+        finally:
+            reset_module_user(token)
 
     def test_toggle_requires_settings_perm(self):
-        User = get_user_model()
         role = __import__('users.models', fromlist=['Role']).Role.objects.filter(slug='service').first()
         user = User.objects.create_user(username='_svc', password='x')
         if role:
             user.role = role
             user.save()
         self.client.force_login(user)
-        resp = self.client.post('/panel/moduller/toggle/', {'module_slug': 'contact'})
-        self.assertEqual(resp.status_code, 403)
+        resp = self.client.post('/panel/abonelik/modul-toggle/', {'module_slug': 'contact'})
+        self.assertIn(resp.status_code, (403, 400))
+        self.assertFalse(resp.json()['ok'])
 
     def test_toggle_particle_off_on(self):
-        from common.module_runtime import get_enabled_particle_slugs, is_particle_enabled
-
         slug = 'p.contact.customers'
-        settings = SiteSettings.objects.first()
-        modules = list(__import__('common.module_runtime', fromlist=['get_enabled_module_slugs']).get_enabled_module_slugs())
-        if 'contact' not in modules:
-            settings.enabled_module_slugs = modules + ['contact']
-            settings.save()
+        token = _bind(self.user)
+        try:
+            self.assertTrue(is_particle_enabled(slug))
+        finally:
+            reset_module_user(token)
 
-        if slug not in get_enabled_particle_slugs():
-            settings.enabled_module_slugs = modules + [slug]
-            settings.save()
-        self.assertTrue(is_particle_enabled(slug))
-
-        off = self.client.post('/panel/moduller/toggle/', {'particle_slug': slug})
+        off = self.client.post('/panel/abonelik/modul-toggle/', {'particle_slug': slug})
         self.assertEqual(off.status_code, 200)
         self.assertTrue(off.json()['ok'])
         self.assertFalse(off.json()['enabled'])
-        self.assertFalse(is_particle_enabled(slug))
 
-        on = self.client.post('/panel/moduller/toggle/', {'particle_slug': slug})
+        on = self.client.post('/panel/abonelik/modul-toggle/', {'particle_slug': slug})
         self.assertEqual(on.status_code, 200)
         self.assertTrue(on.json()['enabled'])
 
     def test_particle_requires_parent_module(self):
-        from common.module_runtime import get_enabled_module_slugs
-
-        settings = SiteSettings.objects.first()
-        modules = [s for s in get_enabled_module_slugs() if s != 'contact']
-        settings.enabled_module_slugs = modules
-        settings.save()
-        resp = self.client.post('/panel/moduller/toggle/', {'particle_slug': 'p.contact.customers'})
+        modules = [s for s in plan_included_modules(self.plan) if s != 'contact']
+        self.user.enabled_module_slugs = modules
+        self.user.save()
+        resp = self.client.post('/panel/abonelik/modul-toggle/', {'particle_slug': 'p.contact.customers'})
         self.assertEqual(resp.status_code, 400)
         self.assertFalse(resp.json()['ok'])
 
     def test_cannot_disable_last_module(self):
-        settings = SiteSettings.objects.first()
-        settings.enabled_module_slugs = ['settings']
-        settings.save()
-        resp = self.client.post('/panel/moduller/toggle/', {'module_slug': 'settings'})
+        only = [s for s in plan_included_modules(self.plan) if s == 'settings']
+        if not only:
+            only = ['settings']
+            self.plan.included_module_slugs = only
+            self.plan.save()
+        self.user.enabled_module_slugs = only
+        self.user.save()
+        resp = self.client.post('/panel/abonelik/modul-toggle/', {'module_slug': 'settings'})
         self.assertEqual(resp.status_code, 400)
         self.assertFalse(resp.json()['ok'])

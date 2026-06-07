@@ -58,10 +58,15 @@ def _item(
 
 QUICK_SEARCH_ITEMS: tuple[QuickSearchItem, ...] = (
     _item('Ana Panel', 'Modül kısayolları', 'layout-grid', 'Genel', 'home'),
-    _item('Modül Merkezi', 'Kurulu uygulamalar', 'puzzle', 'Genel', 'module_hub'),
+    _item('Abonelik modülleri', 'Plan tavanı içinde aç/kapa', 'puzzle', 'Genel', 'subscription_dashboard', keywords=('modül', 'abonelik', 'kurulum')),
     _item('Entegrasyon Merkezi', 'WhatsApp, toplu mesaj, medya, kazıma', 'zap', 'Genel', 'capabilities_hub'),
     _item('Bilgi bankası', 'Tanıtım yol haritası ve demo rehberi', 'book-open', 'Genel', 'introducer_knowledge_base', keywords=('tanıtım', 'demo', 'bilgi', 'rehber'), perms_any=('access.home',)),
     _item('Profil ayarları', 'Hesap ve avatar', 'user', 'Genel', 'profile_settings'),
+    _item('Süper admin paneli', 'Platform denetimi', 'shield', 'Platform', 'admin_dashboard'),
+    _item('Abonelik sahipleri', 'Kiracı hesapları', 'users', 'Platform', 'admin_users'),
+    _item('Sistem yedekleri', 'Tam ve panel yedeği', 'database-backup', 'Platform', 'admin_system_backup'),
+    _item('Abonelik & bayi yönetimi', 'Plan, panel ve franchise', 'shield-check', 'Genel', 'subscription_dashboard', keywords=('abonelik', 'bayi', 'franchise', 'plan', 'panel')),
+    _item('Ekip yönetimi', 'Kullanıcılar ve roller', 'users-round', 'Genel', 'brand_team_users', keywords=('ekip', 'kullanıcı', 'rol', 'personel'), perms_any=('access.home',)),
     _item('Rehber özeti', 'Müşteri ve firma hub', 'book-user', 'Rehber', 'contact_hub', module_slug='contact', perms_any=('access.contact',)),
     _item('Müşteriler', 'Müşteri listesi', 'users', 'Rehber', 'customers', keywords=('müşteri', 'rehber'), perms_any=('access.contact', 'contact.customers_view', 'contact.customers'), module_slug='contact'),
     _item('Yeni müşteri', 'Müşteri kaydı oluştur', 'user-plus', 'Rehber', 'customer_create', keywords=('ekle', 'yeni'), perms_any=('contact.customers',), module_slug='contact', kind='action'),
@@ -74,7 +79,7 @@ QUICK_SEARCH_ITEMS: tuple[QuickSearchItem, ...] = (
     _item('Saha planı', 'Günlük randevu takvimi', 'calendar-days', 'Yardım Masası', 'service_schedule', keywords=('takvim', 'plan'), perms_any=('access.services',), module_slug='services'),
     _item('Muhasebe özeti', 'Finans hub', 'calculator', 'Muhasebe', 'accounting_hub', module_slug='accounting', perms_any=('access.accounting',)),
     _item('Personeller', 'Saha personeli listesi', 'users', 'Rehber', 'personnel_network', keywords=('personel',), perms_any=('contact.personnel',), module_slug='contact'),
-    _item('Personel yönetimi', 'Departman, ünvan, dönem özeti', 'id-card', 'Rehber', 'contact_personnel', keywords=('personel', 'kadro'), perms_any=('contact.personnel', 'contact.payroll'), module_slug='contact'),
+    _item('Personel yönetimi', 'Departman, ünvan, dönem özeti', 'id-card', 'Rehber', 'accounting_personnel', keywords=('personel', 'kadro'), perms_any=('contact.personnel', 'contact.payroll'), module_slug='contact'),
     _item('Maaş & avans', 'Ödeme döngüsü', 'wallet', 'Muhasebe', 'accounting_payroll', keywords=('maaş', 'avans'), perms_any=('contact.payroll',), module_slug='accounting'),
     _item('Gelir & gider', 'Ofis giderleri', 'receipt', 'Muhasebe', 'accounting_finance', keywords=('gider', 'gelir'), perms_any=('accounting.finance',), module_slug='accounting'),
     _item('Kasa', 'Nakit özeti', 'landmark', 'Muhasebe', 'accounting_cash', keywords=('kasa', 'nakit'), perms_any=('accounting.finance',), module_slug='accounting'),
@@ -106,7 +111,15 @@ QUICK_SEARCH_ITEMS: tuple[QuickSearchItem, ...] = (
 )
 
 
-def _user_can_see_item(user, item: QuickSearchItem) -> bool:
+_SUPERUSER_QUICK_URLS = frozenset({
+    'profile_settings',
+    'admin_dashboard',
+    'admin_users',
+    'admin_system_backup',
+})
+
+
+def _user_can_see_item(user, item: QuickSearchItem, *, request=None) -> bool:
     if not user.is_authenticated:
         return False
     if user.is_superuser:
@@ -194,11 +207,11 @@ def _contact_search_q(
     return filters
 
 
-def build_quick_search_results(user, query: str = '', *, limit: int = 20) -> list[dict]:
+def build_quick_search_results(user, query: str = '', *, limit: int = 20, request=None) -> list[dict]:
     q = (query or '').strip().lower()
     out: list[dict] = []
     for item in QUICK_SEARCH_ITEMS:
-        if not _user_can_see_item(user, item):
+        if not _user_can_see_item(user, item, request=request):
             continue
         if q and not _match_query(item, q):
             continue
@@ -222,7 +235,6 @@ def search_entities(user, query: str, *, limit: int = 5, request=None) -> list[d
     q = (query or '').strip()
     if len(q) < 2:
         return []
-
     results: list[dict] = []
     per_type = max(2, limit // 2)
 

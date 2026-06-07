@@ -112,6 +112,31 @@ def module_install_context(request):
     }
 
 
+def tenant_context(request):
+    from common.brand_access import (
+        resolve_post_login_url,
+        user_can_access_platform_panel,
+        user_is_dealer_only,
+    )
+    from common.brand_team import can_manage_brand_team
+    from common.tenant import build_brand_public_url
+
+    tenant = getattr(request, 'tenant_brand', None)
+    user = getattr(request, 'user', None)
+    is_dealer_only = user_is_dealer_only(user) if user and user.is_authenticated else False
+    return {
+        'tenant_brand': tenant,
+        'tenant_path_prefix': getattr(request, 'tenant_path_prefix', '') or '',
+        'is_dealer_panel': bool(tenant and tenant.panel_kind == 'dealer'),
+        'is_tenant_host': bool(tenant),
+        'user_is_dealer_only': is_dealer_only,
+        'user_can_access_platform': user_can_access_platform_panel(user) if user and user.is_authenticated else False,
+        'user_can_manage_brand_team': can_manage_brand_team(user) if user and user.is_authenticated else False,
+        'tenant_panel_url': build_brand_public_url(tenant, request) if tenant else '',
+        'dealer_home_url': resolve_post_login_url(request, user) if is_dealer_only else '',
+    }
+
+
 def active_brand_context(request):
     from common.brand_scope import get_active_brand, user_brands, user_memberships
 

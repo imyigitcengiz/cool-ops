@@ -1,9 +1,14 @@
-from users.models import Permission, Role
 from users.permission_catalog import DEFAULT_ROLES, PERMISSIONS
 
 
-def sync_permissions_to_db(reset_system_role_permissions=False):
+def sync_permissions_to_db(reset_system_role_permissions=False, apps=None):
     """Katalogdaki izinleri veritabanına yazar; yeni fonksiyon izinlerini ekler."""
+    if apps is not None:
+        Permission = apps.get_model('users', 'Permission')
+        Role = apps.get_model('users', 'Role')
+    else:
+        from users.models import Permission, Role
+
     perm_map = {}
     for codename, name, module, kind, sort_order, description in PERMISSIONS:
         perm, _ = Permission.objects.update_or_create(

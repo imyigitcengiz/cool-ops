@@ -32,7 +32,8 @@ class ModuleGateTests(TestCase):
         self.assertFalse(module_route_allowed('integration_media'))
         response = self.client.get('/tools/medya/')
         self.assertEqual(response.status_code, 302)
-        self.assertIn('/panel/moduller/', response.url)
+        self.assertIn('/panel/abonelik/', response.url)
+        self.assertIn('#moduller', response.url)
 
     def test_closed_whatsapp_blocks_bridge_url(self):
         settings = SiteSettings.objects.first()

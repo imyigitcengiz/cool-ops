@@ -5,6 +5,8 @@ from django.http import JsonResponse
 from django.shortcuts import redirect
 from django.urls import reverse
 
+from common.module_context import bind_module_user, reset_module_user
+
 from common.middleware import _is_api_request
 from common.module_catalog import (
     MODULE_KIND_INTEGRATION,
@@ -27,11 +29,17 @@ class ModuleInstallMiddleware:
         self.get_response = get_response
 
     def __call__(self, request):
-        if request.user.is_authenticated and not request.user.is_superuser:
-            blocked = self._blocked_response(request)
-            if blocked is not None:
-                return blocked
-        return self.get_response(request)
+        token = bind_module_user(
+            request.user if getattr(request, 'user', None) and request.user.is_authenticated else None
+        )
+        try:
+            if request.user.is_authenticated and not request.user.is_superuser:
+                blocked = self._blocked_response(request)
+                if blocked is not None:
+                    return blocked
+            return self.get_response(request)
+        finally:
+            reset_module_user(token)
 
     @staticmethod
     def _api_forbidden(message: str):
@@ -46,33 +54,27 @@ class ModuleInstallMiddleware:
             if mod and mod['status'] in (MODULE_STATUS_ACTIVE, MODULE_STATUS_BETA):
                 if mod['kind'] == MODULE_KIND_INTEGRATION:
                     if not module_route_allowed(slug):
-                        msg = f'"{mod["name"]}" entegrasyonu kapalı. Modül Merkezi\'nden açabilirsiniz.'
+                        msg = f'"{mod["name"]}" entegrasyonu kapalı. Abonelik sayfasından açabilirsiniz.'
                         if _is_api_request(request):
                             return self._api_forbidden(msg)
                         messages.warning(request, msg)
-                        try:
-                            return redirect(reverse('module_hub') + f'?highlight={slug}')
-                        except Exception:
-                            return redirect('module_hub')
+                        return redirect(reverse('subscription_dashboard') + '#moduller')
                 elif not module_route_allowed(slug):
-                    msg = f'{mod["name"]} modülü kapalı. Modül Merkezi\'nden açabilirsiniz.'
+                    msg = f'{mod["name"]} modülü kapalı. Abonelik sayfasından açabilirsiniz.'
                     if _is_api_request(request):
                         return self._api_forbidden(msg)
                     messages.warning(request, msg)
-                    try:
-                        return redirect(reverse('module_hub') + f'?highlight={slug}')
-                    except Exception:
-                        return redirect('module_hub')
+                    return redirect(reverse('subscription_dashboard') + '#moduller')
 
         particle_slug = resolve_path_particle_slug(path)
         if particle_slug:
             p = particle_by_slug(particle_slug)
             if p and not self._particle_route_allowed(particle_slug, path):
-                msg = f'"{p["name"]}" özelliği kapalı. Modül Merkezi\'nden açabilirsiniz.'
+                msg = f'"{p["name"]}" özelliği kapalı. Abonelik sayfasından açabilirsiniz.'
                 if _is_api_request(request):
                     return self._api_forbidden(msg)
                 messages.warning(request, msg)
-                return redirect(reverse('module_hub'))
+                return redirect(reverse('subscription_dashboard') + '#moduller')
 
         return None
 

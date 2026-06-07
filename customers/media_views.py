@@ -2,14 +2,17 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from django.views.decorators.http import require_http_methods
 
+from common.brand_scope import (
+    filter_services,
+    get_customer_for_request,
+    get_service_for_request,
+)
 from common.decorators import permission_required
 from common.permissions import (
     CUSTOMERS_EDIT_PERM,
     CUSTOMERS_VIEW_PERM,
     SERVICES_MANAGE_PERM,
 )
-from services.models import ServiceRecord
-
 from common.media_files import classify_media_kind, is_allowed_upload, kind_label
 
 from .models import Customer, CustomerMedia
@@ -80,7 +83,7 @@ def _serialize_media(obj: CustomerMedia) -> dict:
 @require_http_methods(['GET'])
 @permission_required(CUSTOMERS_VIEW_PERM, CUSTOMERS_EDIT_PERM, SERVICES_MANAGE_PERM, any_perm=True)
 def customer_media_list_api(request, customer_id):
-    customer = get_object_or_404(Customer, pk=customer_id)
+    customer = get_customer_for_request(request, customer_id)
     scope = (request.GET.get('scope') or '').strip()
     service_id = request.GET.get('service_id', '').strip()
 
@@ -100,7 +103,7 @@ def customer_media_list_api(request, customer_id):
 @require_http_methods(['POST'])
 @permission_required(CUSTOMERS_EDIT_PERM, SERVICES_MANAGE_PERM, any_perm=True)
 def customer_media_upload_api(request, customer_id):
-    customer = get_object_or_404(Customer, pk=customer_id)
+    customer = get_customer_for_request(request, customer_id)
     scope = (request.POST.get('scope') or CustomerMedia.SCOPE_CUSTOMER).strip()
     if scope not in dict(CustomerMedia.SCOPE_CHOICES):
         return JsonResponse({'ok': False, 'error': 'Geçersiz medya kategorisi.'}, status=400)
@@ -110,9 +113,15 @@ def customer_media_upload_api(request, customer_id):
     if scope == CustomerMedia.SCOPE_SERVICE:
         if not service_id.isdigit():
             return JsonResponse({'ok': False, 'error': 'Servis dosyası için kayıtlı servis gerekli.'}, status=400)
-        service = get_object_or_404(ServiceRecord, pk=int(service_id), customer_id=customer.pk)
+        service = get_service_for_request(
+            request,
+            int(service_id),
+            queryset=customer.service_records.all(),
+        )
     elif service_id.isdigit():
-        service = ServiceRecord.objects.filter(pk=int(service_id), customer_id=customer.pk).first()
+        service = filter_services(customer.service_records.all(), request).filter(
+            pk=int(service_id),
+        ).first()
 
     if not _can_upload_media(request.user, scope, service):
         return JsonResponse({'ok': False, 'error': 'Yükleme yetkiniz yok.'}, status=403)
@@ -167,6 +176,7 @@ def customer_media_upload_api(request, customer_id):
 @permission_required(CUSTOMERS_EDIT_PERM, SERVICES_MANAGE_PERM, 'tools.media_delete', any_perm=True)
 def customer_media_delete_api(request, pk):
     media = get_object_or_404(CustomerMedia.objects.select_related('customer', 'service'), pk=pk)
+    get_customer_for_request(request, media.customer_id)
     if not _can_upload_media(request.user, media.scope, media.service):
         return JsonResponse({'ok': False, 'error': 'Silme yetkiniz yok.'}, status=403)
 

@@ -37,6 +37,14 @@ class Role(models.Model):
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     is_system = models.BooleanField(default=False, verbose_name='Sistem rolü')
+    owner = models.ForeignKey(
+        'User',
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='owned_roles',
+        verbose_name='Oluşturan abonelik sahibi',
+    )
     permissions = models.ManyToManyField(Permission, blank=True, related_name='roles')
 
     class Meta:
@@ -57,6 +65,45 @@ class User(AbstractUser):
         blank=True,
         verbose_name='Rol',
     )
+    plan = models.ForeignKey(
+        'core_settings.Plan',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='users',
+        verbose_name='Abonelik planı',
+    )
+    enabled_module_slugs = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name='Aktif modüller',
+        help_text='Abonelik planı tavanı içinde açık modüller.',
+    )
+
+    @property
+    def active_plan(self):
+        if self.plan:
+            return self.plan
+        from core_settings.models import Plan
+        free_plan = Plan.objects.filter(price=0).first()
+        if free_plan:
+            return free_plan
+        class FallbackPlan:
+            name = "Ücretsiz Plan"
+            max_brands = 1
+            max_hq_brands = 1
+            max_dealer_panels = 0
+            max_users_per_brand = 3
+            max_customers_per_brand = 100
+            included_module_slugs = []
+            included_particle_slugs = []
+            brands_limit_display = "1"
+            users_limit_display = "3"
+            customers_limit_display = "100"
+
+            def module_count(self):
+                return 4
+        return FallbackPlan()
 
     class Meta:
         verbose_name = 'Kullanıcı'
@@ -192,3 +239,97 @@ class UserNotification(models.Model):
 
     def __str__(self):
         return f'{self.user_id}: {self.title}'
+
+
+class ImpersonationAudit(models.Model):
+    ACTION_START = 'start'
+    ACTION_STOP = 'stop'
+    ACTION_CHOICES = (
+        (ACTION_START, 'Başlangıç'),
+        (ACTION_STOP, 'Bitiş'),
+    )
+
+    action = models.CharField(max_length=10, choices=ACTION_CHOICES)
+    actor = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='impersonation_audits_as_actor',
+    )
+    target = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='impersonation_audits_as_target',
+    )
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=500, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Impersonate kaydı'
+        verbose_name_plural = 'Impersonate kayıtları'
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['actor', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.action} {self.actor_id}→{self.target_id}'
+
+
+class PlatformAuditLog(models.Model):
+    ACTION_BRAND_INSPECT = 'brand_inspect'
+    ACTION_BACKUP_EXPORT = 'backup_export'
+    ACTION_BRAND_BACKUP_EXPORT = 'brand_backup_export'
+    ACTION_FACTORY_RESET = 'factory_reset'
+    ACTION_BRAND_DELETE = 'brand_delete'
+    ACTION_CHOICES = (
+        (ACTION_BRAND_INSPECT, 'Marka inceleme'),
+        (ACTION_BACKUP_EXPORT, 'Tam yedek indirme'),
+        (ACTION_BRAND_BACKUP_EXPORT, 'Marka yedeği indirme'),
+        (ACTION_FACTORY_RESET, 'Fabrika sıfırlama'),
+        (ACTION_BRAND_DELETE, 'Marka silme'),
+    )
+
+    action = models.CharField(max_length=32, choices=ACTION_CHOICES)
+    actor = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='platform_audits',
+    )
+    brand = models.ForeignKey(
+        'core_settings.BusinessBrand',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='platform_audits',
+    )
+    target_user = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='platform_audits_as_target',
+    )
+    detail = models.CharField(max_length=500, blank=True, default='')
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=500, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Platform denetim kaydı'
+        verbose_name_plural = 'Platform denetim kayıtları'
+        indexes = [
+            models.Index(fields=['-created_at']),
+            models.Index(fields=['action', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'{self.get_action_display()} — {self.actor_id}'

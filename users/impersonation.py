@@ -67,6 +67,15 @@ def start_impersonation(request, target) -> None:
     request.session.pop(SESSION_IMPERSONATOR_KEY, None)
     request.session[SESSION_IMPERSONATE_USER_ID] = target.pk
     request.session.modified = True
+    from users.impersonation_audit import log_impersonation_audit
+    from users.models import ImpersonationAudit
+
+    log_impersonation_audit(
+        request,
+        action=ImpersonationAudit.ACTION_START,
+        actor=actor,
+        target=target,
+    )
     logger.info(
         'impersonation_start actor_id=%s target_id=%s target_username=%s',
         actor.pk,
@@ -85,6 +94,15 @@ def stop_impersonation(request):
     request.session.pop(SESSION_IMPERSONATE_USER_ID, None)
     request.session.pop(SESSION_IMPERSONATOR_KEY, None)
     request.session.modified = True
+    from users.impersonation_audit import log_impersonation_audit
+    from users.models import ImpersonationAudit
+
+    log_impersonation_audit(
+        request,
+        action=ImpersonationAudit.ACTION_STOP,
+        actor=actor,
+        target=target,
+    )
     logger.info(
         'impersonation_stop actor_id=%s previous_target_id=%s',
         getattr(actor, 'pk', None),

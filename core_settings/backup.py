@@ -20,7 +20,13 @@ from common.security_limits import MAX_BACKUP_UPLOAD_BYTES
 SQLITE_MAGIC = b'SQLite format 3\x00'
 
 BACKUP_FORMAT_V2 = 'cool-ops-backup-v2'
+BRAND_BACKUP_FORMAT_V1 = 'cool-ops-brand-backup-v1'
 LEGACY_BACKUP_FORMAT_V2 = 'gy-dashboard-backup-v2'
+
+BRAND_BACKUP_MODELS = (
+    'customers.customer',
+    'services.servicerecord',
+)
 
 
 def _applied_migrations():
@@ -68,6 +74,284 @@ def _build_backup_payload() -> dict:
     }
 
 
+def _serialize_brand_fixture(brand_id: int) -> list:
+    from django.apps import apps
+    from django.core import serializers
+
+    fixture = []
+    for label in BRAND_BACKUP_MODELS:
+        model = apps.get_model(label)
+        if not hasattr(model, 'brand_id'):
+            continue
+        qs = model.objects.filter(brand_id=brand_id)
+        if qs.exists():
+            fixture.extend(json.loads(serializers.serialize('json', qs)))
+    return fixture
+
+
+def _backup_upload_is_allowed(filename: str) -> tuple[bool, bool]:
+    """
+    Yedek dosya adı — (izinli_mi, gzip_mi).
+    Tarayıcılar .json.gz dosyalarını çoğu zaman yalnızca .gz olarak listeler.
+    """
+    name = (filename or '').lower().strip()
+    if name.endswith('.json.gz') or name.endswith('.json.gzip'):
+        return True, True
+    if name.endswith('.gz') or name.endswith('.gzip'):
+        return True, True
+    if name.endswith('.json'):
+        return True, False
+    return False, False
+
+
+def _read_uploaded_json(uploaded) -> dict | list:
+    """Yüklenen .json veya .json.gz dosyasını ayrıştırır."""
+    if not uploaded:
+        raise ValueError('Lütfen bir dosya seçin.')
+    if _upload_too_large(uploaded):
+        limit_mb = MAX_BACKUP_UPLOAD_BYTES // (1024 * 1024)
+        raise ValueError(f'Dosya çok büyük (en fazla {limit_mb} MB).')
+
+    filename = uploaded.name or ''
+    allowed, is_gzip = _backup_upload_is_allowed(filename)
+    if not allowed:
+        raise ValueError('Sadece .json veya .json.gz (gzip) yedek dosyaları içe aktarılabilir.')
+
+    tmp_input = None
+    tmp_json = None
+    try:
+        tmp_suffix = '.json.gz' if is_gzip else '.json'
+        tmp_input = NamedTemporaryFile(delete=False, suffix=tmp_suffix)
+        for chunk in uploaded.chunks():
+            tmp_input.write(chunk)
+        tmp_input.flush()
+        tmp_input.close()
+
+        parse_path = tmp_input.name
+        if is_gzip:
+            tmp_json = NamedTemporaryFile(delete=False, suffix='.json')
+            with gzip.open(tmp_input.name, 'rb') as gz_file, open(tmp_json.name, 'wb') as out_file:
+                shutil.copyfileobj(gz_file, out_file)
+            parse_path = tmp_json.name
+
+        with open(parse_path, 'r', encoding='utf-8') as handle:
+            return json.load(handle)
+    finally:
+        if tmp_input and os.path.exists(tmp_input.name):
+            os.unlink(tmp_input.name)
+        if tmp_json and os.path.exists(tmp_json.name):
+            os.unlink(tmp_json.name)
+
+
+def _parse_brand_backup_payload(data) -> tuple[dict, list]:
+    if not isinstance(data, dict):
+        raise ValueError('Geçersiz marka yedeği — JSON nesnesi bekleniyor.')
+    if data.get('format') != BRAND_BACKUP_FORMAT_V1:
+        raise ValueError(
+            'Tanınmayan marka yedeği formatı. cool-ops-brand-backup-v1 dosyası yükleyin.'
+        )
+    fixture = data.get('fixture')
+    if not isinstance(fixture, list):
+        raise ValueError('Marka yedeğinde fixture verisi bulunamadı.')
+    return data, fixture
+
+
+def _split_brand_fixture(fixture: list) -> tuple[list, list]:
+    customers = []
+    services = []
+    for row in fixture:
+        model = row.get('model') or ''
+        if model == 'customers.customer':
+            customers.append(row)
+        elif model == 'services.servicerecord':
+            services.append(row)
+    return customers, services
+
+
+def _fk_or_none(model, pk):
+    if pk in (None, ''):
+        return None
+    try:
+        pk = int(pk)
+    except (TypeError, ValueError):
+        return None
+    return pk if model.objects.filter(pk=pk).exists() else None
+
+
+def _fk_required(model, pk, *, label: str):
+    if pk in (None, ''):
+        raise ValueError(f'{label} eksik — yedek bozuk veya uyumsuz.')
+    try:
+        pk = int(pk)
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f'{label} geçersiz.') from exc
+    if not model.objects.filter(pk=pk).exists():
+        raise ValueError(
+            f'{label} (kayıt #{pk}) hedef sistemde yok. '
+            'Aynı platformdan alınmış yedek kullanın veya önce durum/öncelik kataloglarını eşleştirin.'
+        )
+    return pk
+
+
+def _filter_existing_pks(model, ids):
+    if not ids:
+        return []
+    clean = []
+    for raw in ids:
+        try:
+            pk = int(raw)
+        except (TypeError, ValueError):
+            continue
+        if model.objects.filter(pk=pk).exists():
+            clean.append(pk)
+    return clean
+
+
+def import_brand_backup_file(
+    uploaded,
+    brand_id: int,
+    *,
+    replace_existing: bool = False,
+) -> tuple[bool, str]:
+    """Marka yedeğini seçilen markaya yükler (müşteri + servis kayıtları)."""
+    from core_settings.models import BusinessBrand, PriorityOption, ProductOption, ServicePersonnel
+    from core_settings.models import ServiceTypeOption, SolutionPartner, StatusOption
+    from customers.models import Customer
+    from django.contrib.auth import get_user_model
+    from services.models import ServiceRecord
+
+    User = get_user_model()
+
+    try:
+        brand = BusinessBrand.objects.filter(pk=brand_id, is_active=True).first()
+        if not brand:
+            return False, 'Hedef marka bulunamadı veya pasif.'
+
+        data = _read_uploaded_json(uploaded)
+        meta, fixture = _parse_brand_backup_payload(data)
+        customers_data, services_data = _split_brand_fixture(fixture)
+
+        source_name = meta.get('brand_name') or meta.get('brand_slug') or 'bilinmeyen'
+        backup_date = (meta.get('created_at') or '')[:19]
+
+        with transaction.atomic():
+            if replace_existing:
+                Customer.objects.filter(brand_id=brand.pk).delete()
+
+            customer_map: dict[int, int] = {}
+            imported_customers = 0
+            imported_services = 0
+
+            for row in customers_data:
+                fields = dict(row.get('fields') or {})
+                old_pk = row.get('pk')
+                fields.pop('brand', None)
+                product_ids = _filter_existing_pks(ProductOption, fields.pop('products', []) or [])
+
+                customer = Customer(
+                    brand=brand,
+                    name=fields.get('name') or '',
+                    phone=fields.get('phone'),
+                    region=fields.get('region'),
+                    address=fields.get('address'),
+                    location_link=fields.get('location_link'),
+                    contract_date=fields.get('contract_date'),
+                )
+                customer.save()
+                if product_ids:
+                    customer.products.set(product_ids)
+                if old_pk is not None:
+                    customer_map[int(old_pk)] = customer.pk
+                imported_customers += 1
+
+            for row in services_data:
+                fields = dict(row.get('fields') or {})
+                old_customer_id = fields.get('customer')
+                if old_customer_id is None:
+                    continue
+                try:
+                    old_customer_id = int(old_customer_id)
+                except (TypeError, ValueError):
+                    continue
+                new_customer_id = customer_map.get(old_customer_id)
+                if not new_customer_id:
+                    continue
+
+                product_ids = _filter_existing_pks(ProductOption, fields.pop('products', []) or [])
+                service_type_ids = _filter_existing_pks(
+                    ServiceTypeOption, fields.pop('service_types', []) or [],
+                )
+
+                status_id = _fk_required(StatusOption, fields.get('status'), label='Durum')
+                priority_id = _fk_required(PriorityOption, fields.get('priority'), label='Öncelik')
+
+                service = ServiceRecord(
+                    brand=brand,
+                    customer_id=new_customer_id,
+                    status_id=status_id,
+                    priority_id=priority_id,
+                    solution_partner_id=_fk_or_none(SolutionPartner, fields.get('solution_partner')),
+                    notes=fields.get('notes'),
+                    assigned_to_id=_fk_or_none(User, fields.get('assigned_to')),
+                    service_personnel_id=_fk_or_none(ServicePersonnel, fields.get('service_personnel')),
+                    warranty_status=fields.get('warranty_status') or 'active',
+                    partner_fee=fields.get('partner_fee'),
+                    warranty_note=fields.get('warranty_note'),
+                    list_price=fields.get('list_price'),
+                    discounted_price=fields.get('discounted_price'),
+                    scheduled_at=fields.get('scheduled_at'),
+                )
+                service.save()
+                if product_ids:
+                    service.products.set(product_ids)
+                if service_type_ids:
+                    service.service_types.set(service_type_ids)
+                imported_services += 1
+
+        mode = 'değiştirildi' if replace_existing else 'eklendi'
+        date_note = f' Yedek tarihi: {backup_date}.' if backup_date else ''
+        return True, (
+            f'"{brand.name}" markasına "{source_name}" yedeği yüklendi ({mode}): '
+            f'{imported_customers} müşteri, {imported_services} servis.{date_note} '
+            'Not: Müşteri dosyaları (media/) bu yedekte yer almaz.'
+        )
+    except ValueError as exc:
+        return False, str(exc)
+    except Exception as exc:
+        return False, f'Marka yedeği içe aktarılamadı: {exc}'
+
+
+def export_brand_backup_response(brand_id: int) -> HttpResponse:
+    from core_settings.models import BusinessBrand
+
+    brand = BusinessBrand.objects.filter(pk=brand_id, is_active=True).first()
+    if not brand:
+        raise ValueError('Panel bulunamadı.')
+
+    from django.core import serializers as dj_serializers
+
+    fixture = _serialize_brand_fixture(brand.pk)
+    brand_meta = json.loads(dj_serializers.serialize('json', [brand]))
+
+    payload = {
+        'format': BRAND_BACKUP_FORMAT_V1,
+        'created_at': timezone.now().isoformat(),
+        'django_version': django.get_version(),
+        'brand_id': brand.pk,
+        'brand_name': brand.name,
+        'brand_slug': brand.slug,
+        'record_count': len(fixture) + len(brand_meta),
+        'fixture': brand_meta + fixture,
+    }
+    raw_json = json.dumps(payload, ensure_ascii=False, indent=2).encode('utf-8')
+    ts = datetime.now().strftime('%Y%m%d-%H%M%S')
+    safe_slug = brand.slug[:40] or str(brand.pk)
+    file_name = f'cool-ops-panel-{safe_slug}-{ts}.json.gz'
+    response = HttpResponse(gzip.compress(raw_json), content_type='application/gzip')
+    response['Content-Disposition'] = f'attachment; filename="{file_name}"'
+    return response
+
+
 def export_backup_response() -> HttpResponse:
     payload = _build_backup_payload()
     raw_json = json.dumps(payload, ensure_ascii=False, indent=2).encode('utf-8')
@@ -86,19 +370,7 @@ def _parse_backup_file(path: str, *, is_gzip: bool) -> tuple[dict | None, list]:
     else:
         with open(path, 'r', encoding='utf-8') as handle:
             data = json.load(handle)
-
-    if isinstance(data, list):
-        return None, data
-    if isinstance(data, dict) and data.get('format') in (BACKUP_FORMAT_V2, LEGACY_BACKUP_FORMAT_V2):
-        fixture = data.get('fixture')
-        if not isinstance(fixture, list):
-            raise ValueError('Yedek dosyasında fixture verisi bulunamadı.')
-        return data, fixture
-    if isinstance(data, dict) and 'fixture' in data:
-        fixture = data.get('fixture')
-        if isinstance(fixture, list):
-            return data, fixture
-    raise ValueError('Tanınmayan yedek dosyası formatı.')
+    return _parse_backup_file_from_data(data)
 
 
 def _write_fixture_temp(fixture: list) -> str:
@@ -159,38 +431,18 @@ def _upload_too_large(uploaded) -> bool:
 
 
 def import_backup_file(uploaded) -> tuple[bool, str]:
-    if not uploaded:
-        return False, 'Lütfen bir dosya seçin.'
-    if _upload_too_large(uploaded):
-        limit_mb = MAX_BACKUP_UPLOAD_BYTES // (1024 * 1024)
-        return False, f'Dosya çok büyük (en fazla {limit_mb} MB).'
-
-    filename = (uploaded.name or '').lower()
-    if not (filename.endswith('.json') or filename.endswith('.json.gz')):
-        return False, 'Sadece .json veya .json.gz dosyaları içe aktarılabilir.'
-
-    tmp_input = None
-    tmp_json = None
     tmp_fixture = None
     try:
-        is_gzip = filename.endswith('.json.gz')
-        tmp_suffix = '.json.gz' if is_gzip else '.json'
-        tmp_input = NamedTemporaryFile(delete=False, suffix=tmp_suffix)
-        for chunk in uploaded.chunks():
-            tmp_input.write(chunk)
-        tmp_input.flush()
-        tmp_input.close()
-
-        parse_path = tmp_input.name
-        if is_gzip:
-            tmp_json = NamedTemporaryFile(delete=False, suffix='.json')
-            with gzip.open(tmp_input.name, 'rb') as gz_file, open(tmp_json.name, 'wb') as out_file:
-                shutil.copyfileobj(gz_file, out_file)
-            parse_path = tmp_json.name
+        data = _read_uploaded_json(uploaded)
+        if isinstance(data, list):
+            meta, fixture = None, data
+        elif isinstance(data, dict) and data.get('format') == BRAND_BACKUP_FORMAT_V1:
+            return False, (
+                'Bu dosya marka yedeği formatında. '
+                'Marka yedeği bölümünden hedef markayı seçerek içe aktarın.'
+            )
         else:
-            tmp_json = None
-
-        meta, fixture = _parse_backup_file(parse_path, is_gzip=False)
+            meta, fixture = _parse_backup_file_from_data(data)
         tmp_fixture = _write_fixture_temp(fixture)
 
         # migrate transaction dışında (SQLite ve PostgreSQL uyumluluğu)
@@ -222,15 +474,28 @@ def import_backup_file(uploaded) -> tuple[bool, str]:
             f'JSON yedek yüklendi (fixture: {len(fixture)} kayıt; DB: {counts}).'
             f'{media_note}'
         )
+    except ValueError as exc:
+        return False, str(exc)
     except Exception as exc:
         return False, f'İçe aktarma sırasında hata oluştu: {exc}'
     finally:
-        if tmp_input and os.path.exists(tmp_input.name):
-            os.unlink(tmp_input.name)
-        if tmp_json and os.path.exists(tmp_json.name):
-            os.unlink(tmp_json.name)
         if tmp_fixture and os.path.exists(tmp_fixture):
             os.unlink(tmp_fixture)
+
+
+def _parse_backup_file_from_data(data) -> tuple[dict | None, list]:
+    if isinstance(data, list):
+        return None, data
+    if isinstance(data, dict) and data.get('format') in (BACKUP_FORMAT_V2, LEGACY_BACKUP_FORMAT_V2):
+        fixture = data.get('fixture')
+        if not isinstance(fixture, list):
+            raise ValueError('Yedek dosyasında fixture verisi bulunamadı.')
+        return data, fixture
+    if isinstance(data, dict) and 'fixture' in data:
+        fixture = data.get('fixture')
+        if isinstance(fixture, list):
+            return data, fixture
+    raise ValueError('Tanınmayan yedek dosyası formatı.')
 
 
 def database_path() -> Path:

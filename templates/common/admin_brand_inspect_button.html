@@ -1,0 +1,8 @@
+{% if brand.is_active %}
+<form method="post" action="{% url 'admin_brand_inspect' brand.pk %}" class="inline">
+    {% csrf_token %}
+    <button type="submit" class="{{ button_class|default:'text-brand-700 font-bold hover:underline' }}">
+        {{ label|default:'Markaya gir' }}
+    </button>
+</form>
+{% endif %}

@@ -5,7 +5,8 @@ from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.views import View
 
-from .admin_views import production_users_queryset
+from common.brand_access import resolve_post_login_url
+from common.brand_team import subscription_owners_queryset
 from .impersonation import ImpersonationError, is_impersonating, start_impersonation, stop_impersonation
 from .mixins import SuperuserRequiredMixin
 
@@ -20,7 +21,7 @@ class ImpersonateStartView(SuperuserRequiredMixin, View):
             messages.error(request, 'Zaten başka bir kullanıcı olarak oturum açtınız. Önce görünümden çıkın.')
             return redirect('home')
 
-        target = get_object_or_404(production_users_queryset(), pk=pk)
+        target = get_object_or_404(subscription_owners_queryset(), pk=pk)
         try:
             start_impersonation(request, target)
         except ImpersonationError as exc:
@@ -33,7 +34,7 @@ class ImpersonateStartView(SuperuserRequiredMixin, View):
             f'"{target.display_name}" ({role}) olarak sistemi inceliyorsunuz. '
             f'Üst çubuktan süper admin oturumunuza dönebilirsiniz.',
         )
-        return redirect('home')
+        return redirect(resolve_post_login_url(request, target))
 
 
 class ImpersonateStopView(LoginRequiredMixin, View):

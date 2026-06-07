@@ -1,0 +1,41 @@
+{% extends 'users/yonetim/base.html' %}
+{% block title %}Planlar{% endblock %}
+{% block content %}
+<div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900">Abonelik planları</h1>
+        <p class="text-sm text-slate-500 mt-1">Merkez/bayi limitleri, modül tavanı ve abonelik sahipleri.</p>
+    </div>
+    <a href="{% url 'admin_plan_create' %}" class="px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700">+ Yeni plan</a>
+</div>
+<div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+    <table class="w-full text-sm">
+        <thead class="bg-slate-50">
+            <tr>
+                <th class="px-5 py-3 text-left font-bold text-slate-600">Plan</th>
+                <th class="px-5 py-3 text-left font-bold text-slate-600">Fiyat</th>
+                <th class="px-5 py-3 text-left font-bold text-slate-600">Paneller</th>
+                <th class="px-5 py-3 text-left font-bold text-slate-600">Modül</th>
+                <th class="px-5 py-3 text-left font-bold text-slate-600">Abonelik sahibi</th>
+                <th class="px-5 py-3 text-left font-bold text-slate-600">Durum</th>
+                <th class="px-5 py-3 text-right font-bold text-slate-600"></th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+            {% for p in plans %}
+            <tr class="hover:bg-slate-50">
+                <td class="px-5 py-4 font-semibold text-slate-900">{{ p.name }}</td>
+                <td class="px-5 py-4">{{ p.price }} ₺</td>
+                <td class="px-5 py-4 text-xs text-slate-600">{{ p.max_hq_brands }} merkez · {{ p.max_dealer_panels }} bayi · {{ p.max_users_per_brand }} kullanıcı · {{ p.max_customers_per_brand }} müşteri</td>
+                <td class="px-5 py-4 text-xs text-slate-600">{{ p.module_count }} modül</td>
+                <td class="px-5 py-4">{{ p.owner_count }}</td>
+                <td class="px-5 py-4">{% if p.is_active %}<span class="text-emerald-600 font-bold">Aktif</span>{% else %}<span class="text-slate-400">Pasif</span>{% endif %}</td>
+                <td class="px-5 py-4 text-right"><a href="{% url 'admin_plan_edit' p.pk %}" class="text-xs font-semibold text-brand-700">Düzenle</a></td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="7" class="px-5 py-10 text-center text-slate-400">Plan yok.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

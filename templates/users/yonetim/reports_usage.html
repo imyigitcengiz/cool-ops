@@ -1,0 +1,64 @@
+{% extends 'users/yonetim/base.html' %}
+{% block title %}Kullanım raporu{% endblock %}
+{% block content %}
+<div class="mb-6 flex flex-wrap items-center justify-between gap-4">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900">Plan kullanım raporu</h1>
+        <p class="text-sm text-slate-500 mt-1">Abonelik sahiplerinin plan limitlerine göre kullanım durumu.</p>
+    </div>
+    <a href="{% url 'admin_reports' %}" class="text-sm font-semibold text-brand-700">← Raporlar</a>
+    <a href="{% url 'admin_reports_usage_export' %}" class="px-4 py-2.5 rounded-xl bg-slate-200 text-slate-800 text-sm font-bold">CSV indir</a>
+</div>
+
+<div class="space-y-4">
+    {% for row in usage_rows %}
+    <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden">
+        <div class="p-5 border-b border-slate-100 flex flex-wrap justify-between gap-3">
+            <div>
+                <p class="font-bold text-slate-900">{{ row.owner.display_name }}</p>
+                <p class="text-xs text-slate-500">{{ row.plan.name }} · {{ row.brand_count }}/{{ row.brands_limit }} marka</p>
+            </div>
+            <div class="text-right">
+                {% if row.brands_warn %}
+                <span class="text-xs font-bold text-red-600">Marka limiti dolu</span>
+                {% else %}
+                <span class="text-xs text-slate-500">Marka %{{ row.brands_pct }}</span>
+                {% endif %}
+            </div>
+        </div>
+        {% if row.brand_details %}
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50">
+                <tr>
+                    <th class="px-5 py-2 text-left font-bold text-slate-600">Marka</th>
+                    <th class="px-5 py-2 text-left font-bold text-slate-600">Kullanıcı</th>
+                    <th class="px-5 py-2 text-left font-bold text-slate-600">Müşteri</th>
+                    <th class="px-5 py-2 text-right font-bold text-slate-600"></th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for detail in row.brand_details %}
+                <tr>
+                    <td class="px-5 py-3 font-medium text-slate-900">{{ detail.brand.name }}</td>
+                    <td class="px-5 py-3 {% if detail.users_warn %}text-red-600 font-bold{% else %}text-slate-700{% endif %}">
+                        {{ detail.user_count }} / {{ row.plan.max_users_per_brand }}
+                    </td>
+                    <td class="px-5 py-3 {% if detail.customers_warn %}text-red-600 font-bold{% else %}text-slate-700{% endif %}">
+                        {{ detail.customer_count }} / {{ row.plan.max_customers_per_brand }}
+                    </td>
+                    <td class="px-5 py-3 text-right">
+                        <a href="{% url 'admin_brand_detail' detail.brand.pk %}" class="text-xs font-semibold text-brand-700">Detay</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="p-5 text-sm text-slate-400">Marka yok.</p>
+        {% endif %}
+    </div>
+    {% empty %}
+    <p class="text-slate-400 text-sm">Abonelik sahibi yok.</p>
+    {% endfor %}
+</div>
+{% endblock %}

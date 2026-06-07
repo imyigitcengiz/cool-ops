@@ -4,6 +4,12 @@ from __future__ import annotations
 
 from django.urls import NoReverseMatch, reverse
 
+from common.module_context import current_module_user
+from common.module_plan import (
+    owner_selected_modules,
+    owner_selected_particles,
+    subscription_owner_for_user,
+)
 from common.module_catalog import (
     MODULE_KIND_APP,
     MODULE_KIND_INTEGRATION,
@@ -157,6 +163,13 @@ def _normalize_stored_slugs(raw: list | tuple | None) -> list[str]:
 
 
 def get_enabled_module_slugs() -> list[str]:
+    user = current_module_user()
+    if user and getattr(user, 'is_authenticated', False):
+        if user.is_superuser:
+            return _normalize_stored_slugs(None)
+        owner = subscription_owner_for_user(user) or user
+        return owner_selected_modules(owner)
+
     _migrate_legacy_app_modules_in_storage()
     settings = _site_settings()
     if settings and settings.enabled_module_slugs:
@@ -183,6 +196,11 @@ def _particle_allowed_when_parent_installed(slug: str) -> bool:
 
 
 def get_enabled_particle_slugs() -> list[str]:
+    user = current_module_user()
+    if user and getattr(user, 'is_authenticated', False) and not user.is_superuser:
+        owner = subscription_owner_for_user(user) or user
+        return owner_selected_particles(owner)
+
     _migrate_legacy_app_modules_in_storage()
     settings = _site_settings()
     raw = list(settings.enabled_module_slugs) if settings and settings.enabled_module_slugs else []
@@ -498,15 +516,53 @@ def build_module_hub_context(user, *, query: str = '') -> dict:
     }
 
 
+def build_subscription_modules_context(user, *, query: str = '') -> dict:
+    """Abonelik sayfası modül bölümü — plan tavanı ve sahip seçimi."""
+    from common.brand_team import is_subscription_owner
+    from common.module_plan import plan_included_modules, plan_included_particles, subscription_owner_for_user
+    from common.module_toggle import user_can_manage_modules
+
+    owner = subscription_owner_for_user(user) or (user if is_subscription_owner(user) else None)
+    hub = build_module_hub_context(user, query=query)
+    if not owner:
+        hub['can_manage_modules'] = False
+        hub['subscription_owner'] = None
+        return hub
+
+    plan_mods = set(plan_included_modules(owner.active_plan))
+    plan_parts = set(plan_included_particles(owner.active_plan))
+
+    def _annotate(items):
+        for item in items:
+            slug = item['slug']
+            item['in_plan'] = slug in plan_mods or slug in plan_parts
+            item['needs_upgrade'] = not item['in_plan']
+
+    for group in hub['module_app_groups']:
+        _annotate(group['items'])
+    _annotate(hub['module_integrations'])
+
+    hub['can_manage_modules'] = user_can_manage_modules(user)
+    hub['subscription_owner'] = owner
+    hub['plan_module_count'] = len(plan_mods)
+    return hub
+
+
 def _is_panel_home_app(mod: dict) -> bool:
     return mod['slug'] in PANEL_HOME_APP_SLUGS
 
 
 def _panel_parent_installed(mod: dict) -> bool:
     parent = mod.get('panel_section')
+    if mod.get('kind') == MODULE_KIND_INTEGRATION:
+        if parent and parent != mod.get('slug') and module_by_slug(parent):
+            return is_module_installed(parent)
+        return True
     if not parent or parent == mod.get('slug'):
         return True
-    return is_module_installed(parent)
+    if module_by_slug(parent):
+        return is_module_installed(parent)
+    return True
 
 
 def integration_visible_on_panel(user, mod: dict) -> bool:

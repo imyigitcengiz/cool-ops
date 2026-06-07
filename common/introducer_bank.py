@@ -144,7 +144,7 @@ INTRODUCER_JOURNEYS: tuple[dict, ...] = (
                     'Rol bazlı erişim: muhasebe, saha, satış yalnızca yetkili ekranları görür.',
                 ),
                 demo_screens=(
-                    _screen('Modül merkezi', 'module_hub'),
+                    _screen('Abonelik modülleri', 'subscription_dashboard'),
                     _screen('Ana panel', 'home'),
                 ),
                 tips=('Klavyede / tuşuna basarak hızlı aramayı canlı gösterin.',),
@@ -179,7 +179,7 @@ INTRODUCER_JOURNEYS: tuple[dict, ...] = (
                     'Yardım masası modülü kapalı veya sınırlı; teklif ve satış ön planda.',
                     'Rehber: müşteri ve firma kaydı ortak veri tabanı.',
                 ),
-                demo_screens=(_screen('Modül merkezi', 'module_hub', 'Servis modülünün kapalı olduğunu gösterin'),),
+                demo_screens=(_screen('Abonelik modülleri', 'subscription_dashboard', 'Servis modülünün kapalı olduğunu gösterin'),),
             ),
             _step(
                 2, 'Teklif ve satış', '8 dk',
@@ -235,7 +235,7 @@ INTRODUCER_JOURNEYS: tuple[dict, ...] = (
                 ),
                 demo_screens=(
                     _screen('Site ayarları', 'settings_genel'),
-                    _screen('Modül merkezi', 'module_hub'),
+                    _screen('Abonelik modülleri', 'subscription_dashboard'),
                 ),
                 checklist=(
                     'Giriş URL ve demo hesap şifresi hazır.',

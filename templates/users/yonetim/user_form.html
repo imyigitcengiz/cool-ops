@@ -3,9 +3,18 @@
 {% block content %}
 <div class="mb-6">
     <h1 class="text-2xl font-bold text-slate-900">{% if is_edit %}Kullanıcı düzenle{% else %}Yeni kullanıcı{% endif %}</h1>
+    {% if not is_edit %}
+    <p class="text-sm text-slate-500 mt-1">Abonelik sahibi ile birlikte ilk marka oluşturabilir veya mevcut bir markaya ekip üyesi ekleyebilirsiniz.</p>
+    {% endif %}
 </div>
-<form method="post" class="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 max-w-2xl">
+<form method="post" class="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 max-w-3xl">
     {% csrf_token %}
+    {% if not is_edit %}
+    <div>
+        <label class="text-sm font-semibold text-slate-700">Hesap türü</label>
+        <div class="mt-2 flex flex-col gap-2">{{ form.account_type }}</div>
+    </div>
+    {% endif %}
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
             <label class="text-sm font-semibold text-slate-700">Kullanıcı adı (giriş)</label>
@@ -15,9 +24,87 @@
         <div><label class="text-sm font-semibold text-slate-700">E-posta</label><div class="mt-1">{{ form.email }}</div></div>
         <div><label class="text-sm font-semibold text-slate-700">Ad</label><div class="mt-1">{{ form.first_name }}</div></div>
         <div><label class="text-sm font-semibold text-slate-700">Soyad</label><div class="mt-1">{{ form.last_name }}</div></div>
-        <div><label class="text-sm font-semibold text-slate-700">Rol</label><div class="mt-1">{{ form.role }}</div></div>
+        {% if not is_edit %}
+        <div id="owner-fields" class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="md:col-span-2">
+                <label class="text-sm font-semibold text-slate-700">Marka / mağaza adı</label>
+                <div class="mt-1">{{ form.brand_name }}</div>
+                {% if form.brand_name.errors %}<p class="text-xs text-red-600 mt-1">{{ form.brand_name.errors.0 }}</p>{% endif %}
+            </div>
+            <div>
+                <label class="text-sm font-semibold text-slate-700">Abonelik planı</label>
+                <div class="mt-1">{{ form.plan }}</div>
+            </div>
+        </div>
+        <div id="member-fields" class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 hidden">
+            <div>
+                <label class="text-sm font-semibold text-slate-700">Marka</label>
+                <div class="mt-1">{{ form.brand }}</div>
+                {% if form.brand.errors %}<p class="text-xs text-red-600 mt-1">{{ form.brand.errors.0 }}</p>{% endif %}
+            </div>
+            <div>
+                <label class="text-sm font-semibold text-slate-700">Rol</label>
+                <div class="mt-1">{{ form.role }}</div>
+                {% if form.role.errors %}<p class="text-xs text-red-600 mt-1">{{ form.role.errors.0 }}</p>{% endif %}
+            </div>
+            <div>
+                <label class="text-sm font-semibold text-slate-700">Marka üyeliği</label>
+                <div class="mt-1">{{ form.membership_role }}</div>
+            </div>
+        </div>
+        <div id="superuser-fields" class="md:col-span-2 hidden">
+            <p class="text-sm text-slate-600">Platform yöneticisi tüm yönetim paneline ve kiracı modüllerine erişebilir.</p>
+        </div>
         <div class="flex items-end"><label class="flex items-center gap-2 text-sm font-semibold text-slate-700 pb-3">{{ form.is_active }} Aktif hesap</label></div>
+        {% else %}
+        <div><label class="text-sm font-semibold text-slate-700">Rol</label><div class="mt-1">{{ form.role }}</div></div>
+        <div><label class="text-sm font-semibold text-slate-700">Abonelik planı</label><div class="mt-1">{{ form.plan }}</div></div>
+        {% if form.is_superuser %}
+        <div class="flex items-end"><label class="flex items-center gap-2 text-sm font-semibold text-slate-700 pb-3">{{ form.is_superuser }} Platform yöneticisi (süper admin)</label></div>
+        {% endif %}
+        <div class="flex items-end"><label class="flex items-center gap-2 text-sm font-semibold text-slate-700 pb-3">{{ form.is_active }} Aktif hesap</label></div>
+        {% endif %}
     </div>
+
+    {% if is_edit and not form.instance.is_superuser %}
+    <div class="border-t border-slate-100 pt-4">
+        <h2 class="text-sm font-bold text-slate-800 mb-3">Marka üyelikleri</h2>
+        <p class="text-xs text-slate-500 mb-3">Ctrl/Cmd ile birden fazla marka seçin. Her marka için üyelik rolünü aşağıdan ayarlayın.</p>
+        <div class="mb-4">{{ form.brands }}</div>
+        <div>
+            <label class="text-sm font-semibold text-slate-700">Varsayılan marka</label>
+            <div class="mt-1 max-w-xs">{{ form.default_brand }}</div>
+        </div>
+        {% if current_memberships %}
+        <div class="mt-4 overflow-hidden rounded-xl border border-slate-200">
+            <table class="w-full text-sm">
+                <thead class="bg-slate-50">
+                    <tr>
+                        <th class="px-4 py-2 text-left font-bold text-slate-600">Marka</th>
+                        <th class="px-4 py-2 text-left font-bold text-slate-600">Üyelik rolü</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    {% for m in current_memberships %}
+                    <tr>
+                        <td class="px-4 py-2 font-medium text-slate-800">{{ m.brand.name }}</td>
+                        <td class="px-4 py-2">
+                            <select name="membership_role_{{ m.brand_id }}" class="p-2 rounded-lg border border-slate-200 text-sm bg-white">
+                                {% for value, label in membership_roles %}
+                                <option value="{{ value }}" {% if m.role == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="text-xs text-slate-400 mt-2">Yeni eklenen markalar için varsayılan rol: Ekip üyesi. Kaydettikten sonra rolü güncelleyebilirsiniz.</p>
+        {% endif %}
+    </div>
+    {% endif %}
+
     {% if is_edit %}
     <div><label class="text-sm font-semibold text-slate-700">Yeni şifre (boş bırakılırsa değişmez)</label><div class="mt-1">{{ form.new_password }}</div></div>
     {% else %}
@@ -29,9 +116,6 @@
     <div class="flex flex-wrap items-center gap-3 pt-2">
         <a href="{% url 'admin_users' %}" class="px-5 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold">Vazgeç</a>
         <button type="submit" class="px-5 py-2.5 rounded-xl bg-red-600 text-white font-bold">Kaydet</button>
-        {% if is_edit %}
-        {% include 'common/impersonate_user_button.html' with target_user=form.instance label='Bu rol ile sistemi incele' button_class='px-5 py-2.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 font-bold hover:bg-amber-100' %}
-        {% endif %}
         {% if is_edit and user_can_delete %}
         <a href="{% url 'admin_user_delete' form.instance.pk %}" class="ml-auto px-5 py-2.5 rounded-xl border border-red-200 text-red-600 font-bold hover:bg-red-50">Kullanıcıyı sil</a>
         {% elif is_edit and user_delete_blocked_reason %}
@@ -39,4 +123,25 @@
         {% endif %}
     </div>
 </form>
+{% if not is_edit %}
+<script>
+(function () {
+    function toggleAccountFields() {
+        var selected = document.querySelector('[name=account_type]:checked');
+        var type = selected ? selected.value : 'owner';
+        var ownerFields = document.getElementById('owner-fields');
+        var memberFields = document.getElementById('member-fields');
+        var superuserFields = document.getElementById('superuser-fields');
+        if (!ownerFields || !memberFields) return;
+        ownerFields.classList.toggle('hidden', type !== 'owner');
+        memberFields.classList.toggle('hidden', type !== 'member');
+        if (superuserFields) superuserFields.classList.toggle('hidden', type !== 'superuser');
+    }
+    document.querySelectorAll('[name=account_type]').forEach(function (el) {
+        el.addEventListener('change', toggleAccountFields);
+    });
+    toggleAccountFields();
+})();
+</script>
+{% endif %}
 {% endblock %}

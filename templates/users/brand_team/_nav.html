@@ -1,0 +1,10 @@
+<nav class="flex flex-wrap gap-2 mb-6">
+    <a href="{% url 'brand_team_users' %}"
+       class="px-4 py-2 rounded-xl text-sm font-bold {% if 'brand_team_user' in request.resolver_match.url_name %}bg-brand-600 text-white{% else %}bg-white border border-slate-200 text-slate-700 hover:border-brand-300{% endif %}">
+        Kullanıcılar
+    </a>
+    <a href="{% url 'brand_team_roles' %}"
+       class="px-4 py-2 rounded-xl text-sm font-bold {% if 'brand_team_role' in request.resolver_match.url_name %}bg-brand-600 text-white{% else %}bg-white border border-slate-200 text-slate-700 hover:border-brand-300{% endif %}">
+        Roller & İzinler
+    </a>
+</nav>

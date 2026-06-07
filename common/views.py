@@ -1,4 +1,5 @@
 from django.http import HttpResponse
+from django.shortcuts import render
 from django.views.decorators.http import require_GET
 from django.views.generic import TemplateView
 
@@ -7,6 +8,24 @@ from django.views.generic import TemplateView
 def healthz(request):
     """Docker / Traefik sağlık kontrolü — auth yok, DB yok."""
     return HttpResponse('ok', content_type='text/plain')
+
+
+def page_not_found(request, exception=None):
+    return render(
+        request,
+        'errors/404.html',
+        {'request_path': request.path},
+        status=404,
+    )
+
+
+def permission_denied(request, exception=None):
+    return render(
+        request,
+        'errors/403.html',
+        {'exception': exception},
+        status=403,
+    )
 
 
 class ContactHubView(TemplateView):

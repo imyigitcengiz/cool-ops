@@ -8,6 +8,7 @@ from dateutil.relativedelta import relativedelta
 from django.db.models import Count, Sum
 from django.utils import timezone
 
+from common.brand_scope import filter_sales_leads
 from sales_leads.models import SalesLead
 
 
@@ -17,12 +18,15 @@ def _money(value) -> str:
     return format_money(value, decimals=2)
 
 
-def _completed_leads():
-    return SalesLead.objects.filter(status=SalesLead.STATUS_COMPLETED)
+def _completed_leads(request=None):
+    qs = SalesLead.objects.filter(status=SalesLead.STATUS_COMPLETED)
+    if request is not None:
+        qs = filter_sales_leads(qs, request)
+    return qs
 
 
-def _lead_queryset():
-    return (
+def _lead_queryset(request=None):
+    qs = (
         SalesLead.objects.select_related('customer', 'assigned_to')
         .prefetch_related(
             'products',
@@ -33,6 +37,9 @@ def _lead_queryset():
             'customer__service_records',
         )
     )
+    if request is not None:
+        qs = filter_sales_leads(qs, request)
+    return qs
 
 
 def _status_label(status: str) -> str:
@@ -124,7 +131,7 @@ def build_sales_report_context(request=None) -> dict:
     if request is not None:
         status_filter = request.GET.get('status', '').strip()
 
-    completed = _completed_leads()
+    completed = _completed_leads(request)
     today = timezone.localdate()
 
     monthly = []
@@ -147,6 +154,11 @@ def build_sales_report_context(request=None) -> dict:
         .order_by('-total')[:10]
     )
     status_breakdown = (
+        filter_sales_leads(SalesLead.objects.all(), request)
+        .values('status')
+        .annotate(total=Count('id'), amount=Sum('sale_amount'))
+        .order_by('-total')
+    ) if request is not None else (
         SalesLead.objects.values('status')
         .annotate(total=Count('id'), amount=Sum('sale_amount'))
         .order_by('-total')
@@ -154,7 +166,7 @@ def build_sales_report_context(request=None) -> dict:
     for row in status_breakdown:
         row['label'] = _status_label(row['status'])
 
-    leads_qs = _lead_queryset().order_by('-sale_date', '-created_at')
+    leads_qs = _lead_queryset(request).order_by('-sale_date', '-created_at')
     if status_filter:
         leads_qs = leads_qs.filter(status=status_filter)
     report_leads = list(leads_qs)

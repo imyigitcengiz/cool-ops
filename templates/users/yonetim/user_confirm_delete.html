@@ -5,9 +5,24 @@
     <h1 class="text-xl font-bold text-slate-900">Kullanıcı silinsin mi?</h1>
     <p class="text-sm text-slate-600 mt-2">
         <span class="font-semibold text-slate-900">{{ object.display_name }}</span>
-        {{ object.display_name }} kalıcı olarak silinecek. Bu işlem geri alınamaz.
+        ({{ object.username }}) kalıcı olarak silinecek. Bu işlem geri alınamaz.
     </p>
-    <p class="text-xs text-slate-500 mt-2">Rol: {{ object.role_label }}</p>
+    {% if delete_warning %}
+    <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+        {{ delete_warning }}
+    </div>
+    {% endif %}
+    {% if delete_memberships %}
+    <div class="mt-4">
+        <p class="text-xs font-bold uppercase text-slate-500 mb-2">Marka üyelikleri</p>
+        <ul class="text-sm text-slate-700 space-y-1">
+            {% for m in delete_memberships %}
+            <li>· {{ m.brand.name }} <span class="text-slate-400">({{ m.get_role_display }})</span></li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+    <p class="text-xs text-slate-500 mt-3">Rol: {{ object.role_label }}</p>
     <form method="post" class="flex gap-3 mt-6">
         {% csrf_token %}
         <a href="{% url 'admin_users' %}" class="px-5 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold">Vazgeç</a>

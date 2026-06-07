@@ -20,7 +20,7 @@ from services.whatsapp_status_prompt import (
     queue_whatsapp_status_prompts,
 )
 
-from common.brand_scope import assign_brand, filter_customers
+from common.brand_scope import assign_brand, filter_customers, get_customer_for_request
 
 from .models import Customer
 from .forms import CustomerForm
@@ -70,7 +70,15 @@ class CustomerCreateView(PermissionRequiredMixin, CreateView):
     success_url = reverse_lazy('customers')
 
     def form_valid(self, form):
+        from common.brand_team import check_customer_limit_for_request
+        from common.brand_scope import get_active_brand
+
         assign_brand(form.instance, self.request)
+        try:
+            check_customer_limit_for_request(self.request, brand=get_active_brand(self.request))
+        except ValueError as exc:
+            form.add_error('name', str(exc))
+            return self.form_invalid(form)
         response = super().form_valid(form)
         prompt = build_whatsapp_customer_created_prompt(self.object)
         queue_whatsapp_status_prompts(self.request, prompt)
@@ -83,6 +91,9 @@ class CustomerUpdateView(PermissionRequiredMixin, UpdateView):
     form_class = CustomerForm
     template_name = 'crm/customers/customer_form.html'
     success_url = reverse_lazy('customers')
+
+    def get_queryset(self):
+        return filter_customers(Customer.objects.all(), self.request)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -115,12 +126,15 @@ class CustomerDeleteView(PermissionRequiredMixin, DeleteView):
     model = Customer
     success_url = reverse_lazy('customers')
 
+    def get_queryset(self):
+        return filter_customers(Customer.objects.all(), self.request)
+
 
 @permission_required(CUSTOMERS_DELETE_PERM)
 def bulk_delete_customers(request):
     if request.method == 'POST':
         ids = request.POST.getlist('ids')
-        Customer.objects.filter(id__in=ids).delete()
+        filter_customers(Customer.objects.filter(id__in=ids), request).delete()
     return redirect('customers')
 
 
@@ -129,7 +143,7 @@ def bulk_delete_customers(request):
 def bulk_manage_customers(request):
     ids = [int(x) for x in request.POST.getlist('ids') if str(x).isdigit()]
     action = (request.POST.get('bulk_action') or '').strip()
-    queryset = Customer.objects.filter(id__in=ids)
+    queryset = filter_customers(Customer.objects.filter(id__in=ids), request)
 
     if not ids:
         return JsonResponse({'ok': False, 'error': 'Toplu işlem için müşteri seçin.'}, status=400)
@@ -181,10 +195,20 @@ def quick_customer_create(request):
         location_link = request.POST.get('location_link')
         contract_date = request.POST.get('contract_date')
         if name:
+            from common.brand_team import check_customer_limit_for_request
+            from common.brand_scope import assign_brand, get_active_brand
+
+            try:
+                check_customer_limit_for_request(request, brand=get_active_brand(request))
+            except ValueError as exc:
+                return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
             customer = Customer.objects.create(
                 name=name, phone=phone, region=region,
                 location_link=location_link, contract_date=contract_date or None
             )
+            assign_brand(customer, request)
+            if customer.brand_id:
+                customer.save(update_fields=['brand_id'])
             return JsonResponse({'id': customer.id, 'name': customer.name})
     return JsonResponse({'error': 'Geçersiz veri'}, status=400)
 
@@ -192,7 +216,10 @@ def quick_customer_create(request):
 @permission_required(CUSTOMERS_VIEW_PERM, CUSTOMERS_EDIT_PERM, any_perm=True)
 def customer_detail_api(request, pk):
     try:
-        c = Customer.objects.prefetch_related('products').get(pk=pk)
+        c = filter_customers(
+            Customer.objects.prefetch_related('products'),
+            request,
+        ).get(pk=pk)
         customer_products = list(c.products.order_by('name'))
         return JsonResponse({
             'name': c.name,
@@ -368,7 +395,7 @@ class CustomerOverviewView(PermissionRequiredMixin, TemplateView):
         from customers.customer_overview import build_customer_overview
 
         context = super().get_context_data(**kwargs)
-        customer = get_object_or_404(Customer, pk=self.kwargs['pk'])
+        customer = get_customer_for_request(self.request, self.kwargs['pk'])
         context['customer'] = customer
         context.update(build_customer_overview(customer))
         return context
@@ -380,7 +407,10 @@ class CustomerExportCsvView(PermissionRequiredMixin, View):
     def get(self, request):
         from common.csv_io import csv_response
 
-        qs = Customer.objects.prefetch_related('products').order_by('name')
+        qs = filter_customers(
+            Customer.objects.prefetch_related('products').order_by('name'),
+            request,
+        )
         q = (request.GET.get('q') or '').strip()
         if q:
             qs = qs.filter(Q(name__icontains=q) | Q(phone__icontains=q) | Q(region__icontains=q))

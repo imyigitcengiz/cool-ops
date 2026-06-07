@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -95,6 +96,23 @@ def _format_size(num_bytes: int) -> str:
     return f'{num_bytes / (1024 * 1024):.1f} MB'
 
 
+def _tenant_media_path_allowed(relpath: str, request) -> bool:
+    from common.brand_scope import filter_customers, filter_services
+    from customers.models import Customer
+    from services.models import ServiceRecord
+
+    rel = _normalize_relpath(relpath).lower()
+    customer_match = re.match(r'^customers/(\d+)/', rel)
+    if customer_match:
+        cid = int(customer_match.group(1))
+        return filter_customers(Customer.objects.filter(pk=cid), request).exists()
+    service_match = re.match(r'^services/(\d+)/', rel)
+    if service_match:
+        sid = int(service_match.group(1))
+        return filter_services(ServiceRecord.objects.filter(pk=sid), request).exists()
+    return True
+
+
 def _safe_resolve(relpath: str) -> Path | None:
     root = _media_root()
     if not root.exists():
@@ -107,7 +125,7 @@ def _safe_resolve(relpath: str) -> Path | None:
     return target
 
 
-def _build_db_index() -> dict[str, dict]:
+def _build_db_index(request=None) -> dict[str, dict]:
     from core_settings.models import SiteSettings
     from customers.models import CustomerMedia
     from services.models import ServiceImage
@@ -126,7 +144,15 @@ def _build_db_index() -> dict[str, dict]:
         CustomerMedia.SCOPE_CUSTOMER: 'Müşteri dosyası',
     }
 
-    for media in CustomerMedia.objects.select_related('customer', 'service'):
+    media_qs = CustomerMedia.objects.select_related('customer', 'service')
+    if request is not None:
+        from common.brand_scope import filter_customers
+        from customers.models import Customer
+
+        allowed_customers = filter_customers(Customer.objects.all(), request).values_list('pk', flat=True)
+        media_qs = media_qs.filter(customer_id__in=allowed_customers)
+
+    for media in media_qs:
         if not media.file:
             continue
         rel = _normalize_relpath(media.file.name)
@@ -151,9 +177,17 @@ def _build_db_index() -> dict[str, dict]:
             'forced_category': scope_category.get(media.scope),
         }
 
-    for img in ServiceImage.objects.select_related(
+    image_qs = ServiceImage.objects.select_related(
         'service', 'service__customer', 'service__status',
-    ):
+    )
+    if request is not None:
+        from common.brand_scope import filter_services
+        from services.models import ServiceRecord
+
+        allowed_services = filter_services(ServiceRecord.objects.all(), request).values_list('pk', flat=True)
+        image_qs = image_qs.filter(service_id__in=allowed_services)
+
+    for img in image_qs:
         if not img.image:
             continue
         rel = _normalize_relpath(img.image.name)
@@ -212,9 +246,10 @@ def scan_media_library(
     kind: str = '',
     page: int = 1,
     per_page: int = 48,
+    request=None,
 ) -> dict:
     root = _media_root()
-    db_index = _build_db_index()
+    db_index = _build_db_index(request)
     items: list[MediaItem] = []
     seen: set[str] = set()
 
@@ -229,6 +264,8 @@ def scan_media_library(
                 except ValueError:
                     continue
                 if rel in seen:
+                    continue
+                if request is not None and not _tenant_media_path_allowed(rel, request):
                     continue
                 seen.add(rel)
 
@@ -320,7 +357,29 @@ def scan_media_library(
     }
 
 
-def delete_media_item(*, record_type: str | None, record_id: int | None, relpath: str) -> tuple[bool, str]:
+def _media_allowed_for_request(request, *, customer_id: int | None = None, service_id: int | None = None) -> bool:
+    if request is None:
+        return True
+    if customer_id:
+        from common.brand_scope import filter_customers
+        from customers.models import Customer
+
+        return filter_customers(Customer.objects.filter(pk=customer_id), request).exists()
+    if service_id:
+        from common.brand_scope import filter_services
+        from services.models import ServiceRecord
+
+        return filter_services(ServiceRecord.objects.filter(pk=service_id), request).exists()
+    return True
+
+
+def delete_media_item(
+    *,
+    record_type: str | None,
+    record_id: int | None,
+    relpath: str,
+    request=None,
+) -> tuple[bool, str]:
     rel = _normalize_relpath(relpath)
     path = _safe_resolve(rel)
     if not path or not path.is_file():
@@ -329,8 +388,10 @@ def delete_media_item(*, record_type: str | None, record_id: int | None, relpath
     if record_type == 'service_image' and record_id:
         from services.models import ServiceImage
 
-        obj = ServiceImage.objects.filter(pk=record_id).first()
+        obj = ServiceImage.objects.filter(pk=record_id).select_related('service').first()
         if obj:
+            if not _media_allowed_for_request(request, service_id=obj.service_id):
+                return False, 'Bu dosyaya erişim yetkiniz yok.'
             if obj.image:
                 obj.image.delete(save=False)
             obj.delete()
@@ -339,8 +400,14 @@ def delete_media_item(*, record_type: str | None, record_id: int | None, relpath
     if record_type == 'customer_media' and record_id:
         from customers.models import CustomerMedia
 
-        obj = CustomerMedia.objects.filter(pk=record_id).first()
+        obj = CustomerMedia.objects.filter(pk=record_id).select_related('customer', 'service').first()
         if obj:
+            if not _media_allowed_for_request(
+                request,
+                customer_id=obj.customer_id,
+                service_id=obj.service_id,
+            ):
+                return False, 'Bu dosyaya erişim yetkiniz yok.'
             if obj.file:
                 obj.file.delete(save=False)
             obj.delete()

@@ -3,21 +3,31 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Giriş | {{ site_settings.site_name }}</title>
+    <title>{% if is_dealer_login %}Bayi Girişi{% elif is_tenant_login %}Panel Girişi{% else %}Giriş{% endif %} | {% if tenant_brand %}{{ tenant_brand.name }}{% else %}{{ site_settings.site_name }}{% endif %}</title>
     {% load static %}
     {% include 'common/erp_head_assets.html' %}
 </head>
 <body class="erp-app erp-theme-sky min-h-screen bg-slate-100 flex items-center justify-center p-4">
     <div class="w-full max-w-md">
         <div class="text-center mb-8">
+            {% if not is_dealer_login %}
             <a href="{% url 'landing' %}" class="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-brand-600 mb-4">
                 <i data-lucide="arrow-left" class="w-4 h-4"></i> Tanıtım sayfası
             </a>
-            {% if site_settings.logo %}
-            <img src="{{ site_settings.logo.url }}" alt="" class="h-12 w-12 mx-auto rounded-xl object-contain mb-3">
             {% endif %}
-            <h1 class="text-2xl font-bold text-slate-900">{{ site_settings.site_name }}</h1>
-            <p class="text-sm text-slate-500 mt-2">Hesabınıza giriş yapın</p>
+            {% if tenant_brand and tenant_brand.logo %}
+            <img src="{{ tenant_brand.logo.url }}" alt="" class="h-12 w-12 mx-auto rounded-xl object-contain mb-3">
+            {% elif site_settings.logo %}
+            <img src="{{ site_settings.logo.url }}" alt="" class="h-12 w-12 mx-auto rounded-2xl object-contain mb-3">
+            {% endif %}
+            <h1 class="text-2xl font-bold text-slate-900">{% if tenant_brand %}{{ tenant_brand.name }}{% else %}{{ site_settings.site_name }}{% endif %}</h1>
+            <p class="text-sm text-slate-500 mt-2">
+                {% if is_dealer_login %}
+                Bayi paneline giriş yapın — üst platform paneli bu hesapla açılmaz.
+                {% else %}
+                Hesabınıza giriş yapın
+                {% endif %}
+            </p>
         </div>
 
         {% if messages %}
@@ -52,7 +62,14 @@
                 </button>
             </form>
         </div>
-        <p class="text-center text-xs text-slate-400 mt-6">Kullanıcı hesabınız yoksa yönetici panelinden oluşturulabilir.</p>
+        {% if is_dealer_login %}
+        <p class="text-center text-xs text-slate-400 mt-6">Bu giriş yalnızca bayi / franchise paneli içindir. Merkez yönetim için marka sahibi hesabınızı kullanın.</p>
+        {% else %}
+        <p class="text-center text-sm text-slate-500 mt-6">
+            Hesabınız yok mu?
+            <a href="{% url 'register' %}" class="text-brand-600 font-bold hover:underline">Üye olun</a>
+        </p>
+        {% endif %}
     </div>
     <script>lucide.createIcons();</script>
 </body>

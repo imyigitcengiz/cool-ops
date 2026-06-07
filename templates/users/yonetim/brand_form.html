@@ -1,0 +1,105 @@
+{% extends 'users/yonetim/base.html' %}
+{% block title %}{% if is_edit %}{{ form.instance.name }} düzenle{% else %}Yeni marka{% endif %}{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-slate-900">{% if is_edit %}Marka düzenle{% else %}Yeni marka / mağaza{% endif %}</h1>
+    {% if is_edit %}
+    <p class="text-sm text-slate-500 mt-1">{{ form.instance.name }} — ilişki ve erişim ayarları</p>
+    {% if tenant_url %}<p class="text-xs text-brand-700 mt-1">Erişim: {{ tenant_url }}</p>{% endif %}
+    {% else %}
+    <p class="text-sm text-slate-500 mt-1">Mevcut bir abonelik sahibine yeni marka ekleyin.</p>
+    {% endif %}
+</div>
+<form method="post" class="bg-white rounded-3xl border border-slate-200 p-6 space-y-4 max-w-2xl">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">{{ form.non_field_errors }}</div>
+    {% endif %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {% if not is_edit %}
+        <div class="md:col-span-2">
+            <label class="text-sm font-semibold text-slate-700">Abonelik sahibi</label>
+            <div class="mt-1">{{ form.owner }}</div>
+            {% if form.owner.errors %}<p class="text-xs text-red-600 mt-1">{{ form.owner.errors.0 }}</p>{% endif %}
+        </div>
+        {% elif is_edit %}
+        <div class="md:col-span-2">
+            <label class="text-sm font-semibold text-slate-700">Abonelik sahibi</label>
+            <div class="mt-1">{{ form.owner }}</div>
+        </div>
+        {% endif %}
+        <div class="md:col-span-2">
+            <label class="text-sm font-semibold text-slate-700">Marka / mağaza adı</label>
+            <div class="mt-1">{{ form.name }}</div>
+            {% if form.name.errors %}<p class="text-xs text-red-600 mt-1">{{ form.name.errors.0 }}</p>{% endif %}
+        </div>
+        <div>
+            <label class="text-sm font-semibold text-slate-700">Panel türü</label>
+            <div class="mt-1">{{ form.panel_kind }}</div>
+        </div>
+        <div>
+            <label class="text-sm font-semibold text-slate-700">Erişim yapısı</label>
+            <div class="mt-1">{{ form.tenant_routing }}</div>
+        </div>
+        <div class="md:col-span-2">
+            <label class="text-sm font-semibold text-slate-700">Bağlı merkez marka (bayi için)</label>
+            <div class="mt-1">{{ form.parent_brand }}</div>
+            {% if form.parent_brand.errors %}<p class="text-xs text-red-600 mt-1">{{ form.parent_brand.errors.0 }}</p>{% endif %}
+        </div>
+        <div class="md:col-span-2 rounded-2xl border border-brand-100 bg-brand-50/40 p-4 space-y-3">
+            <div>
+                <label class="text-sm font-semibold text-slate-800">Kalıcı mağaza URL kodu</label>
+                <div class="mt-1">{{ form.host_slug }}</div>
+                {% if form.host_slug.errors %}<p class="text-xs text-red-600 mt-1">{{ form.host_slug.errors.0 }}</p>{% endif %}
+                <p class="text-xs text-slate-500 mt-2">
+                    Mağazanın kalıcı adresinde kullanılan kısa ad. Boş bırakılırsa slug kullanılır.
+                    {% if is_edit and tenant_key %} Şu an: <strong>{{ tenant_key }}</strong>{% endif %}
+                </p>
+            </div>
+            {% if is_edit and tenant_url %}
+            <p class="text-xs text-brand-800">Önizleme: <a href="{{ tenant_url }}" target="_blank" rel="noopener" class="font-semibold underline">{{ tenant_url }}</a></p>
+            {% elif not is_edit %}
+            <p class="text-xs text-brand-800">Örnek: <strong>kod.{{ tenant_base_domain }}/</strong> veya <strong>/kod/</strong></p>
+            {% endif %}
+        </div>
+        {% if is_edit %}
+        <div class="flex items-end">
+            <label class="flex items-center gap-2 text-sm font-semibold text-slate-700 pb-3">{{ form.is_active }} Aktif marka</label>
+        </div>
+        {% endif %}
+        <div>
+            <label class="text-sm font-semibold text-slate-700">Ticari ünvan</label>
+            <div class="mt-1">{{ form.legal_name }}</div>
+        </div>
+        <div>
+            <label class="text-sm font-semibold text-slate-700">Telefon</label>
+            <div class="mt-1">{{ form.phone }}</div>
+        </div>
+    </div>
+    <div class="flex flex-wrap items-center gap-3 pt-2">
+        {% if is_edit %}
+        <a href="{% url 'admin_brand_detail' form.instance.pk %}" class="px-5 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold">Vazgeç</a>
+        {% else %}
+        <a href="{% url 'admin_brands' %}" class="px-5 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold">Vazgeç</a>
+        {% endif %}
+        <button type="submit" class="px-5 py-2.5 rounded-xl bg-red-600 text-white font-bold">{% if is_edit %}Kaydet{% else %}Markayı oluştur{% endif %}</button>
+    </div>
+</form>
+{% if is_edit and not form.instance.is_active %}
+<form method="post" action="{% url 'admin_brand_activate' form.instance.pk %}" class="mt-3">
+    {% csrf_token %}
+    <button type="submit" class="px-5 py-2.5 rounded-xl border border-emerald-200 text-emerald-700 font-bold hover:bg-emerald-50">Aktifleştir</button>
+</form>
+{% elif is_edit and form.instance.is_active %}
+<form method="post" action="{% url 'admin_brand_deactivate' form.instance.pk %}" class="mt-3 inline" onsubmit="return confirm('Marka pasifleştirilsin mi?');">
+    {% csrf_token %}
+    <button type="submit" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-bold hover:bg-slate-50">Pasifleştir</button>
+</form>
+{% endif %}
+{% if is_edit and not form.instance.is_default %}
+<a href="{% url 'admin_brand_delete' form.instance.pk %}" class="inline-block mt-3 px-5 py-2.5 rounded-xl border border-red-200 text-red-600 font-bold hover:bg-red-50">Markayı kalıcı sil</a>
+{% endif %}
+{% if not is_edit %}
+<p class="text-xs text-slate-500 mt-4">Yeni abonelik sahibi + ilk marka için <a href="{% url 'admin_user_create' %}" class="text-brand-700 font-semibold hover:underline">kullanıcı oluştur</a> sayfasını kullanın.</p>
+{% endif %}
+{% endblock %}

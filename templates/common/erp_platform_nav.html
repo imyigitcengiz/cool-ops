@@ -2,13 +2,13 @@
 {% with url_name=request.resolver_match.url_name %}
 <div class="erp-sidebar-platform-grid">
     {% if can_manage_modules %}
-    <a href="{% url 'module_hub' %}" class="erp-sidebar-platform-card{% if url_name == 'module_hub' %} erp-sidebar-platform-card--active{% endif %}">
+    <a href="{% url 'subscription_dashboard' %}#moduller" class="erp-sidebar-platform-card{% if url_name == 'subscription_dashboard' %} erp-sidebar-platform-card--active{% endif %}">
         <span class="erp-sidebar-platform-card__icon" aria-hidden="true">
             <i data-lucide="puzzle"></i>
         </span>
         <span class="erp-sidebar-platform-card__text">
-            <span class="erp-sidebar-platform-card__title">{{ gy.modul_merkezi }}</span>
-            <span class="erp-sidebar-platform-card__hint">Aç / kapa</span>
+            <span class="erp-sidebar-platform-card__title">Abonelik modülleri</span>
+            <span class="erp-sidebar-platform-card__hint">Plan tavanı</span>
         </span>
     </a>
     {% endif %}

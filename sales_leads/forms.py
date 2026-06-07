@@ -231,6 +231,21 @@ class SalesLeadForm(forms.Form):
             if duplicate.exists():
                 self.add_error('project', 'Bu müşteride aynı isimde bir proje zaten var.')
 
+        creating_new_customer = (
+            not self.instance
+            and not self.add_project_for_customer
+            and not existing
+            and (cleaned.get('name') or '').strip()
+        )
+        if creating_new_customer and self.request is not None:
+            from common.brand_scope import get_active_brand
+            from common.brand_team import check_customer_limit_for_request
+
+            try:
+                check_customer_limit_for_request(self.request, brand=get_active_brand(self.request))
+            except ValueError as exc:
+                self.add_error(None, str(exc))
+
         return cleaned
 
     def _parse_interim_payments(self):

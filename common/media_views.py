@@ -21,7 +21,7 @@ def serve_media_file(request, path: str):
         raise Http404('Medya dizini yok.')
 
     relative = path.lstrip('/')
-    if not user_can_access_media_path(request.user, relative):
+    if not user_can_access_media_path(request.user, relative, request=request):
         return HttpResponseForbidden('Bu dosyaya erişim yetkiniz yok.')
 
     target = (media_root / relative).resolve()

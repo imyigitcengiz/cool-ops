@@ -2,6 +2,8 @@ from decimal import Decimal, InvalidOperation
 
 from django.shortcuts import redirect, get_object_or_404
 from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.urls import reverse, reverse_lazy
 from django.views.generic import TemplateView
 from django.db.models import Count, Q
 from django.utils.dateparse import parse_date
@@ -31,6 +33,11 @@ class PublicLandingView(TemplateView):
 
     def dispatch(self, request, *args, **kwargs):
         if request.user.is_authenticated:
+            from users.impersonation import get_real_user, is_impersonating
+
+            user = get_real_user(request)
+            if user.is_superuser and not is_impersonating(request):
+                return redirect('admin_dashboard')
             return redirect('home')
         return super().dispatch(request, *args, **kwargs)
 
@@ -96,6 +103,8 @@ class PublicLandingView(TemplateView):
         context['landing_flow_saha'] = LANDING_FLOW_SAHA
         context['landing_flow_hizmet'] = LANDING_FLOW_HIZMET
         context['landing_particle_groups'] = build_landing_particle_groups()
+        from core_settings.models import Plan
+        context['plans'] = Plan.objects.filter(is_active=True).order_by('price')
         context['landing_deploy_platforms'] = LANDING_DEPLOY_PLATFORMS
         context['landing_audience'] = LANDING_AUDIENCE
         return context
@@ -150,86 +159,131 @@ class HomeView(TemplateView):
             or context.get('outreach_show_panel')
             or context['can_manage_modules']
         )
+
+        # Abonelik özet kartı için
+        from core_settings.models import BrandMembership
+        from common.brand_scope import user_brands
+
+        context['active_plan'] = user.active_plan
+        context['user_brands'] = list(user_brands(user))
+        context['owned_brands_count'] = BrandMembership.objects.filter(
+            user=user,
+            role=BrandMembership.ROLE_OWNER
+        ).count()
+
         return context
 
 
-@method_decorator(ensure_csrf_cookie, name='dispatch')
-class ModuleHubView(TemplateView):
-    """Modül merkezi — kurulum aç/kapa."""
+class SubscriptionView(LoginRequiredMixin, TemplateView):
+    """Abonelik & Bayi / Franchise Yönetimi — ayrı sayfa."""
+    template_name = 'panel_subscription.html'
+    login_url = reverse_lazy('login')
 
-    template_name = 'common/module_hub.html'
+    def get_context_data(self, **kwargs):
+        from core_settings.models import Plan, BillingInvoice, BrandMembership, BusinessBrand
+        from common.brand_scope import user_brands, get_active_brand
+        from common.module_runtime import build_subscription_modules_context
+
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        plan = user.active_plan
+        context['active_plan'] = plan
+        context['plans'] = Plan.objects.filter(is_active=True).order_by('price')
+        context['user_brands'] = list(user_brands(user))
+        context['active_brand'] = get_active_brand(self.request)
+        owned = BrandMembership.objects.filter(
+            user=user, role=BrandMembership.ROLE_OWNER, brand__is_active=True,
+        ).select_related('brand')
+        context['owned_brands_count'] = owned.count()
+        context['owned_hq_count'] = owned.filter(brand__panel_kind=BusinessBrand.PANEL_HQ).count()
+        context['owned_dealer_count'] = owned.filter(brand__panel_kind=BusinessBrand.PANEL_DEALER).count()
+        context['hq_limit'] = getattr(plan, 'max_hq_brands', None) or plan.max_brands
+        context['dealer_limit'] = getattr(plan, 'max_dealer_panels', 0)
+        context['invoices'] = BillingInvoice.objects.filter(user=user).order_by('-created_at')[:20]
+        context.update(build_subscription_modules_context(user))
+        return context
+
+    def post(self, request, *args, **kwargs):
+        if not request.user.is_authenticated:
+            return redirect('login')
+
+        action = request.POST.get('form_action')
+        user = request.user
+
+        if action == 'brand_create':
+            from common.brand_scope import create_brand_for_user, get_active_brand, set_active_brand
+            from common.tenant import build_brand_public_url
+            from core_settings.models import BusinessBrand
+
+            brand_name = request.POST.get('name', '').strip()
+            is_dealer = request.POST.get('panel_kind') == BusinessBrand.PANEL_DEALER
+            parent = get_active_brand(request) if is_dealer else None
+            if is_dealer and parent and parent.panel_kind == BusinessBrand.PANEL_DEALER:
+                parent = parent.parent_brand
+            tenant_routing = request.POST.get('tenant_routing') or BusinessBrand.TENANT_SUBDOMAIN
+            if tenant_routing not in {BusinessBrand.TENANT_SUBDOMAIN, BusinessBrand.TENANT_PATH}:
+                tenant_routing = BusinessBrand.TENANT_SUBDOMAIN
+            try:
+                if is_dealer and not parent:
+                    raise ValueError('Bayi paneli oluşturmak için önce merkez markanızı seçin.')
+                brand = create_brand_for_user(
+                    user,
+                    brand_name,
+                    panel_kind=BusinessBrand.PANEL_DEALER if is_dealer else BusinessBrand.PANEL_HQ,
+                    parent_brand=parent,
+                    tenant_routing=tenant_routing,
+                    legal_name=request.POST.get('legal_name', '').strip(),
+                    phone=request.POST.get('phone', '').strip(),
+                )
+                set_active_brand(request, brand.pk)
+                panel_url = build_brand_public_url(brand, request)
+                kind_label = 'Bayi' if is_dealer else 'Merkez'
+                messages.success(
+                    request,
+                    f'"{brand.name}" {kind_label} paneli oluşturuldu. Giriş adresi: {panel_url}',
+                )
+            except ValueError as exc:
+                messages.error(request, str(exc))
+            return redirect('subscription_dashboard')
+
+        elif action == 'brand_switch':
+            from common.brand_scope import set_active_brand
+            try:
+                brand_id = int(request.POST.get('brand_id', ''))
+                if set_active_brand(request, brand_id):
+                    messages.success(request, 'Aktif panel değiştirildi.')
+                else:
+                    messages.error(request, 'Bu panele erişiminiz yok.')
+            except (TypeError, ValueError):
+                messages.error(request, 'Geçersiz panel seçimi.')
+            return redirect('subscription_dashboard')
+
+        elif action == 'upgrade_plan':
+            from common.module_plan import clamp_owner_modules_to_plan
+            from core_settings.models import Plan, BillingInvoice
+            try:
+                plan = Plan.objects.get(pk=request.POST.get('plan_id'), is_active=True)
+                user.plan = plan
+                user.save(update_fields=['plan'])
+                clamp_owner_modules_to_plan(user)
+                BillingInvoice.objects.create(user=user, plan=plan, amount=plan.price, status='paid')
+                messages.success(request, f'Aboneliğiniz "{plan.name}" planına güncellendi.')
+            except Plan.DoesNotExist:
+                messages.error(request, 'Geçersiz plan seçimi.')
+            return redirect('subscription_dashboard')
+
+        return redirect('subscription_dashboard')
+
+
+class ModuleHubView(TemplateView):
+    """Eski modül merkezi — abonelik sayfasına yönlendir."""
 
     def dispatch(self, request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect('login')
-        return super().dispatch(request, *args, **kwargs)
-
-    def get_context_data(self, **kwargs):
-        from common.module_runtime import build_module_hub_context
-
-        context = super().get_context_data(**kwargs)
-        query = self.request.GET.get('q', '')
-        context.update(build_module_hub_context(self.request.user, query=query))
-        context['can_manage_modules'] = (
-            self.request.user.is_superuser
-            or self.request.user.has_perm_codename('access.settings')
-        )
-        return context
-
-    def post(self, request, *args, **kwargs):
-        from common.middleware import _is_api_request
-        from common.module_toggle import toggle_module_slug, toggle_particle_slug
-
-        if not (request.user.is_superuser or request.user.has_perm_codename('access.settings')):
-            if _is_api_request(request):
-                return JsonResponse({'ok': False, 'error': 'Modül ayarları için yetkiniz yok.'}, status=403)
-            messages.error(request, 'Modül ayarları için yetkiniz yok.')
-            return redirect('module_hub')
-
-        settings = SiteSettings.objects.first()
-        if not settings:
-            settings = SiteSettings.objects.create()
-
-        redirect_qs = ''
-        if request.GET.get('q'):
-            redirect_qs = f'?q={request.GET.get("q")}'
-
-        if 'toggle_module' in request.POST:
-            slug = request.POST.get('module_slug', '').strip()
-            result = toggle_module_slug(request.user, slug)
-            if _is_api_request(request):
-                status = 200 if result.get('ok') else 400
-                if not result.get('ok') and 'yetkiniz' in result.get('error', ''):
-                    status = 403
-                return JsonResponse(result, status=status)
-            if result.get('ok'):
-                level = result.get('level', 'success')
-                if level == 'info':
-                    messages.info(request, result['message'])
-                else:
-                    messages.success(request, result['message'])
-            else:
-                messages.error(request, result.get('error', 'İşlem başarısız.'))
-
-        elif 'toggle_particle' in request.POST:
-            particle_slug = request.POST.get('particle_slug', '').strip()
-            result = toggle_particle_slug(request.user, particle_slug)
-            if _is_api_request(request):
-                status = 200 if result.get('ok') else 400
-                if not result.get('ok') and 'yetkiniz' in result.get('error', ''):
-                    status = 403
-                return JsonResponse(result, status=status)
-            if result.get('ok'):
-                level = result.get('level', 'success')
-                if level == 'info':
-                    messages.info(request, result['message'])
-                else:
-                    messages.success(request, result['message'])
-            else:
-                messages.error(request, result.get('error', 'İşlem başarısız.'))
-
-        from django.urls import reverse
-        return redirect(f"{reverse('module_hub')}{redirect_qs}")
+        if request.user.is_superuser:
+            return redirect('admin_plans')
+        return redirect(reverse('subscription_dashboard') + '#moduller')
 
 
 class CapabilitiesHubView(TemplateView):

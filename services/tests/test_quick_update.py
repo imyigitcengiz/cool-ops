@@ -3,7 +3,8 @@
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 
-from core_settings.models import PriorityOption, StatusOption
+from common.brand_scope import SESSION_ACTIVE_BRAND, create_brand_for_user
+from core_settings.models import PriorityOption, SiteSettings, StatusOption
 from customers.models import Customer
 from services.models import ServiceRecord
 from users.models import Permission, Role
@@ -24,20 +25,29 @@ class QuickUpdateServiceFieldTests(TestCase):
             defaults={'name': 'Access', 'module': 'Test', 'kind': 'access', 'sort_order': 0},
         )
         self.role.permissions.add(perm, access)
+        SiteSettings.objects.create(site_name='Quick Update Test')
         self.user = User.objects.create_user(username='svcuser', password='test-pass-123', role=self.role)
-        self.customer = Customer.objects.create(name='Test Müşteri', phone='5551234567')
+        self.brand = create_brand_for_user(self.user, 'Test Marka')
+        self.customer = Customer.objects.create(name='Test Müşteri', phone='5551234567', brand=self.brand)
         self.status_a = StatusOption.objects.create(name='Aktif', color='#22c55e', sort_order=1)
         self.status_b = StatusOption.objects.create(name='Beklemede', color='#eab308', sort_order=2)
         self.priority_a = PriorityOption.objects.create(name='Normal', color='#64748b')
         self.priority_b = PriorityOption.objects.create(name='Acil', color='#ef4444')
         self.service = ServiceRecord.objects.create(
             customer=self.customer,
+            brand=self.brand,
             status=self.status_a,
             priority=self.priority_a,
         )
 
+    def _login(self, username='svcuser'):
+        self.client.login(username=username, password='test-pass-123')
+        session = self.client.session
+        session[SESSION_ACTIVE_BRAND] = self.brand.pk
+        session.save()
+
     def _post_quick(self, **extra):
-        self.client.login(username='svcuser', password='test-pass-123')
+        self._login()
         self.client.get('/services-dashboard/services/')
         csrf = self.client.cookies['csrftoken'].value
         payload = {
@@ -72,7 +82,7 @@ class QuickUpdateServiceFieldTests(TestCase):
         self.assertIn('Geçersiz alan', data.get('error', ''))
 
     def test_same_status_returns_ok_without_change(self):
-        self.client.login(username='svcuser', password='test-pass-123')
+        self._login()
         self.client.get('/services-dashboard/services/')
         csrf = self.client.cookies['csrftoken'].value
         res = self.client.post(
@@ -95,8 +105,11 @@ class QuickUpdateServiceFieldTests(TestCase):
             defaults={'name': 'Access', 'module': 'Test', 'kind': 'access', 'sort_order': 0},
         )
         limited.permissions.add(view_perm)
-        User.objects.create_user(username='viewer', password='test-pass-123', role=limited)
-        self.client.login(username='viewer', password='test-pass-123')
+        viewer = User.objects.create_user(username='viewer', password='test-pass-123', role=limited)
+        from core_settings.models import BrandMembership
+
+        BrandMembership.objects.create(user=viewer, brand=self.brand, role=BrandMembership.ROLE_MEMBER)
+        self._login('viewer')
         self.client.get('/services-dashboard/services/')
         csrf = self.client.cookies['csrftoken'].value
         res = self.client.post(

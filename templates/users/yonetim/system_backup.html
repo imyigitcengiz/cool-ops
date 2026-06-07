@@ -1,0 +1,138 @@
+{% extends 'users/yonetim/base.html' %}
+{% block title %}Yedek & Sıfırlama{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-slate-900">Sistem Yedekleri</h1>
+    <p class="text-slate-600 mt-1">
+        Tam platform yedeği veya tek bir panel (marka) verisi. Marka panellerinden yedekleme kaldırıldı — yalnızca süper admin.
+    </p>
+</div>
+
+<div class="mb-6 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-sm">
+    <p class="font-bold text-slate-800 flex items-center gap-2">
+        <i data-lucide="database" class="w-4 h-4 text-violet-600"></i>
+        Güncel veritabanı
+    </p>
+    <p class="text-slate-600 mt-1">
+        <strong>{{ backup_status.database_size_display }}</strong>
+        {% if backup_status.database_exists %}
+        · <code class="text-xs bg-white px-1 rounded break-all">{{ backup_status.database_path }}</code>
+        {% endif %}
+    </p>
+    <p class="text-slate-500 mt-1"><strong>{{ backup_status.migration_count }}</strong> migration uygulanmış.</p>
+</div>
+
+<section class="bg-white p-6 rounded-3xl border-2 border-brand-200 shadow-sm space-y-4 mb-6">
+    <div class="flex items-start gap-3">
+        <span class="px-2 py-0.5 rounded-lg bg-brand-100 text-brand-800 text-xs font-bold">Marka yedeği</span>
+        <div class="flex-1">
+            <h2 class="text-lg font-bold text-slate-900">Marka / mağaza bazlı yedek</h2>
+            <p class="text-xs text-slate-500 mt-1">Seçilen markanın müşteri ve servis kayıtlarını JSON olarak indirir (tam DB değildir).</p>
+        </div>
+    </div>
+    <form method="post" class="flex flex-col sm:flex-row gap-3 sm:items-end border-t border-slate-100 pt-4">
+        {% csrf_token %}
+        <input type="hidden" name="export_brand_backup" value="1">
+        <div class="flex-1">
+            <label class="text-xs font-bold text-slate-500 uppercase">Marka</label>
+            <select name="brand_id" required class="mt-1 w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm">
+                <option value="">— Marka seçin —</option>
+                {% for b in backup_brands %}
+                <option value="{{ b.pk }}">{{ b.name }}{% if b.panel_kind == 'dealer' %} (bayi){% endif %}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="px-4 py-2.5 bg-brand-600 text-white rounded-xl font-bold hover:bg-brand-700 whitespace-nowrap">Marka yedeğini indir</button>
+    </form>
+    <form method="post" enctype="multipart/form-data" class="space-y-4 border-t border-slate-100 pt-4">
+        {% csrf_token %}
+        <input type="hidden" name="import_brand_backup" value="1">
+        <p class="text-sm font-semibold text-slate-800">Marka yedeğini geri yükle</p>
+        <p class="text-xs text-slate-500">Müşteri ve servis kayıtları hedef markaya aktarılır. Durum/öncelik katalogları aynı sistemde olmalıdır.</p>
+        <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
+            <div class="flex-1">
+                <label class="text-xs font-bold text-slate-500 uppercase">Hedef marka</label>
+                <select name="brand_id" required class="mt-1 w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm">
+                    <option value="">— Marka seçin —</option>
+                    {% for b in backup_brands %}
+                    <option value="{{ b.pk }}">{{ b.name }}{% if b.panel_kind == 'dealer' %} (bayi){% endif %}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex-1">
+                <label class="text-xs font-bold text-slate-500 uppercase">Yedek dosyası</label>
+                <input type="file" name="brand_backup_file" accept=".json,.json.gz,.gz,application/json,application/gzip,application/x-gzip,application/octet-stream" required class="mt-1 w-full p-2 border border-slate-200 rounded-xl bg-slate-50 text-sm">
+                <p class="text-[11px] text-slate-400 mt-1">İndirilen <code>.json.gz</code> dosyasını doğrudan seçebilirsiniz.</p>
+            </div>
+        </div>
+        <label class="flex items-start gap-2 text-sm text-slate-700">
+            <input type="checkbox" name="replace_brand_data" class="mt-1">
+            <span>Mevcut müşteri ve servis kayıtlarını sil, yedeği sıfırdan yükle</span>
+        </label>
+        <button type="submit" class="px-4 py-2.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 whitespace-nowrap"
+                onclick="return confirm('Seçilen markaya yedek yüklenecek. Devam?');">Marka yedeğini içe aktar</button>
+    </form>
+</section>
+
+<section class="bg-white p-6 rounded-3xl border-2 border-violet-200 shadow-sm space-y-6 mb-6">
+    <div class="flex items-start gap-3">
+        <span class="px-2 py-0.5 rounded-lg bg-violet-100 text-violet-800 text-xs font-bold">Tam yedek</span>
+        <div class="flex-1">
+            <h2 class="text-lg font-bold text-slate-900">SQLite — tüm sistem (db.sqlite3)</h2>
+            <p class="text-xs text-slate-500 mt-1">Tüm kiracılar ve platform verisi. <code>media/</code> klasörünü ayrıca yedekleyin.</p>
+        </div>
+    </div>
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-t border-slate-100 pt-4">
+        <p class="text-sm text-slate-600">Tam yedeği indir</p>
+        <form method="post" class="inline">
+            {% csrf_token %}
+            <input type="hidden" name="export_sqlite" value="1">
+            <button type="submit" class="px-4 py-2.5 bg-violet-600 text-white rounded-xl font-bold hover:bg-violet-700" {% if not backup_status.database_exists %}disabled{% endif %}>Tam yedeği indir</button>
+        </form>
+    </div>
+    <div class="border-t border-slate-100 pt-4">
+        <form method="post" enctype="multipart/form-data" class="flex flex-col sm:flex-row gap-3 sm:items-center">
+            {% csrf_token %}
+            <input type="hidden" name="import_sqlite" value="1">
+            <input type="file" name="sqlite_file" accept=".sqlite3,.db" class="flex-1 p-2 border border-slate-200 rounded-xl bg-slate-50 text-sm">
+            <button type="submit" class="px-4 py-2.5 bg-slate-900 text-white rounded-xl font-bold whitespace-nowrap"
+                    onclick="return confirm('Mevcut veritabanı yedeklenip değiştirilecek. Devam?');">Tam yedeği geri yükle</button>
+        </form>
+    </div>
+</section>
+
+<section class="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm mb-6">
+    <details>
+        <summary class="cursor-pointer text-sm font-bold text-slate-700">Gelişmiş — JSON dışa/içe aktarma</summary>
+        <div class="mt-4 pt-4 border-t border-slate-100 space-y-4">
+            <form method="post" class="inline">
+                {% csrf_token %}
+                <input type="hidden" name="export_backup" value="1">
+                <button type="submit" class="px-4 py-2.5 border border-slate-200 rounded-xl font-bold">Tüm sistem JSON.GZ</button>
+            </form>
+            <form method="post" enctype="multipart/form-data" class="flex flex-col sm:flex-row gap-3 sm:items-center">
+                {% csrf_token %}
+                <input type="hidden" name="import_backup" value="1">
+                <input type="file" name="backup_file" accept=".json,.json.gz,.gz,application/json,application/gzip,application/x-gzip,application/octet-stream" class="flex-1 p-2 border border-slate-200 rounded-xl text-sm">
+                <button type="submit" class="px-4 py-2.5 border border-slate-200 rounded-xl font-bold">JSON içe aktar</button>
+            </form>
+        </div>
+    </details>
+</section>
+
+<section class="bg-white p-6 rounded-3xl border-2 border-red-300 shadow-sm space-y-5">
+    <h2 class="text-lg font-bold text-red-900">Veritabanını fabrika ayarlarına sıfırla</h2>
+    <p class="text-sm text-slate-600">Tüm kiracı verileri silinir. Önce tam yedek alın.</p>
+    <form method="post" class="space-y-4 border-t border-red-100 pt-4">
+        {% csrf_token %}
+        <input type="hidden" name="factory_reset_database" value="1">
+        <label class="flex items-start gap-3 text-sm"><input type="checkbox" name="acknowledge_data_loss" class="mt-1" required> Veri kaybını anlıyorum.</label>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <input type="text" name="confirm_phrase" required placeholder="{{ factory_reset_confirm_phrase }}" class="p-3 border border-red-200 rounded-xl text-sm font-mono uppercase">
+            <input type="password" name="password" required class="p-3 border border-red-200 rounded-xl text-sm">
+        </div>
+        <button type="submit" class="px-5 py-3 bg-red-600 text-white rounded-xl font-bold"
+                onclick="return confirm('Tüm veritabanı silinecek. Devam?');">Veritabanını sıfırla</button>
+    </form>
+</section>
+{% endblock %}

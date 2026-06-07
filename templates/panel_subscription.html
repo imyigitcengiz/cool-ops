@@ -1,0 +1,382 @@
+{% extends 'common/erp_unified_shell.html' %}
+{% block title %}Abonelik & Bayi / Franchise Yönetimi{% endblock %}
+{% block body_class %} bg-slate-50{% endblock %}
+
+{% block shell_header %}
+<header class="erp-module-header">
+    <div class="erp-module-header__inner">
+        <div class="erp-module-header__top">
+            <div class="erp-module-header__lead">
+                {% include 'common/erp_sidebar_toggle.html' %}
+                <div class="erp-module-header__text min-w-0">
+                    <div class="flex items-center gap-3">
+                        <a href="{% url 'home' %}" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0" title="Ana Panel">
+                            <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                        </a>
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <div class="w-8 h-8 rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shrink-0 shadow-sm">
+                                <i data-lucide="shield-check" class="w-4 h-4 text-white"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <h1 class="erp-module-header__title truncate">Abonelik & Bayi / Franchise Yönetimi</h1>
+                                <p class="erp-module-header__subtitle truncate">Plan, panel limitleri, bayi ekleme ve fatura geçmişi</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="erp-module-header__tools">
+                {% include 'common/erp_module_header_tools.html' %}
+            </div>
+        </div>
+    </div>
+</header>
+{% endblock %}
+
+{% block content_wrapper_class %}erp-page-content mx-auto w-full max-w-5xl py-8 md:py-10{% endblock %}
+
+{% block content %}
+
+{# ────────── STAT CARDS ────────── #}
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Mevcut Plan</p>
+        <p class="text-xl font-extrabold text-slate-900">{{ active_plan.name }}</p>
+        <p class="text-xs text-slate-500 mt-1">{% if active_plan.price == 0 %}Ücretsiz{% else %}{{ active_plan.price }} ₺/ay{% endif %}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Merkez / Bayi</p>
+        <p class="text-xl font-extrabold text-slate-900">{{ owned_hq_count }}<span class="text-slate-400 font-semibold text-base"> / {{ hq_limit }}</span> · {{ owned_dealer_count }}<span class="text-slate-400 font-semibold text-base"> / {{ dealer_limit }}</span></p>
+        <p class="text-xs text-slate-500 mt-1">Merkez panel · bayi alt panel</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Kullanıcı / Panel</p>
+        <p class="text-xl font-extrabold text-slate-900">{{ active_plan.users_limit_display }}</p>
+        <p class="text-xs text-slate-500 mt-1">Max kullanıcı limiti</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5">
+        <p class="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1">Müşteri / Panel</p>
+        <p class="text-xl font-extrabold text-slate-900">{{ active_plan.customers_limit_display }}</p>
+        <p class="text-xs text-slate-500 mt-1">Max müşteri limiti</p>
+    </div>
+</div>
+
+{% if user_can_manage_brand_team %}
+<div class="mb-6">
+    <a href="{% url 'brand_team_users' %}" class="group flex items-center justify-between gap-4 bg-white rounded-2xl border border-slate-200 shadow-sm hover:border-brand-300 hover:shadow-md transition-all p-5">
+        <div class="flex items-center gap-4">
+            <div class="w-11 h-11 rounded-xl bg-brand-50 border border-brand-100 flex items-center justify-center shrink-0">
+                <i data-lucide="users-round" class="w-5 h-5 text-brand-600"></i>
+            </div>
+            <div>
+                <p class="text-sm font-bold text-slate-900">Ekip Yönetimi</p>
+                <p class="text-xs text-slate-500 mt-0.5">Kullanıcılar, roller ve izinler — yalnızca sizin panelleriniz</p>
+            </div>
+        </div>
+        <i data-lucide="chevron-right" class="w-5 h-5 text-slate-300 group-hover:text-brand-500"></i>
+    </a>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+
+    {# ────────── LEFT: PLAN & BRANDS ────────── #}
+    <div class="lg:col-span-3 space-y-6">
+
+        {# Plan Seçimi #}
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-6 py-5 border-b border-slate-100">
+                <div class="flex items-center gap-2.5">
+                    <i data-lucide="sparkles" class="w-4 h-4 text-amber-500"></i>
+                    <h2 class="text-sm font-bold text-slate-900">Plan Seç / Değiştir</h2>
+                </div>
+                <p class="text-xs text-slate-500 mt-1">İhtiyacınıza en uygun paketi seçin. Değişiklik anında uygulanır.</p>
+            </div>
+            <div class="p-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {% for plan in plans %}
+                <div class="relative rounded-2xl border-2 transition-all duration-200
+                    {% if active_plan.name == plan.name %}
+                        border-brand-500 bg-brand-50 shadow-md shadow-brand-100
+                    {% else %}
+                        border-slate-200 bg-white hover:border-brand-300 hover:shadow-md
+                    {% endif %}
+                    p-5 flex flex-col">
+                    {% if active_plan.name == plan.name %}
+                    <span class="absolute -top-2.5 left-4 px-2.5 py-0.5 bg-brand-600 text-white text-[10px] font-bold rounded-full">Aktif Paket</span>
+                    {% endif %}
+                    <div class="mb-4">
+                        <h3 class="font-extrabold text-slate-900 text-sm">{{ plan.name }}</h3>
+                        <div class="flex items-baseline gap-1 mt-2">
+                            <span class="text-2xl font-black text-slate-900">{% if plan.price == 0 %}Ücretsiz{% else %}{{ plan.price }} ₺{% endif %}</span>
+                            {% if plan.price > 0 %}<span class="text-xs text-slate-400">/ay</span>{% endif %}
+                        </div>
+                    </div>
+                    <ul class="text-xs text-slate-600 space-y-2 mb-5 flex-1">
+                        <li class="flex items-center gap-2">
+                            <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-brand-500 shrink-0"></i>
+                            {{ plan.brands_limit_display }} panel / bayi
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-brand-500 shrink-0"></i>
+                            {{ plan.users_limit_display }} kullanıcı / panel
+                        </li>
+                        <li class="flex items-center gap-2">
+                            <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-brand-500 shrink-0"></i>
+                            {{ plan.customers_limit_display }} müşteri / panel
+                        </li>
+                    </ul>
+                    {% if active_plan.name == plan.name %}
+                    <button disabled class="w-full py-2.5 rounded-xl text-xs font-bold bg-brand-100 text-brand-500 cursor-not-allowed">Mevcut Paket</button>
+                    {% else %}
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_action" value="upgrade_plan">
+                        <input type="hidden" name="plan_id" value="{{ plan.pk }}">
+                        <button type="submit" class="w-full py-2.5 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-700 text-white transition-colors duration-200">
+                            {% if plan.price > active_plan.price %}Yükselt{% elif plan.price == 0 %}Ücretsize Geç{% else %}Değiştir{% endif %}
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {# Fatura Geçmişi #}
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-6 py-5 border-b border-slate-100">
+                <div class="flex items-center gap-2.5">
+                    <i data-lucide="receipt" class="w-4 h-4 text-slate-500"></i>
+                    <h2 class="text-sm font-bold text-slate-900">Faturalama Geçmişi</h2>
+                </div>
+            </div>
+            {% if invoices %}
+            <div class="divide-y divide-slate-100">
+                {% for inv in invoices %}
+                <div class="flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-xl {% if inv.status == 'paid' %}bg-emerald-50 text-emerald-600{% else %}bg-amber-50 text-amber-600{% endif %} flex items-center justify-center shrink-0">
+                            <i data-lucide="{% if inv.status == 'paid' %}check{% else %}clock{% endif %}" class="w-3.5 h-3.5"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-800">{{ inv.plan.name }}</p>
+                            <p class="text-xs text-slate-400">{{ inv.created_at|date:"d M Y, H:i" }}</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-sm font-bold text-slate-900">{{ inv.amount }} ₺</p>
+                        <span class="text-[10px] font-bold {% if inv.status == 'paid' %}text-emerald-600 bg-emerald-50{% else %}text-amber-600 bg-amber-50{% endif %} px-2 py-0.5 rounded-full">
+                            {% if inv.status == 'paid' %}Ödendi{% else %}Bekliyor{% endif %}
+                        </span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="px-6 py-10 text-center">
+                <i data-lucide="receipt" class="w-8 h-8 text-slate-200 mx-auto mb-2"></i>
+                <p class="text-sm text-slate-400">Henüz fatura kaydı bulunmuyor.</p>
+            </div>
+            {% endif %}
+        </div>
+
+    </div>
+
+    {# ────────── RIGHT: BRAND / PANEL MGMT ────────── #}
+    <div class="lg:col-span-2 space-y-6">
+
+        {# Panellerim #}
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-6 py-5 border-b border-slate-100">
+                <div class="flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2.5">
+                        <i data-lucide="layers" class="w-4 h-4 text-indigo-500"></i>
+                        <h2 class="text-sm font-bold text-slate-900">Panellerim / Bayilerim</h2>
+                    </div>
+                    <span class="text-[11px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{{ owned_brands_count }}/{{ active_plan.brands_limit_display }}</span>
+                </div>
+            </div>
+            <div class="divide-y divide-slate-100 max-h-72 overflow-y-auto">
+                {% for b in user_brands %}
+                <div class="flex items-center justify-between px-5 py-3.5 hover:bg-slate-50 transition-colors group">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-8 h-8 rounded-xl {% if active_brand and active_brand.pk == b.pk %}bg-brand-100 text-brand-700{% else %}bg-slate-100 text-slate-500{% endif %} font-black text-xs flex items-center justify-center shrink-0">
+                            {{ b.name|slice:":2"|upper }}
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-sm font-semibold text-slate-800 truncate">{{ b.name }}</p>
+                            <p class="text-[11px] text-slate-400 truncate">
+                                {% if b.panel_kind == 'dealer' %}Bayi paneli{% else %}Merkez{% endif %}
+                                {% if b.legal_name %} · {{ b.legal_name }}{% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    {% if active_brand and active_brand.pk == b.pk %}
+                    <span class="text-[10px] font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded-full shrink-0">Aktif</span>
+                    {% else %}
+                    <form method="post" class="shrink-0">
+                        {% csrf_token %}
+                        <input type="hidden" name="form_action" value="brand_switch">
+                        <input type="hidden" name="brand_id" value="{{ b.pk }}">
+                        <button type="submit" class="text-[11px] font-bold text-slate-500 hover:text-brand-600 hover:bg-brand-50 px-3 py-1.5 rounded-xl border border-transparent hover:border-brand-200 transition-all">Geçiş Yap</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% empty %}
+                <div class="px-5 py-8 text-center">
+                    <p class="text-sm text-slate-400">Henüz panel oluşturulmamış.</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        {# Yeni Panel / Bayi Ekle #}
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-6 py-5 border-b border-slate-100">
+                <div class="flex items-center gap-2.5">
+                    <i data-lucide="plus-circle" class="w-4 h-4 text-brand-600"></i>
+                    <h2 class="text-sm font-bold text-slate-900">Yeni Panel / Bayi Ekle</h2>
+                </div>
+                <p class="text-xs text-slate-500 mt-1">Her bayi veya franchise şubesi için ayrı bir panel oluşturun.</p>
+            </div>
+            <div class="p-6">
+                {% if owned_hq_count >= hq_limit and owned_dealer_count >= dealer_limit %}
+                <div class="flex items-start gap-3 p-4 rounded-xl bg-amber-50 border border-amber-100 mb-4">
+                    <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-500 shrink-0 mt-0.5"></i>
+                    <div>
+                        <p class="text-sm font-semibold text-amber-800">Panel limitinize ulaştınız</p>
+                        <p class="text-xs text-amber-600 mt-0.5">Merkez {{ owned_hq_count }}/{{ hq_limit }} · Bayi {{ owned_dealer_count }}/{{ dealer_limit }}. Plan yükseltin.</p>
+                    </div>
+                </div>
+                {% endif %}
+                {% if owned_hq_count < hq_limit or owned_dealer_count < dealer_limit %}
+                <form method="post" class="space-y-4" id="brand-create-form">
+                    {% csrf_token %}
+                    <input type="hidden" name="form_action" value="brand_create">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-2">Panel türü</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <label class="flex items-center gap-2 p-3 rounded-xl border border-slate-200 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50">
+                                <input type="radio" name="panel_kind" value="hq" checked class="text-brand-600">
+                                <span class="text-xs font-semibold text-slate-700">Merkez marka</span>
+                            </label>
+                            <label class="flex items-center gap-2 p-3 rounded-xl border border-slate-200 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50">
+                                <input type="radio" name="panel_kind" value="dealer" class="text-brand-600">
+                                <span class="text-xs font-semibold text-slate-700">Bayi / franchise</span>
+                            </label>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-2">Erişim adresi</label>
+                        <div class="grid grid-cols-1 gap-2">
+                            <label class="flex items-start gap-2 p-3 rounded-xl border border-slate-200 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50">
+                                <input type="radio" name="tenant_routing" value="subdomain" checked class="mt-0.5 text-brand-600">
+                                <span class="text-xs text-slate-600"><strong class="text-slate-800">Alt alan adı</strong> — örn. <code class="text-[10px] bg-slate-100 px-1 rounded">kadikoy.marka.coolops.com</code></span>
+                            </label>
+                            <label class="flex items-start gap-2 p-3 rounded-xl border border-slate-200 cursor-pointer has-[:checked]:border-brand-500 has-[:checked]:bg-brand-50">
+                                <input type="radio" name="tenant_routing" value="path" class="mt-0.5 text-brand-600">
+                                <span class="text-xs text-slate-600"><strong class="text-slate-800">Yol öneki</strong> — örn. <code class="text-[10px] bg-slate-100 px-1 rounded">marka.coolops.com/kadikoy</code></span>
+                            </label>
+                        </div>
+                        <p class="text-[11px] text-slate-400 mt-2">Bayiler özel giriş adresinden girer; üst platform panelini görmezler.</p>
+                    </div>
+                    <div>
+                        <label for="sub_brand_name" class="block text-xs font-semibold text-slate-700 mb-1.5">Panel adı <span class="text-red-500">*</span></label>
+                        <input type="text" id="sub_brand_name" name="name" required
+                               placeholder="Örn. Kadıköy Şubesi"
+                               class="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition-all duration-200 bg-slate-50 focus:bg-white">
+                    </div>
+                    <div>
+                        <label for="sub_legal_name" class="block text-xs font-semibold text-slate-700 mb-1.5">Ticari Ünvan <span class="text-slate-400 font-normal">(opsiyonel)</span></label>
+                        <input type="text" id="sub_legal_name" name="legal_name"
+                               placeholder="Örn. Örnek Şirketi A.Ş."
+                               class="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition-all duration-200 bg-slate-50 focus:bg-white">
+                    </div>
+                    <div>
+                        <label for="sub_phone" class="block text-xs font-semibold text-slate-700 mb-1.5">Telefon <span class="text-slate-400 font-normal">(opsiyonel)</span></label>
+                        <input type="text" id="sub_phone" name="phone"
+                               placeholder="Örn. 0555 123 45 67"
+                               class="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition-all duration-200 bg-slate-50 focus:bg-white">
+                    </div>
+                    <button type="submit" class="w-full py-3 rounded-xl bg-brand-600 hover:bg-brand-700 active:bg-brand-800 text-white font-bold text-sm transition-all duration-200 inline-flex items-center justify-center gap-2 shadow-sm hover:shadow-brand-200 hover:shadow-md">
+                        <i data-lucide="plus" class="w-4 h-4"></i>
+                        Panel Oluştur
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<section id="moduller" class="mt-10 scroll-mt-24">
+    <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+        <div>
+            <h2 class="text-lg font-bold text-slate-900">Modüller & entegrasyonlar</h2>
+            <p class="text-xs text-slate-500 mt-1">Planınızdaki modül tavanı içinde açıp kapatabilirsiniz ({{ plan_module_count }} modül).</p>
+        </div>
+        <span class="text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">{{ module_installed_count }} açık</span>
+    </div>
+    <div class="space-y-6">
+        {% for group in module_app_groups %}
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-100 flex items-center gap-2">
+                <i data-lucide="{{ group.icon }}" class="w-4 h-4 text-brand-600"></i>
+                <h3 class="text-sm font-bold text-slate-900">{{ group.name }}</h3>
+            </div>
+            <div class="divide-y divide-slate-50">
+                {% for mod in group.items %}
+                <div class="px-5 py-4 flex flex-wrap items-center justify-between gap-3 {% if not mod.in_plan %}opacity-50{% endif %}">
+                    <div class="min-w-0">
+                        <p class="text-sm font-semibold text-slate-800">{{ mod.name }}</p>
+                        <p class="text-xs text-slate-500 truncate">{{ mod.summary }}</p>
+                        {% if mod.needs_upgrade %}<p class="text-[11px] font-bold text-amber-600 mt-1">Plana yükseltin</p>{% endif %}
+                    </div>
+                    {% if can_manage_modules and mod.in_plan and mod.can_toggle %}
+                    <label class="erp-switch shrink-0" title="{% if mod.installed %}Kapat{% else %}Aç{% endif %}">
+                        <input type="checkbox" {% if mod.installed %}checked{% endif %} data-module-toggle data-module-slug="{{ mod.slug }}">
+                        <span class="erp-switch__track" aria-hidden="true"></span>
+                    </label>
+                    {% else %}
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {% if mod.installed %}bg-emerald-50 text-emerald-700{% else %}bg-slate-100 text-slate-500{% endif %}">{% if mod.installed %}Açık{% else %}Kapalı{% endif %}</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+        {% if module_integrations %}
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="px-5 py-3 border-b border-slate-100"><h3 class="text-sm font-bold text-slate-900">Entegrasyonlar</h3></div>
+            <div class="divide-y divide-slate-50">
+                {% for mod in module_integrations %}
+                <div class="px-5 py-4 flex flex-wrap items-center justify-between gap-3 {% if not mod.in_plan %}opacity-50{% endif %}">
+                    <div class="min-w-0">
+                        <p class="text-sm font-semibold text-slate-800">{{ mod.name }}</p>
+                        <p class="text-xs text-slate-500">{{ mod.summary }}</p>
+                        {% if mod.needs_upgrade %}<p class="text-[11px] font-bold text-amber-600 mt-1">Plana yükseltin</p>{% endif %}
+                    </div>
+                    {% if can_manage_modules and mod.in_plan and mod.can_toggle %}
+                    <label class="erp-switch shrink-0">
+                        <input type="checkbox" {% if mod.installed %}checked{% endif %} data-module-toggle data-module-slug="{{ mod.slug }}">
+                        <span class="erp-switch__track" aria-hidden="true"></span>
+                    </label>
+                    {% else %}
+                    <span class="text-[10px] font-bold px-2 py-0.5 rounded-full {% if mod.installed %}bg-emerald-50 text-emerald-700{% else %}bg-slate-100 text-slate-500{% endif %}">{% if mod.installed %}Açık{% else %}Kapalı{% endif %}</span>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+
+{% endblock %}
+{% block extra_js %}
+{% load static %}
+<script>window.MODULE_TOGGLE_URL = "{% url 'subscription_module_toggle' %}";</script>
+<script src="{% static 'js/gy-toast.js' %}"></script>
+<script src="{% static 'js/module-toggle.js' %}"></script>
+{% endblock %}

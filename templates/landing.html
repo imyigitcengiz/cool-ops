@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ gy.app_name }} — Operasyon paneli</title>
-    <meta name="description" content="Modüler KOBİ operasyon paneli: rehber, yardım masası, ön muhasebe, teklif, stok reçetesi, WhatsApp, hızlı arama. Self-host Docker kurulumu.">
+    <title>{% if site_settings %}{{ site_settings.site_name }}{% else %}{{ gy.app_name }}{% endif %} — Operasyon paneli</title>
+    <meta name="description" content="{% if site_settings %}{{ site_settings.site_name }}{% else %}{{ gy.app_name }}{% endif %}: modüler KOBİ operasyon paneli — rehber, yardım masası, ön muhasebe, teklif, stok reçetesi, WhatsApp, hızlı arama. Self-host Docker kurulumu.">
     {% load static %}
     {% include 'common/erp_head_assets.html' %}
     <style>
@@ -32,13 +32,19 @@
                 <a href="#moduller" class="px-2 py-1 rounded-lg hover:text-white hover:bg-white/5">Modüller</a>
                 <a href="#ozellikler" class="px-2 py-1 rounded-lg hover:text-white hover:bg-white/5">Özellikler</a>
                 <a href="#sektorler" class="px-2 py-1 rounded-lg hover:text-white hover:bg-white/5">Sektörler</a>
+                <a href="#planlar" class="px-2 py-1 rounded-lg hover:text-white hover:bg-white/5">Planlar</a>
                 <a href="#kurulum" class="px-2 py-1 rounded-lg hover:text-white hover:bg-white/5">Kurulum</a>
                 <a href="{% url 'introducer_knowledge_base' %}" class="px-2 py-1 rounded-lg hover:text-white hover:bg-white/5 text-violet-300">Bilgi bankası</a>
             </nav>
-            <a href="{% url 'login' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-bold hover:bg-brand-500 transition-colors shrink-0">
-                <i data-lucide="log-in" class="w-4 h-4"></i>
-                Giriş
-            </a>
+            <div class="flex items-center gap-2 shrink-0">
+                <a href="{% url 'register' %}" class="hidden sm:inline-flex items-center gap-2 px-4 py-2 rounded-xl border border-white/20 text-slate-200 text-sm font-bold hover:bg-white/5 transition-colors">
+                    Üye ol
+                </a>
+                <a href="{% url 'login' %}" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-bold hover:bg-brand-500 transition-colors">
+                    <i data-lucide="log-in" class="w-4 h-4"></i>
+                    Giriş
+                </a>
+            </div>
         </div>
     </header>
 
@@ -49,7 +55,7 @@
                 <div class="max-w-3xl">
                     <p class="text-brand-400 text-sm font-bold uppercase tracking-wider mb-4">{{ landing_vertical_copy.badge }}</p>
                     <h1 class="text-4xl md:text-5xl lg:text-[3.15rem] font-extrabold text-white leading-[1.08]">
-                        {{ landing_vertical_copy.headline }}
+                        {% if site_settings %}{{ site_settings.site_name }}{% else %}{{ gy.app_name }}{% endif %} — {{ landing_vertical_copy.headline }}
                     </h1>
                     <p class="mt-6 text-lg text-slate-400 leading-relaxed">{{ landing_vertical_copy.lead }}</p>
                     <div class="mt-8 flex flex-wrap gap-2">
@@ -60,11 +66,14 @@
                         {% endfor %}
                     </div>
                     <div class="mt-10 flex flex-wrap gap-3">
-                        <a href="{% url 'login' %}" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-brand-600 text-white font-bold hover:bg-brand-500 shadow-lg shadow-brand-900/30">
-                            Panele giriş <i data-lucide="arrow-right" class="w-5 h-5"></i>
+                        <a href="{% url 'register' %}" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl bg-brand-600 text-white font-bold hover:bg-brand-500 shadow-lg shadow-brand-900/30">
+                            Ücretsiz üye ol <i data-lucide="user-plus" class="w-5 h-5"></i>
                         </a>
-                        <a href="#ozellikler" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl border border-white/20 text-slate-200 font-semibold hover:bg-white/5">
-                            Tüm özellikler
+                        <a href="{% url 'login' %}" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl border border-white/20 text-slate-200 font-semibold hover:bg-white/5">
+                            Giriş yap
+                        </a>
+                        <a href="#planlar" class="inline-flex items-center gap-2 px-6 py-3.5 rounded-2xl border border-white/10 text-slate-400 font-semibold hover:bg-white/5 hover:text-slate-200">
+                            Planları incele
                         </a>
                     </div>
                 </div>
@@ -86,7 +95,7 @@
         <!-- Modül kartları -->
         <section id="moduller" class="max-w-6xl mx-auto px-6 py-14 border-t border-white/5 scroll-mt-20">
             <h2 class="text-2xl md:text-3xl font-bold text-white">Uygulama modülleri</h2>
-            <p class="mt-2 text-slate-400 max-w-2xl">Ana modüller kurulumda açılır; alt özellikler (parçacıklar) modül merkezinden yönetilir.</p>
+            <p class="mt-2 text-slate-400 max-w-2xl">Ana modüller planınıza göre açılır; alt özellikler (parçacıklar) abonelik sayfasından yönetilir.</p>
             <div class="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {% for app in landing_apps %}
                 <article class="rounded-3xl border border-white/10 bg-white/[0.03] p-5 flex flex-col">
@@ -237,6 +246,58 @@
         </section>
         {% endif %}
 
+        <!-- Planlar & Fiyatlandırma -->
+        {% if plans %}
+        <section id="planlar" class="max-w-6xl mx-auto px-6 py-14 border-t border-white/5 scroll-mt-20">
+            <h2 class="text-2xl md:text-3xl font-bold text-white text-center">Fiyatlandırma & Paketler</h2>
+            <p class="mt-2 text-slate-400 text-center max-w-2xl mx-auto">İhtiyacınıza uygun paketi seçin, limitlerinizi marka bazlı esnetin.</p>
+            
+            <div class="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6">
+                {% for plan in plans %}
+                <div class="rounded-3xl border {% if plan.price == 0 %}border-white/10 bg-white/[0.02]{% else %}border-brand-500/30 bg-brand-950/20 shadow-lg shadow-brand-950/10{% endif %} p-6 flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between gap-2">
+                            <h3 class="text-lg font-bold text-white">{{ plan.name }}</h3>
+                            {% if plan.price > 0 %}
+                            <span class="px-2 py-0.5 rounded-full bg-brand-500/20 text-brand-400 text-[10px] font-bold uppercase tracking-wider">Popüler</span>
+                            {% endif %}
+                        </div>
+                        <p class="mt-4 text-3xl font-extrabold text-white">
+                            {% if plan.price == 0 %}0{% else %}{{ plan.price }}{% endif %}
+                            <span class="text-xs font-semibold text-slate-500">₺ / ay</span>
+                        </p>
+                        <ul class="mt-6 space-y-3 text-sm text-slate-300">
+                            <li class="flex items-center gap-2">
+                                <i data-lucide="check" class="w-4 h-4 text-emerald-400 shrink-0"></i>
+                                <strong>{{ plan.max_hq_brands }}</strong> merkez · <strong>{{ plan.max_dealer_panels }}</strong> bayi alt panel
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <i data-lucide="check" class="w-4 h-4 text-emerald-400 shrink-0"></i>
+                                <strong>{{ plan.module_count }}</strong> modül / entegrasyon
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <i data-lucide="check" class="w-4 h-4 text-emerald-400 shrink-0"></i>
+                                <strong>{{ plan.users_limit_display }}</strong> kullanıcı / panel
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <i data-lucide="check" class="w-4 h-4 text-emerald-400 shrink-0"></i>
+                                <strong>{{ plan.customers_limit_display }}</strong> müşteri / panel
+                            </li>
+                            <li class="flex items-center gap-2">
+                                <i data-lucide="check" class="w-4 h-4 text-emerald-400 shrink-0"></i>
+                                WhatsApp & Entegrasyon Desteği
+                            </li>
+                        </ul>
+                    </div>
+                    <a href="{% url 'register' %}?plan={{ plan.pk }}" class="mt-8 block text-center py-3 rounded-2xl text-xs font-bold {% if plan.price == 0 %}bg-white/10 text-white hover:bg-white/20{% else %}bg-brand-600 text-white hover:bg-brand-500{% endif %} transition-colors">
+                        Hemen Başla
+                    </a>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {% endif %}
+
         <!-- Kurulum -->
         <section id="kurulum" class="max-w-6xl mx-auto px-6 py-14 border-t border-white/5 scroll-mt-20">
             <div class="rounded-3xl border border-white/10 bg-gradient-to-br from-slate-900 to-slate-800 p-8 md:p-12">
@@ -282,7 +343,7 @@
     </main>
 
     <footer class="border-t border-white/10 py-8 text-center text-slate-500 text-sm">
-        <p>{{ gy.app_name }} · Modüler operasyon paneli · <a href="{% url 'introducer_knowledge_base' %}" class="text-violet-400 hover:underline">Bilgi bankası</a></p>
+        <p>{% if site_settings %}{{ site_settings.site_name }}{% else %}{{ gy.app_name }}{% endif %} · Modüler operasyon paneli{% if site_settings.company_phone %} · {{ site_settings.company_phone }}{% endif %}{% if site_settings.company_address %} · {{ site_settings.company_address }}{% endif %} · <a href="{% url 'introducer_knowledge_base' %}" class="text-violet-400 hover:underline">Bilgi bankası</a></p>
     </footer>
     <script>if (window.lucide) lucide.createIcons();</script>
 </body>

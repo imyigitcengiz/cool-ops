@@ -27,12 +27,6 @@
 <a href="{% url 'settings_tags' %}" class="erp-nav-link{% if active == 'settings_tags' %} erp-nav-link--active{% endif %}">
     <i data-lucide="tags" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">Firma etiketleri</span>
 </a>
-{% if user.is_superuser %}
-<p class="erp-nav-group-label erp-nav-group-label--danger">Yedekleme</p>
-<a href="{% url 'settings_system_backup' %}" class="erp-nav-link erp-nav-link--danger{% if active == 'settings_system_backup' %} erp-nav-link--active{% endif %}">
-    <i data-lucide="database-backup" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">Yedek & sıfırlama</span>
-</a>
-{% endif %}
 {% if user_perms.tools_ai %}
 <p class="erp-nav-group-label">AI</p>
 <a href="{% url 'settings_ai_settings' %}" class="erp-nav-link{% if active == 'settings_ai_settings' %} erp-nav-link--active{% endif %}">

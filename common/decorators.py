@@ -4,7 +4,8 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.shortcuts import redirect
 
-from common.middleware import _is_api_request
+from common.middleware import _is_api_request, permission_denied_redirect
+from users.impersonation import get_real_user
 
 
 def json_auth_required(view_func):
@@ -20,10 +21,7 @@ def json_auth_required(view_func):
 
 
 def _deny(request, message='Bu işlem için yetkiniz yok.'):
-    if _is_api_request(request):
-        return JsonResponse({'ok': False, 'error': message}, status=403)
-    messages.error(request, message)
-    return redirect('home')
+    return permission_denied_redirect(request, message)
 
 
 def _resolve_request(args):
@@ -53,7 +51,8 @@ def permission_required(*codenames, any_perm=False):
                 if _is_api_request(request):
                     return JsonResponse({'ok': False, 'error': 'Giriş gerekli.'}, status=401)
                 return redirect('login')
-            if user.is_superuser:
+            real_user = get_real_user(request)
+            if real_user.is_superuser:
                 return view_func(*args, **kwargs)
             codes = [c for c in codenames if c]
             if not codes:

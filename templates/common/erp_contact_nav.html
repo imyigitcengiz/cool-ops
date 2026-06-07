@@ -19,7 +19,7 @@
 <a href="{% url 'personnel_network' %}" class="erp-nav-link{% if url_name == 'personnel_network' %} erp-nav-link--active{% endif %}">
     <i data-lucide="users" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">Personeller</span>
 </a>
-<a href="{% url 'contact_personnel' %}" class="erp-nav-link{% if url_name == 'contact_personnel' or url_name == 'accounting_personnel' %} erp-nav-link--active{% endif %}">
+<a href="{% url 'accounting_personnel' %}" class="erp-nav-link{% if url_name == 'contact_personnel' or url_name == 'accounting_personnel' %} erp-nav-link--active{% endif %}">
     <i data-lucide="id-card" class="erp-nav-link__icon"></i><span class="erp-nav-link__text">Personel yönetimi</span>
 </a>
 {% endif %}

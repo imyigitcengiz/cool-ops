@@ -7,9 +7,10 @@ import re
 from common.permissions import can_view_customers, user_has_perm
 
 _PROFILE_PATH = re.compile(r'^profiles/(?P<name>[^/]+)$', re.I)
+_CUSTOMER_MEDIA_PATH = re.compile(r'^customers/(?P<cid>\d+)/', re.I)
 
 
-def user_can_access_media_path(user, relative_path: str) -> bool:
+def user_can_access_media_path(user, relative_path: str, *, request=None) -> bool:
     """
     /media/... sunumu için önek bazlı yetki.
     Süper admin ve tools.media tüm dosyalara erişir.
@@ -38,9 +39,31 @@ def user_can_access_media_path(user, relative_path: str) -> bool:
         return False
 
     if lower.startswith('customers/'):
-        return can_view_customers(user)
+        if not can_view_customers(user):
+            return False
+        if request is not None:
+            match = _CUSTOMER_MEDIA_PATH.match(lower)
+            if match:
+                from common.brand_scope import filter_customers
+                from customers.models import Customer
+
+                cid = int(match.group('cid'))
+                if not filter_customers(Customer.objects.filter(pk=cid), request).exists():
+                    return False
+        return True
 
     if lower.startswith('services/'):
-        return user.has_perm_codename('access.services')
+        if not user.has_perm_codename('access.services'):
+            return False
+        if request is not None:
+            from common.brand_scope import filter_services
+            from services.models import ServiceRecord
+
+            match = re.match(r'^services/(?P<sid>\d+)/', lower)
+            if match:
+                sid = int(match.group('sid'))
+                if not filter_services(ServiceRecord.objects.filter(pk=sid), request).exists():
+                    return False
+        return True
 
     return user.has_perm_codename('access.home')

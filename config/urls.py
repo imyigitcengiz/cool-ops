@@ -10,6 +10,7 @@ from analytics.views import (
     HomeView,
     ModuleHubView,
     PublicLandingView,
+    SubscriptionView,
 )
 from common.media_views import serve_media_file
 from common.views import IntroducerKnowledgeBaseView, healthz
@@ -30,9 +31,11 @@ urlpatterns = [
     path('', PublicLandingView.as_view(), name='landing'),
     path('bilgi-bankasi/', IntroducerKnowledgeBaseView.as_view(), name='introducer_knowledge_base'),
     path('panel/', HomeView.as_view(), name='home'),
+    path('panel/abonelik/modul-toggle/', module_toggle_api, name='subscription_module_toggle'),
     path('panel/moduller/toggle/', module_toggle_api, name='module_toggle_api'),
     path('panel/moduller/', ModuleHubView.as_view(), name='module_hub'),
     path('panel/yetenekler/', CapabilitiesHubView.as_view(), name='capabilities_hub'),
+    path('panel/abonelik/', SubscriptionView.as_view(), name='subscription_dashboard'),
     path('', include('users.urls')),
     path('services-dashboard/', include('config.services_dashboard_urls')),
     path('tools/', include('config.tools_urls')),
@@ -45,6 +48,9 @@ urlpatterns = [
     path('chat/', include('chat.urls')),
     path('ayarlar/', include('config.site_settings_urls')),
 ]
+
+handler404 = 'common.views.page_not_found'
+handler403 = 'common.views.permission_denied'
 
 _serve_media = os.environ.get('DJANGO_SERVE_MEDIA', '1').lower() not in ('0', 'false', 'no')
 if _serve_media:

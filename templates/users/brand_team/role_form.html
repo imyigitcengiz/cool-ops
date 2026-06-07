@@ -1,0 +1,65 @@
+{% extends 'common/erp_unified_shell.html' %}
+{% block title %}{% if object %}Rol düzenle{% else %}Yeni rol{% endif %}{% endblock %}
+{% block body_class %} bg-slate-50{% endblock %}
+{% block content_wrapper_class %}erp-page-content mx-auto w-full max-w-4xl py-8 md:py-10{% endblock %}
+{% block content %}
+{% include 'users/brand_team/_nav.html' %}
+
+<div class="mb-6">
+    <h2 class="text-xl font-bold text-slate-900">{% if object %}Rol düzenle{% else %}Yeni rol{% endif %}</h2>
+    {% if role_is_readonly %}
+    <p class="text-sm text-amber-700 mt-1">Sistem rolü — yalnızca görüntüleme.</p>
+    {% endif %}
+</div>
+
+<form method="post" class="space-y-6" {% if role_is_readonly %}onsubmit="return false;"{% endif %}>
+    {% csrf_token %}
+    <fieldset {% if role_is_readonly %}disabled{% endif %}>
+    <div class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div><label class="text-sm font-semibold text-slate-700">Rol adı</label><div class="mt-1">{{ form.name }}</div></div>
+            <div><label class="text-sm font-semibold text-slate-700">Slug</label><div class="mt-1">{{ form.slug }}</div></div>
+        </div>
+        <div><label class="text-sm font-semibold text-slate-700">Açıklama</label><div class="mt-1">{{ form.description }}</div></div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-slate-200 p-6">
+        <h3 class="font-bold text-slate-900 mb-4">Modül erişimi</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {% for perm in access_permissions %}
+            <label class="flex items-start gap-3 text-sm text-slate-700 p-3 rounded-xl border border-slate-100">
+                <input type="checkbox" name="permissions" value="{{ perm.pk }}" class="w-4 h-4 accent-brand-600 mt-0.5 shrink-0" {% if perm.pk in selected_permission_ids %}checked{% endif %}>
+                <span><span class="font-semibold block">{{ perm.name }}</span></span>
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-slate-200 p-6">
+        <h3 class="font-bold text-slate-900 mb-4">Fonksiyon izinleri</h3>
+        <div class="space-y-6">
+            {% for module, perms in action_permissions_by_module.items %}
+            <div>
+                <p class="text-xs font-bold uppercase text-slate-500 mb-2">{{ module }}</p>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {% for perm in perms %}
+                    <label class="flex items-start gap-3 text-sm text-slate-700 p-3 rounded-xl border border-slate-100">
+                        <input type="checkbox" name="permissions" value="{{ perm.pk }}" class="w-4 h-4 accent-brand-600 mt-0.5 shrink-0" {% if perm.pk in selected_permission_ids %}checked{% endif %}>
+                        <span><span class="font-semibold block">{{ perm.name }}</span></span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    </fieldset>
+
+    <div class="flex gap-3">
+        <a href="{% url 'brand_team_roles' %}" class="px-5 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold">Geri</a>
+        {% if not role_is_readonly %}
+        <button type="submit" class="px-5 py-2.5 rounded-xl bg-brand-600 text-white font-bold">Kaydet</button>
+        {% endif %}
+    </div>
+</form>
+{% endblock %}

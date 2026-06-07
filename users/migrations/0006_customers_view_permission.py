@@ -4,7 +4,7 @@ from django.db import migrations
 def sync_customer_view_permissions(apps, schema_editor):
     from users.permission_sync import sync_permissions_to_db
 
-    sync_permissions_to_db(reset_system_role_permissions=True)
+    sync_permissions_to_db(reset_system_role_permissions=True, apps=apps)
 
     Permission = apps.get_model('users', 'Permission')
     Role = apps.get_model('users', 'Role')

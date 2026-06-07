@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Üye Ol | {{ site_settings.site_name }}</title>
+    {% load static %}
+    {% include 'common/erp_head_assets.html' %}
+</head>
+<body class="erp-app erp-theme-sky min-h-screen bg-slate-100 flex items-center justify-center p-4">
+    <div class="w-full max-w-lg my-8">
+        <div class="text-center mb-8">
+            <a href="{% url 'landing' %}" class="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-brand-600 mb-4">
+                <i data-lucide="arrow-left" class="w-4 h-4"></i> Tanıtım sayfası
+            </a>
+            {% if site_settings.logo %}
+            <img src="{{ site_settings.logo.url }}" alt="" class="h-12 w-12 mx-auto rounded-xl object-contain mb-3">
+            {% endif %}
+            <h1 class="text-2xl font-bold text-slate-900">Üye olun</h1>
+            <p class="text-sm text-slate-500 mt-2">
+                {% if selected_plan %}
+                <strong>{{ selected_plan.name }}</strong> ile hemen başlayın
+                {% else %}
+                Hesap, merkez markanız ve paneliniz birkaç adımda hazır
+                {% endif %}
+            </p>
+        </div>
+
+        {% if messages %}
+        <div class="mb-4 space-y-2">
+            {% for message in messages %}
+            <div class="px-4 py-3 rounded-xl text-sm font-semibold {% if message.tags == 'error' %}bg-red-50 text-red-700 border border-red-100{% elif message.tags == 'success' %}bg-emerald-50 text-emerald-700 border border-emerald-100{% else %}bg-blue-50 text-blue-700 border border-blue-100{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="bg-white rounded-3xl border border-slate-200 shadow-xl p-6 md:p-8">
+            <form method="post" class="space-y-5">
+                {% csrf_token %}
+                <input type="hidden" name="plan_id" value="{% if selected_plan %}{{ selected_plan.pk }}{% endif %}" id="register-plan-id">
+
+                {% if form.non_field_errors %}
+                <div class="p-3 rounded-xl bg-red-50 text-red-700 text-sm">{{ form.non_field_errors }}</div>
+                {% endif %}
+
+                {% if plans %}
+                <div>
+                    <label class="text-sm font-semibold text-slate-700 mb-2 block">Abonelik planı</label>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        {% for plan in plans %}
+                        <label class="relative flex flex-col p-3 rounded-xl border cursor-pointer transition-all
+                            {% if selected_plan and selected_plan.pk == plan.pk %}border-brand-500 bg-brand-50 ring-2 ring-brand-200{% else %}border-slate-200 hover:border-brand-300{% endif %}">
+                            <input type="radio" name="plan_pick" value="{{ plan.pk }}" class="sr-only register-plan-radio"
+                                   {% if selected_plan and selected_plan.pk == plan.pk %}checked{% elif not selected_plan and plan.price == 0 %}checked{% endif %}>
+                            <span class="text-xs font-bold text-slate-900">{{ plan.name }}</span>
+                            <span class="text-sm font-extrabold text-slate-800 mt-1">{% if plan.price == 0 %}Ücretsiz{% else %}{{ plan.price }} ₺/ay{% endif %}</span>
+                            <span class="text-[10px] text-slate-500 mt-1">{{ plan.brands_limit_display }} panel</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm font-semibold text-slate-700">Ad</label>
+                        <div class="mt-1.5">{{ form.first_name }}</div>
+                    </div>
+                    <div>
+                        <label class="text-sm font-semibold text-slate-700">Soyad</label>
+                        <div class="mt-1.5">{{ form.last_name }}</div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="text-sm font-semibold text-slate-700">Kullanıcı adı <span class="text-red-500">*</span></label>
+                    <div class="mt-1.5">{{ form.username }}</div>
+                    {% if form.username.errors %}<p class="text-xs text-red-600 mt-1">{{ form.username.errors.0 }}</p>{% endif %}
+                </div>
+
+                <div>
+                    <label class="text-sm font-semibold text-slate-700">E-posta</label>
+                    <div class="mt-1.5">{{ form.email }}</div>
+                    {% if form.email.errors %}<p class="text-xs text-red-600 mt-1">{{ form.email.errors.0 }}</p>{% endif %}
+                </div>
+
+                <div>
+                    <label class="text-sm font-semibold text-slate-700">Marka / firma adı <span class="text-red-500">*</span></label>
+                    <div class="mt-1.5">{{ form.brand_name }}</div>
+                    {% if form.brand_name.errors %}<p class="text-xs text-red-600 mt-1">{{ form.brand_name.errors.0 }}</p>{% endif %}
+                    <p class="text-[11px] text-slate-400 mt-1">İlk merkez paneliniz bu isimle oluşturulur. Bayileri daha sonra abonelik sayfasından ekleyebilirsiniz.</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="text-sm font-semibold text-slate-700">Şifre <span class="text-red-500">*</span></label>
+                        <div class="mt-1.5">{{ form.password1 }}</div>
+                        {% if form.password1.errors %}<p class="text-xs text-red-600 mt-1">{{ form.password1.errors.0 }}</p>{% endif %}
+                    </div>
+                    <div>
+                        <label class="text-sm font-semibold text-slate-700">Şifre (tekrar) <span class="text-red-500">*</span></label>
+                        <div class="mt-1.5">{{ form.password2 }}</div>
+                        {% if form.password2.errors %}<p class="text-xs text-red-600 mt-1">{{ form.password2.errors.0 }}</p>{% endif %}
+                    </div>
+                </div>
+
+                <button type="submit" class="w-full py-3 rounded-xl bg-brand-600 text-white font-bold hover:bg-brand-700 transition-colors shadow-lg shadow-brand-200 inline-flex items-center justify-center gap-2">
+                    <i data-lucide="user-plus" class="w-4 h-4"></i>
+                    Üye ol ve panele geç
+                </button>
+            </form>
+        </div>
+
+        <p class="text-center text-sm text-slate-500 mt-6">
+            Zaten hesabınız var mı?
+            <a href="{% url 'login' %}" class="text-brand-600 font-bold hover:underline">Giriş yapın</a>
+        </p>
+    </div>
+    <script>
+    document.querySelectorAll('.register-plan-radio').forEach(function (radio) {
+        radio.addEventListener('change', function () {
+            var hidden = document.getElementById('register-plan-id');
+            if (hidden) hidden.value = this.value;
+        });
+    });
+    lucide.createIcons();
+    </script>
+</body>
+</html>

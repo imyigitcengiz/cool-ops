@@ -21,6 +21,7 @@ from core_settings.views import (
     AccountingCashView,
     AccountingReceivablesView,
     AccountingStockView,
+    AccountingPersonnelView,
 )
 from sales_leads.views import (
     SalesLeadCreateView,
@@ -57,7 +58,7 @@ urlpatterns = [
     path('veri-alisverisi/csv/onizle/', csv_import_preview_api),
     path('veri-alisverisi/csv/ice-aktar/', csv_import_execute_api),
     path('maas-avans/', AccountingPayrollView.as_view(), name='accounting_payroll'),
-    path('personel/', RedirectView.as_view(pattern_name='contact_personnel', permanent=False), name='accounting_personnel'),
+    path('personel/', AccountingPersonnelView.as_view(), name='accounting_personnel'),
     path('maas-avans/raporlar/', AccountingPayrollReportsView.as_view(), name='accounting_payroll_reports'),
     path('maas-avans/raporlar/yazdir/', AccountingPayrollReportsPrintView.as_view(), name='accounting_payroll_reports_print'),
     path('maas-avans/raporlar/export-hareketler/', AccountingPayrollLedgerExportView.as_view(), name='accounting_payroll_ledger_export'),

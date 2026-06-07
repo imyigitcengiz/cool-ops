@@ -1,3 +1,5 @@
+from common.brand_access import user_can_access_platform_panel
+from common.brand_team import can_manage_brand_team
 from users.permission_catalog import PERMISSIONS
 
 
@@ -27,7 +29,10 @@ def user_access(request):
         }
     else:
         access = {
-            'home': user.has_perm_codename('access.home'),
+            'home': (
+                (user.has_perm_codename('access.home') and user_can_access_platform_panel(user))
+                or can_manage_brand_team(user)
+            ),
             'services': user.has_perm_codename('access.services'),
             'contact': user.has_perm_codename('access.contact'),
             'outreach': user.has_perm_codename('access.outreach'),

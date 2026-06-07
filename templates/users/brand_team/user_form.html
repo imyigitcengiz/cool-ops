@@ -1,0 +1,60 @@
+{% extends 'common/erp_unified_shell.html' %}
+{% block title %}{% if is_edit %}Kullanıcı düzenle{% else %}Yeni kullanıcı{% endif %}{% endblock %}
+{% block body_class %} bg-slate-50{% endblock %}
+
+{% block shell_header %}
+<header class="erp-module-header">
+    <div class="erp-module-header__inner">
+        <div class="erp-module-header__top">
+            <div class="erp-module-header__lead">
+                {% include 'common/erp_sidebar_toggle.html' %}
+                <div class="erp-module-header__text min-w-0">
+                    <h1 class="erp-module-header__title truncate">{% if is_edit %}Kullanıcı düzenle{% else %}Yeni kullanıcı{% endif %}</h1>
+                </div>
+            </div>
+        </div>
+    </div>
+</header>
+{% endblock %}
+
+{% block content_wrapper_class %}erp-page-content mx-auto w-full max-w-3xl py-8 md:py-10{% endblock %}
+
+{% block content %}
+{% include 'users/brand_team/_nav.html' %}
+
+<form method="post" class="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+    {% csrf_token %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+            <label class="text-sm font-semibold text-slate-700">Kullanıcı adı (giriş)</label>
+            <div class="mt-1">{{ form.username }}</div>
+        </div>
+        <div><label class="text-sm font-semibold text-slate-700">E-posta</label><div class="mt-1">{{ form.email }}</div></div>
+        <div><label class="text-sm font-semibold text-slate-700">Ad</label><div class="mt-1">{{ form.first_name }}</div></div>
+        <div><label class="text-sm font-semibold text-slate-700">Soyad</label><div class="mt-1">{{ form.last_name }}</div></div>
+        <div><label class="text-sm font-semibold text-slate-700">Rol</label><div class="mt-1">{{ form.role }}</div></div>
+        <div class="flex items-end"><label class="flex items-center gap-2 text-sm font-semibold text-slate-700 pb-3">{{ form.is_active }} Aktif hesap</label></div>
+    </div>
+    {% if is_edit %}
+    <div><label class="text-sm font-semibold text-slate-700">Yeni şifre (boş bırakılırsa değişmez)</label><div class="mt-1">{{ form.new_password }}</div></div>
+    <div><label class="text-sm font-semibold text-slate-700">Paneller</label><div class="mt-1">{{ form.brands }}</div></div>
+    {% else %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div><label class="text-sm font-semibold text-slate-700">Şifre</label><div class="mt-1">{{ form.password1 }}</div></div>
+        <div><label class="text-sm font-semibold text-slate-700">Şifre tekrar</label><div class="mt-1">{{ form.password2 }}</div></div>
+        <div><label class="text-sm font-semibold text-slate-700">Panel</label><div class="mt-1">{{ form.brand }}</div></div>
+        <div><label class="text-sm font-semibold text-slate-700">Panel üyeliği</label><div class="mt-1">{{ form.membership_role }}</div></div>
+    </div>
+    <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">{{ form.is_default_brand }} Varsayılan panel olarak ata</label>
+    {% endif %}
+    <div class="flex flex-wrap items-center gap-3 pt-2">
+        <a href="{% url 'brand_team_users' %}" class="px-5 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold">Vazgeç</a>
+        <button type="submit" class="px-5 py-2.5 rounded-xl bg-brand-600 text-white font-bold">Kaydet</button>
+        {% if is_edit and user_can_delete %}
+        <a href="{% url 'brand_team_user_delete' form.instance.pk %}" class="ml-auto px-5 py-2.5 rounded-xl border border-red-200 text-red-600 font-bold hover:bg-red-50">Kullanıcıyı sil</a>
+        {% elif is_edit and user_delete_blocked_reason %}
+        <span class="ml-auto text-xs text-slate-400">{{ user_delete_blocked_reason }}</span>
+        {% endif %}
+    </div>
+</form>
+{% endblock %}

@@ -26,6 +26,7 @@ class ToolsMediaLibraryView(TemplateView):
             category=category,
             kind=kind,
             page=page,
+            request=self.request,
         )
         context.update(data)
         context['filter_q'] = query
@@ -58,6 +59,7 @@ class ToolsMediaDeleteView(PermissionRequiredMixin, View):
             record_type=record_type,
             record_id=record_id,
             relpath=relpath,
+            request=request,
         )
         if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
             return JsonResponse({'ok': ok, 'message': msg}, status=200 if ok else 400)

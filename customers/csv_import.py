@@ -41,7 +41,13 @@ def import_customer_rows(rows: list[dict], *, user=None, request=None) -> dict:
             contract_date = parse_date_tr(row.get('contract_date') or '')
             product_names = parse_product_names_cell(row.get('products') or '')
 
-            customer = Customer.objects.filter(name__iexact=name).first()
+            lookup = Customer.objects.filter(name__iexact=name)
+            if request is not None:
+                from common.brand_scope import filter_customers
+
+                customer = filter_customers(lookup, request).first()
+            else:
+                customer = lookup.first()
             action = 'updated' if customer else 'created'
             if customer:
                 if phone:
@@ -57,6 +63,20 @@ def import_customer_rows(rows: list[dict], *, user=None, request=None) -> dict:
                 customer.save()
                 updated += 1
             else:
+                if request is not None:
+                    from common.brand_scope import assign_brand, get_active_brand
+                    from common.brand_team import check_customer_limit_for_request
+
+                    try:
+                        check_customer_limit_for_request(request, brand=get_active_brand(request))
+                    except ValueError as exc:
+                        skipped += 1
+                        skipped_rows.append({
+                            'row': line_no,
+                            'reason': str(exc),
+                            'preview': row_preview(row),
+                        })
+                        continue
                 customer = Customer.objects.create(
                     name=name,
                     phone=phone,

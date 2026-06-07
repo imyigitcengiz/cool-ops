@@ -8,7 +8,14 @@ from django.utils import timezone
 from django.views import View
 from django.views.generic import ListView
 
+from common.brand_scope import (
+    filter_customers,
+    filter_sales_leads,
+    get_customer_for_request,
+    get_sales_quote_for_request,
+)
 from core_settings.models import ProductColorOption, ProductOption
+from customers.models import Customer
 from sales_leads.models import SalesLead, SalesQuote, SalesQuoteLine
 from users.mixins import PermissionRequiredMixin
 
@@ -40,10 +47,11 @@ class SalesQuoteListView(PermissionRequiredMixin, ListView):
     context_object_name = 'quotes'
 
     def get_queryset(self):
-        return (
+        return filter_sales_leads(
             SalesQuote.objects.select_related('customer', 'converted_lead')
             .prefetch_related('lines__product')
-            .order_by('-quote_date', '-created_at')
+            .order_by('-quote_date', '-created_at'),
+            self.request,
         )
 
 
@@ -52,24 +60,23 @@ class SalesQuoteCreateView(PermissionRequiredMixin, View):
     template_name = 'sales_lead/quote_form.html'
 
     def get(self, request):
-        from customers.models import Customer
-
         customer_id = request.GET.get('customer')
         customer = None
         if customer_id and str(customer_id).isdigit():
-            customer = Customer.objects.filter(pk=int(customer_id)).first()
+            customer = filter_customers(
+                Customer.objects.filter(pk=int(customer_id)),
+                request,
+            ).first()
         return render(request, self.template_name, {
             'products': _products_catalog(),
             'customer': customer,
-            'customers': Customer.objects.order_by('name')[:500],
+            'customers': filter_customers(Customer.objects.order_by('name'), request)[:500],
             'today': timezone.localdate().isoformat(),
         })
 
     def post(self, request):
-        from customers.models import Customer
-
         customer_id = request.POST.get('customer')
-        customer = get_object_or_404(Customer, pk=customer_id)
+        customer = get_customer_for_request(request, int(customer_id))
         quote = SalesQuote.objects.create(
             customer=customer,
             quote_date=request.POST.get('quote_date') or timezone.localdate(),
@@ -115,9 +122,10 @@ class SalesQuoteConvertView(PermissionRequiredMixin, View):
     permission_required = 'sales.manage'
 
     def post(self, request, pk):
-        quote = get_object_or_404(
-            SalesQuote.objects.prefetch_related('lines__product', 'lines__color'),
-            pk=pk,
+        quote = get_sales_quote_for_request(
+            request,
+            pk,
+            queryset=SalesQuote.objects.prefetch_related('lines__product', 'lines__color'),
         )
         if quote.converted_lead_id:
             messages.warning(request, 'Bu teklif zaten satışa dönüştürülmüş.')

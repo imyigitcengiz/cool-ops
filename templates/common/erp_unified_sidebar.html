@@ -1,9 +1,9 @@
 {% include 'common/erp_mobile_sidebar_start.html' with sidebar_width=sidebar_width|default:'w-[17rem]' %}
-    {% url 'home' as panel_brand_url %}
+    {% url 'home' as home_url %}
     {% if site_settings.logo %}
-    {% include 'common/erp_sidebar_brand.html' with brand_url=panel_brand_url brand_title=site_settings.site_name brand_logo_url=site_settings.logo.url brand_subtitle=gy.ana_panel brand_border=True %}
+    {% include 'common/erp_sidebar_brand.html' with brand_url=dealer_home_url|default:home_url brand_title=site_settings.site_name brand_logo_url=site_settings.logo.url brand_subtitle=gy.ana_panel brand_border=True %}
     {% else %}
-    {% include 'common/erp_sidebar_brand.html' with brand_url=panel_brand_url brand_title=site_settings.site_name brand_icon='layout-grid' brand_subtitle=gy.ana_panel brand_border=True %}
+    {% include 'common/erp_sidebar_brand.html' with brand_url=dealer_home_url|default:home_url brand_title=site_settings.site_name brand_icon='layout-grid' brand_subtitle=gy.ana_panel brand_border=True %}
     {% endif %}
     <nav class="erp-unified-sidebar-nav erp-sidebar-v2 flex-1 overflow-y-auto text-sm min-h-0" aria-label="Ana menü">
         {% include 'common/erp_unified_sidebar_nav.html' %}

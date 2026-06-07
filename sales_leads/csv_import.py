@@ -61,7 +61,13 @@ def import_sales_rows(
             sale_amount = parse_decimal(_mapped(row, 'total', 'TOPLAM', 'TUTAR'))
             down_payment = parse_decimal(_mapped(row, 'down_payment', 'PEŞİNAT', 'PESINAT'))
 
-            customer = Customer.objects.filter(name__iexact=name).first()
+            lookup = Customer.objects.filter(name__iexact=name)
+            if request is not None:
+                from common.brand_scope import filter_customers
+
+                customer = filter_customers(lookup, request).first()
+            else:
+                customer = lookup.first()
             if customer:
                 if phone and customer.phone != phone:
                     customer.phone = phone
@@ -69,6 +75,20 @@ def import_sales_rows(
                     customer.region = region
                 customer.save()
             else:
+                if request is not None:
+                    from common.brand_scope import assign_brand, get_active_brand
+                    from common.brand_team import check_customer_limit_for_request
+
+                    try:
+                        check_customer_limit_for_request(request, brand=get_active_brand(request))
+                    except ValueError as exc:
+                        skipped += 1
+                        skipped_rows.append({
+                            'row': line_no,
+                            'reason': str(exc),
+                            'preview': row_preview(raw),
+                        })
+                        continue
                 customer = Customer.objects.create(
                     name=name,
                     phone=phone or None,
@@ -126,6 +146,6 @@ def import_sales_rows(
     }
 
 
-def import_sales_csv(uploaded_file, *, user=None, mapping=None) -> dict:
+def import_sales_csv(uploaded_file, *, user=None, request=None, mapping=None) -> dict:
     from common.csv_import_runner import import_from_upload
-    return import_from_upload('sales', uploaded_file, user=user, mapping=mapping)
+    return import_from_upload('sales', uploaded_file, user=user, request=request, mapping=mapping)

@@ -1,0 +1,92 @@
+{% extends 'users/yonetim/base.html' %}
+{% block title %}{{ brand.name }}{% endblock %}
+{% block content %}
+<div class="flex flex-wrap items-start justify-between gap-4 mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900">{{ brand.name }}</h1>
+        <p class="text-sm text-slate-500 mt-1">{{ brand.slug }}{% if brand.host_slug and brand.host_slug != brand.slug %} · URL kodu: {{ brand.tenant_key }}{% endif %}{% if not brand.is_active %} · <span class="text-red-600 font-semibold">Pasif</span>{% endif %}</p>
+        {% if tenant_url %}<p class="text-xs text-brand-700 mt-1">Kalıcı URL: <a href="{{ tenant_url }}" target="_blank" rel="noopener" class="font-semibold underline">{{ tenant_url }}</a></p>{% endif %}
+    </div>
+    <div class="flex flex-wrap gap-2">
+        <a href="{% url 'admin_brand_edit' brand.pk %}" class="px-4 py-2 rounded-xl bg-slate-200 text-slate-800 text-sm font-bold">Düzenle</a>
+        {% if brand.is_active %}
+        {% include 'common/admin_brand_inspect_button.html' with brand=brand label='Markaya gir' button_class='px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-bold hover:bg-brand-700' %}
+        {% endif %}
+        {% if not brand.is_default %}
+        <a href="{% url 'admin_brand_delete' brand.pk %}" class="px-4 py-2 rounded-xl border border-red-200 text-red-600 text-sm font-bold hover:bg-red-50">Sil</a>
+        {% endif %}
+        {% if brand.is_active %}
+        <form method="post" action="{% url 'admin_brand_deactivate' brand.pk %}" class="inline" onsubmit="return confirm('Marka pasifleştirilsin mi?');">
+            {% csrf_token %}
+            <button type="submit" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-sm font-bold">Pasifleştir</button>
+        </form>
+        {% else %}
+        <form method="post" action="{% url 'admin_brand_activate' brand.pk %}" class="inline">
+            {% csrf_token %}
+            <button type="submit" class="px-4 py-2 rounded-xl border border-emerald-200 text-emerald-700 text-sm font-bold">Aktifleştir</button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+    <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <p class="text-xs font-bold uppercase text-slate-500">Kullanıcı</p>
+        <p class="text-2xl font-black text-slate-900 mt-1">{{ user_count }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <p class="text-xs font-bold uppercase text-slate-500">Müşteri</p>
+        <p class="text-2xl font-black text-slate-900 mt-1">{{ customer_count }}</p>
+    </div>
+    <div class="bg-white rounded-2xl border border-slate-200 p-5">
+        <p class="text-xs font-bold uppercase text-slate-500">Tür</p>
+        <p class="text-lg font-bold text-slate-900 mt-1">{% if brand.panel_kind == 'dealer' %}Bayi paneli{% else %}Merkez panel{% endif %}</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div class="bg-white rounded-3xl border border-slate-200 p-6">
+        <h2 class="font-bold text-slate-900 mb-4">İlişki ayarları</h2>
+        <dl class="text-sm space-y-2">
+            <div class="flex justify-between gap-4"><dt class="text-slate-500">Abonelik sahibi</dt><dd class="font-medium text-slate-900">{% if owner_user %}{{ owner_user.display_name }}{% else %}—{% endif %}</dd></div>
+            <div class="flex justify-between gap-4"><dt class="text-slate-500">Merkez marka</dt><dd class="font-medium text-slate-900">{% if brand.parent_brand %}{{ brand.parent_brand.name }}{% else %}—{% endif %}</dd></div>
+            <div class="flex justify-between gap-4"><dt class="text-slate-500">Kalıcı URL kodu</dt><dd class="font-medium text-slate-900">{{ tenant_key|default:brand.slug }}</dd></div>
+            <div class="flex justify-between gap-4"><dt class="text-slate-500">Erişim yapısı</dt><dd class="font-medium text-slate-900">{{ brand.get_tenant_routing_display }}</dd></div>
+            <div class="flex justify-between gap-4"><dt class="text-slate-500">Ticari ünvan</dt><dd class="font-medium text-slate-900">{{ brand.legal_name|default:"—" }}</dd></div>
+            <div class="flex justify-between gap-4"><dt class="text-slate-500">Telefon</dt><dd class="font-medium text-slate-900">{{ brand.phone|default:"—" }}</dd></div>
+        </dl>
+        <a href="{% url 'admin_relations' %}" class="inline-block mt-4 text-sm font-semibold text-brand-700 hover:underline">Tüm hiyerarşi →</a>
+    </div>
+
+    <div class="bg-white rounded-3xl border border-slate-200 overflow-hidden">
+        <div class="p-5 border-b border-slate-100"><h2 class="font-bold text-slate-900">Kullanıcı üyelikleri</h2></div>
+        <div class="divide-y divide-slate-100 max-h-80 overflow-y-auto">
+            {% for m in memberships %}
+            <div class="px-5 py-3 flex justify-between items-center">
+                <div>
+                    <p class="font-semibold text-slate-900">{{ m.user.display_name }}</p>
+                    <p class="text-xs text-slate-500">{{ m.get_role_display }}{% if m.user.role %} · {{ m.user.role.name }}{% endif %}</p>
+                </div>
+                <a href="{% url 'admin_user_edit' m.user.pk %}" class="text-xs font-semibold text-brand-700">Düzenle</a>
+            </div>
+            {% empty %}
+            <p class="p-5 text-sm text-slate-400">Üye yok.</p>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+{% if dealer_panels %}
+<div class="mt-6 bg-white rounded-3xl border border-slate-200 overflow-hidden">
+    <div class="p-5 border-b border-slate-100"><h2 class="font-bold text-slate-900">Bağlı bayi panelleri</h2></div>
+    <div class="divide-y divide-slate-100">
+        {% for d in dealer_panels %}
+        <div class="px-5 py-3 flex justify-between items-center">
+            <a href="{% url 'admin_brand_detail' d.pk %}" class="font-semibold text-slate-900 hover:text-brand-700">{{ d.name }}</a>
+            <a href="{% url 'admin_brand_detail' d.pk %}" class="text-xs font-semibold text-brand-700">Detay</a>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endblock %}

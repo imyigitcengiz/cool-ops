@@ -1,0 +1,36 @@
+{% extends 'users/yonetim/base.html' %}
+{% block title %}{% if is_edit %}Plan düzenle{% else %}Yeni plan{% endif %}{% endblock %}
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-2xl font-bold text-slate-900">{% if is_edit %}Plan düzenle{% else %}Yeni plan{% endif %}</h1>
+    <p class="text-sm text-slate-500 mt-1">Merkez/bayi limitleri ve modül tavanını buradan tanımlayın.</p>
+</div>
+<form method="post" class="bg-white rounded-3xl border border-slate-200 p-6 space-y-6 max-w-3xl">
+    {% csrf_token %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="md:col-span-2"><label class="text-sm font-semibold text-slate-700">Plan adı</label><div class="mt-1">{{ form.name }}</div></div>
+        <div><label class="text-sm font-semibold text-slate-700">Fiyat (₺)</label><div class="mt-1">{{ form.price }}</div></div>
+        <div class="flex items-end"><label class="flex items-center gap-2 text-sm font-semibold text-slate-700 pb-3">{{ form.is_active }} Aktif plan</label></div>
+        <div><label class="text-sm font-semibold text-slate-700">Maks. merkez panel</label><div class="mt-1">{{ form.max_hq_brands }}</div></div>
+        <div><label class="text-sm font-semibold text-slate-700">Maks. bayi alt panel</label><div class="mt-1">{{ form.max_dealer_panels }}</div></div>
+        <div><label class="text-sm font-semibold text-slate-700">Marka başına kullanıcı</label><div class="mt-1">{{ form.max_users_per_brand }}</div></div>
+        <div><label class="text-sm font-semibold text-slate-700">Marka başına müşteri</label><div class="mt-1">{{ form.max_customers_per_brand }}</div></div>
+    </div>
+    <div>
+        <h2 class="text-sm font-bold text-slate-900 mb-2">Uygulama modülleri</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">{{ form.included_modules }}</div>
+    </div>
+    <div>
+        <h2 class="text-sm font-bold text-slate-900 mb-2">Entegrasyonlar</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">{{ form.included_integrations }}</div>
+    </div>
+    <details class="rounded-2xl border border-slate-200 p-4">
+        <summary class="text-sm font-bold text-slate-700 cursor-pointer">Gelişmiş: parçacık tavanı (opsiyonel)</summary>
+        <div class="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">{{ form.included_particles }}</div>
+    </details>
+    <div class="flex gap-3 pt-2">
+        <a href="{% url 'admin_plans' %}" class="px-5 py-2.5 rounded-xl bg-slate-200 text-slate-700 font-bold">Vazgeç</a>
+        <button type="submit" class="px-5 py-2.5 rounded-xl bg-red-600 text-white font-bold">Kaydet</button>
+    </div>
+</form>
+{% endblock %}
