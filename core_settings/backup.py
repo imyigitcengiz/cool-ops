@@ -207,15 +207,119 @@ def _filter_existing_pks(model, ids):
     return clean
 
 
+def _catalog_migration_hints() -> dict:
+    from core_settings.models import PriorityOption, StatusOption
+
+    return {
+        'statuses': {str(row.pk): row.name for row in StatusOption.objects.all()},
+        'priorities': {str(row.pk): row.name for row in PriorityOption.objects.all()},
+    }
+
+
+def _hint_name(hints: dict, bucket: str, old_pk) -> str | None:
+    if old_pk in (None, ''):
+        return None
+    names = hints.get(bucket) or {}
+    return names.get(str(old_pk)) or names.get(old_pk)
+
+
+def _resolve_catalog_fk(
+    model,
+    old_pk,
+    *,
+    label: str,
+    migration_mode: bool,
+    hints: dict,
+    hint_bucket: str,
+    fallback_queryset,
+):
+    if old_pk not in (None, ''):
+        try:
+            pk = int(old_pk)
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f'{label} geçersiz.') from exc
+        if model.objects.filter(pk=pk).exists():
+            return pk, False
+        if not migration_mode:
+            raise ValueError(
+                f'{label} (kayıt #{pk}) hedef sistemde yok. '
+                'Aynı platformdan alınmış yedek kullanın veya migrasyon modunu açın.'
+            )
+        hint_name = _hint_name(hints, hint_bucket, pk)
+        if hint_name:
+            match = model.objects.filter(name__iexact=hint_name).first()
+            if match:
+                return match.pk, True
+    elif not migration_mode:
+        raise ValueError(f'{label} eksik — yedek bozuk veya uyumsuz.')
+
+    fallback = fallback_queryset().order_by('pk').first()
+    if fallback:
+        return fallback.pk, True
+    raise ValueError(f'{label} kataloğu boş — önce varsayılan durum/öncelikleri oluşturun.')
+
+
+def _extract_brand_fields_from_fixture(fixture: list) -> dict:
+    for row in fixture:
+        if row.get('model') == 'core_settings.businessbrand':
+            return dict(row.get('fields') or {})
+    return {}
+
+
+def create_brand_for_backup_import(
+    owner,
+    meta: dict,
+    fixture: list,
+    *,
+    name: str = '',
+    host_slug: str = '',
+) -> 'BusinessBrand':
+    """Yedek meta verisinden yeni marka oluşturur."""
+    from common.brand_scope import create_brand_for_user
+    from core_settings.models import BusinessBrand
+
+    backup_fields = _extract_brand_fields_from_fixture(fixture)
+    brand_name = (name or meta.get('brand_name') or backup_fields.get('name') or 'Yeni Mağaza').strip()
+    slug_hint = (host_slug or meta.get('brand_slug') or backup_fields.get('slug') or '').strip()
+
+    brand = create_brand_for_user(
+        owner,
+        brand_name,
+        host_slug=slug_hint,
+        legal_name=backup_fields.get('legal_name', '') or '',
+        phone=backup_fields.get('phone', '') or '',
+        bypass_plan_limit=True,
+    )
+
+    if slug_hint and slug_hint != brand.slug:
+        if not BusinessBrand.objects.filter(slug=slug_hint).exclude(pk=brand.pk).exists():
+            brand.slug = slug_hint
+            brand.save(update_fields=['slug'])
+
+    panel_id = meta.get('panel_id', '')
+    if panel_id == 'kobipos':
+        from restaurant.compat import ensure_restaurant_tenant
+
+        ensure_restaurant_tenant(brand, owner=owner)
+
+    return brand
+
+
 def import_brand_backup_file(
     uploaded,
-    brand_id: int,
+    brand_id: int | None = None,
     *,
     replace_existing: bool = False,
+    migration_mode: bool = False,
+    create_new_brand: bool = False,
+    new_brand_owner_id: int | None = None,
+    new_brand_name: str = '',
+    new_brand_host_slug: str = '',
 ) -> tuple[bool, str]:
-    """Marka yedeğini seçilen markaya yükler (müşteri + servis kayıtları)."""
+    """Marka yedeğini seçilen veya yeni oluşturulan markaya yükler."""
     from core_settings.models import BusinessBrand, PriorityOption, ProductOption, ServicePersonnel
     from core_settings.models import ServiceTypeOption, SolutionPartner, StatusOption
+    from core_settings.status_defaults import ensure_default_statuses
     from customers.models import Customer
     from django.contrib.auth import get_user_model
     from services.models import ServiceRecord
@@ -223,16 +327,35 @@ def import_brand_backup_file(
     User = get_user_model()
 
     try:
-        brand = BusinessBrand.objects.filter(pk=brand_id, is_active=True).first()
-        if not brand:
-            return False, 'Hedef marka bulunamadı veya pasif.'
-
         data = _read_uploaded_json(uploaded)
         meta, fixture = _parse_brand_backup_payload(data)
         customers_data, services_data = _split_brand_fixture(fixture)
+        hints = meta.get('migration_catalog') or {}
+
+        if create_new_brand:
+            if not new_brand_owner_id:
+                return False, 'Yeni mağaza için abonelik sahibi seçin.'
+            owner = User.objects.filter(pk=new_brand_owner_id, is_active=True, is_superuser=False).first()
+            if not owner:
+                return False, 'Geçerli bir abonelik sahibi bulunamadı.'
+            brand = create_brand_for_backup_import(
+                owner,
+                meta,
+                fixture,
+                name=new_brand_name,
+                host_slug=new_brand_host_slug,
+            )
+            replace_existing = True
+        else:
+            if not brand_id:
+                return False, 'Hedef marka seçin veya sıfırdan mağaza oluşturmayı işaretleyin.'
+            brand = BusinessBrand.objects.filter(pk=brand_id, is_active=True).first()
+            if not brand:
+                return False, 'Hedef marka bulunamadı veya pasif.'
 
         source_name = meta.get('brand_name') or meta.get('brand_slug') or 'bilinmeyen'
         backup_date = (meta.get('created_at') or '')[:19]
+        catalog_remapped = 0
 
         with transaction.atomic():
             if replace_existing:
@@ -264,6 +387,8 @@ def import_brand_backup_file(
                     customer_map[int(old_pk)] = customer.pk
                 imported_customers += 1
 
+            ensure_default_statuses()
+
             for row in services_data:
                 fields = dict(row.get('fields') or {})
                 old_customer_id = fields.get('customer')
@@ -282,8 +407,28 @@ def import_brand_backup_file(
                     ServiceTypeOption, fields.pop('service_types', []) or [],
                 )
 
-                status_id = _fk_required(StatusOption, fields.get('status'), label='Durum')
-                priority_id = _fk_required(PriorityOption, fields.get('priority'), label='Öncelik')
+                status_id, remapped = _resolve_catalog_fk(
+                    StatusOption,
+                    fields.get('status'),
+                    label='Durum',
+                    migration_mode=migration_mode,
+                    hints=hints,
+                    hint_bucket='statuses',
+                    fallback_queryset=StatusOption.objects.all,
+                )
+                if remapped:
+                    catalog_remapped += 1
+                priority_id, remapped_p = _resolve_catalog_fk(
+                    PriorityOption,
+                    fields.get('priority'),
+                    label='Öncelik',
+                    migration_mode=migration_mode,
+                    hints=hints,
+                    hint_bucket='priorities',
+                    fallback_queryset=PriorityOption.objects.all,
+                )
+                if remapped_p:
+                    catalog_remapped += 1
 
                 service = ServiceRecord(
                     brand=brand,
@@ -310,9 +455,15 @@ def import_brand_backup_file(
 
         mode = 'değiştirildi' if replace_existing else 'eklendi'
         date_note = f' Yedek tarihi: {backup_date}.' if backup_date else ''
+        created_note = ' Yeni mağaza oluşturuldu.' if create_new_brand else ''
+        migration_note = ''
+        if migration_mode:
+            migration_note = ' Migrasyon modu: kataloglar ada göre eşleştirildi.'
+            if catalog_remapped:
+                migration_note += f' ({catalog_remapped} alan yedekten çözümlendi)'
         return True, (
             f'"{brand.name}" markasına "{source_name}" yedeği yüklendi ({mode}): '
-            f'{imported_customers} müşteri, {imported_services} servis.{date_note} '
+            f'{imported_customers} müşteri, {imported_services} servis.{created_note}{migration_note}{date_note} '
             'Not: Müşteri dosyaları (media/) bu yedekte yer almaz.'
         )
     except ValueError as exc:
@@ -330,8 +481,11 @@ def export_brand_backup_response(brand_id: int) -> HttpResponse:
 
     from django.core import serializers as dj_serializers
 
+    from common.brand_panel_meta import resolve_brand_panel_meta
+
     fixture = _serialize_brand_fixture(brand.pk)
     brand_meta = json.loads(dj_serializers.serialize('json', [brand]))
+    panel_meta = resolve_brand_panel_meta(brand)
 
     payload = {
         'format': BRAND_BACKUP_FORMAT_V1,
@@ -340,6 +494,9 @@ def export_brand_backup_response(brand_id: int) -> HttpResponse:
         'brand_id': brand.pk,
         'brand_name': brand.name,
         'brand_slug': brand.slug,
+        'panel_id': panel_meta.get('panel_id', ''),
+        'panel_name': panel_meta.get('panel_name', ''),
+        'migration_catalog': _catalog_migration_hints(),
         'record_count': len(fixture) + len(brand_meta),
         'fixture': brand_meta + fixture,
     }

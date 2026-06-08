@@ -12,6 +12,7 @@ from common.brand_scope import create_brand_for_user, set_active_brand, _brand_i
 from common.login_throttle import clear_login_attempts, is_login_blocked, register_failed_login
 from common.register_throttle import is_register_blocked, register_attempt
 from common.tenant import build_brand_public_url, tenant_login_url
+from common.plan_sync import DEFAULT_TRIAL_DAYS, plan_trial_days
 from core_settings.models import Plan, BillingInvoice
 
 from .forms import UserLoginForm, UserPasswordChangeForm, UserProfileForm
@@ -160,6 +161,14 @@ class UserRegisterView(View):
     def _is_restaurant_vertical(self, request):
         return request.GET.get('vertical') == 'restaurant' or request.POST.get('vertical') == 'restaurant'
 
+    def _restaurant_trial_days(self, plans, selected_plan=None):
+        if selected_plan:
+            return plan_trial_days(selected_plan)
+        for plan in plans:
+            if plan.price == 0:
+                return plan_trial_days(plan)
+        return DEFAULT_TRIAL_DAYS
+
     def _register_context(self, form, selected_plan=None, request=None):
         vertical = 'restaurant' if request and self._is_restaurant_vertical(request) else 'kobi'
         plans = Plan.objects.filter(is_active=True).order_by('price')
@@ -168,14 +177,20 @@ class UserRegisterView(View):
                 p for p in plans
                 if p.price == 0 or 'restaurant' in (p.included_module_slugs or [])
             ]
+        trial_days = self._restaurant_trial_days(plans, selected_plan) if vertical == 'restaurant' else None
         return {
             'form': form,
             'selected_plan': selected_plan,
             'plans': plans.distinct(),
             'register_vertical': vertical,
-            'register_title': 'KobiPOS — 14 gün ücretsiz deneme' if vertical == 'restaurant' else 'Kobi Hub — Üye ol',
+            'register_trial_days': trial_days,
+            'register_title': (
+                f'KobiPOS — {trial_days} gün ücretsiz deneme'
+                if vertical == 'restaurant'
+                else 'Kobi Hub — Üye ol'
+            ),
             'register_lead': (
-                '14 gün ücretsiz deneme ile menü, masa ve sipariş yönetimine hemen başlayın.'
+                f'{trial_days} gün ücretsiz deneme ile menü, masa ve sipariş yönetimine hemen başlayın.'
                 if vertical == 'restaurant'
                 else 'Modüler operasyon panelinizi dakikalar içinde kurun.'
             ),

@@ -10,6 +10,7 @@
 </head>
 <body class="erp-app erp-unified-shell {{ erp_shell_theme|default:'erp-theme-sky' }} flex h-screen overflow-hidden bg-slate-50 text-slate-900{% block body_class %}{% endblock %}">
     {% include 'common/impersonation_banner.html' %}
+    {% include 'common/test_store_banner.html' %}
     {% include 'common/erp_unified_sidebar.html' %}
     {% if erp_sidebar_expand and erp_sidebar_expand != 'panel' %}
     <script>

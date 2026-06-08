@@ -23,6 +23,14 @@
             <option value="dealer" {% if active_kind_filter == 'dealer' %}selected{% endif %}>Bayi</option>
         </select>
     </div>
+    <div>
+        <label class="text-xs font-bold text-slate-500 uppercase">Panel</label>
+        <select name="panel" class="mt-1 block p-2.5 rounded-xl border border-slate-200 text-sm bg-white">
+            <option value="">Tümü</option>
+            <option value="kobiops" {% if active_panel_filter == 'kobiops' %}selected{% endif %}>KobiOPS</option>
+            <option value="kobipos" {% if active_panel_filter == 'kobipos' %}selected{% endif %}>KobiPOS</option>
+        </select>
+    </div>
     <button type="submit" class="px-4 py-2.5 rounded-xl bg-slate-800 text-white text-sm font-bold">Filtrele</button>
 </form>
 
@@ -31,6 +39,7 @@
         <thead class="bg-slate-50">
             <tr>
                 <th class="px-5 py-3 text-left font-bold text-slate-600">Marka</th>
+                <th class="px-5 py-3 text-left font-bold text-slate-600">Panel</th>
                 <th class="px-5 py-3 text-left font-bold text-slate-600">Tür</th>
                 <th class="px-5 py-3 text-left font-bold text-slate-600">Abonelik sahibi</th>
                 <th class="px-5 py-3 text-left font-bold text-slate-600">Durum</th>
@@ -42,7 +51,10 @@
             <tr class="hover:bg-slate-50">
                 <td class="px-5 py-4">
                     <a href="{% url 'admin_brand_detail' b.pk %}" class="font-semibold text-slate-900 hover:text-brand-700">{{ b.name }}</a>
-                    <p class="text-xs text-slate-500">{{ b.slug }}</p>
+                    <p class="text-xs text-slate-500">{{ b.slug }}{% if b.is_test_store %} · <span class="text-violet-600 font-semibold">Test</span>{% endif %}</p>
+                </td>
+                <td class="px-5 py-4">
+                    {% include 'users/yonetim/components/panel_badge.html' with meta=b.panel_meta %}
                 </td>
                 <td class="px-5 py-4">
                     {% if b.panel_kind == 'dealer' %}
@@ -87,7 +99,7 @@
                 </td>
             </tr>
             {% empty %}
-            <tr><td colspan="5" class="px-5 py-10 text-center text-slate-400">Marka yok.</td></tr>
+            <tr><td colspan="6" class="px-5 py-10 text-center text-slate-400">Marka yok.</td></tr>
             {% endfor %}
         </tbody>
     </table>

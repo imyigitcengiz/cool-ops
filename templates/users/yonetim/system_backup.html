@@ -38,40 +38,98 @@
             <select name="brand_id" required class="mt-1 w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm">
                 <option value="">— Marka seçin —</option>
                 {% for b in backup_brands %}
-                <option value="{{ b.pk }}">{{ b.name }}{% if b.panel_kind == 'dealer' %} (bayi){% endif %}</option>
+                <option value="{{ b.pk }}">{{ b.name }} — {{ b.panel_meta.panel_name }}{% if b.panel_kind == 'dealer' %} (bayi){% endif %}{% if b.is_test_store %} [test]{% endif %}</option>
                 {% endfor %}
             </select>
         </div>
         <button type="submit" class="px-4 py-2.5 bg-brand-600 text-white rounded-xl font-bold hover:bg-brand-700 whitespace-nowrap">Marka yedeğini indir</button>
     </form>
-    <form method="post" enctype="multipart/form-data" class="space-y-4 border-t border-slate-100 pt-4">
+    <form method="post" enctype="multipart/form-data" id="import-brand-backup-form" class="space-y-4 border-t border-slate-100 pt-4">
         {% csrf_token %}
         <input type="hidden" name="import_brand_backup" value="1">
         <p class="text-sm font-semibold text-slate-800">Marka yedeğini geri yükle</p>
-        <p class="text-xs text-slate-500">Müşteri ve servis kayıtları hedef markaya aktarılır. Durum/öncelik katalogları aynı sistemde olmalıdır.</p>
-        <div class="flex flex-col sm:flex-row gap-3 sm:items-end">
-            <div class="flex-1">
-                <label class="text-xs font-bold text-slate-500 uppercase">Hedef marka</label>
-                <select name="brand_id" required class="mt-1 w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm">
-                    <option value="">— Marka seçin —</option>
-                    {% for b in backup_brands %}
-                    <option value="{{ b.pk }}">{{ b.name }}{% if b.panel_kind == 'dealer' %} (bayi){% endif %}</option>
+        <p class="text-xs text-slate-500">Müşteri ve servis kayıtları hedef markaya aktarılır. Başka sunucudan gelen yedekler için <strong>migrasyon modu</strong> kullanın.</p>
+        <div class="flex-1">
+            <label class="text-xs font-bold text-slate-500 uppercase">Yedek dosyası</label>
+            <input type="file" name="brand_backup_file" accept=".json,.json.gz,.gz,application/json,application/gzip,application/x-gzip,application/octet-stream" required class="mt-1 w-full p-2 border border-slate-200 rounded-xl bg-slate-50 text-sm">
+            <p class="text-[11px] text-slate-400 mt-1">İndirilen <code>.json.gz</code> dosyasını doğrudan seçebilirsiniz.</p>
+        </div>
+        <label class="flex items-start gap-2 text-sm text-slate-700 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5">
+            <input type="checkbox" name="create_new_brand" id="create-new-brand" class="mt-1">
+            <span>
+                <strong>Hedef mağaza yok — sıfırdan oluştur</strong>
+                <span class="block text-xs text-slate-500 mt-0.5">Yedekteki marka adı ve panel bilgisiyle yeni mağaza açılır; veriler bu mağazaya yüklenir.</span>
+            </span>
+        </label>
+        <div id="existing-brand-target" class="flex-1">
+            <label class="text-xs font-bold text-slate-500 uppercase">Hedef marka</label>
+            <select name="brand_id" id="import-brand-select" class="mt-1 w-full p-3 border border-slate-200 rounded-xl bg-slate-50 text-sm">
+                <option value="">— Marka seçin —</option>
+                {% for b in backup_brands %}
+                <option value="{{ b.pk }}">{{ b.name }} — {{ b.panel_meta.panel_name }}{% if b.panel_kind == 'dealer' %} (bayi){% endif %}{% if b.is_test_store %} [test]{% endif %}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div id="new-brand-fields" class="hidden space-y-3 rounded-xl border border-emerald-200 bg-emerald-50/60 p-4">
+            <p class="text-xs font-bold text-emerald-800 uppercase">Yeni mağaza</p>
+            <div>
+                <label class="text-xs font-bold text-slate-500 uppercase">Abonelik sahibi <span class="text-red-600">*</span></label>
+                <select name="new_brand_owner" class="mt-1 w-full p-3 border border-slate-200 rounded-xl bg-white text-sm">
+                    <option value="">— Sahip seçin —</option>
+                    {% for u in backup_owners %}
+                    <option value="{{ u.pk }}">{{ u.display_name }} ({{ u.username }})</option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="flex-1">
-                <label class="text-xs font-bold text-slate-500 uppercase">Yedek dosyası</label>
-                <input type="file" name="brand_backup_file" accept=".json,.json.gz,.gz,application/json,application/gzip,application/x-gzip,application/octet-stream" required class="mt-1 w-full p-2 border border-slate-200 rounded-xl bg-slate-50 text-sm">
-                <p class="text-[11px] text-slate-400 mt-1">İndirilen <code>.json.gz</code> dosyasını doğrudan seçebilirsiniz.</p>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs font-bold text-slate-500 uppercase">Mağaza adı</label>
+                    <input type="text" name="new_brand_name" maxlength="255" placeholder="Yedekteki ad kullanılır" class="mt-1 w-full p-3 border border-slate-200 rounded-xl bg-white text-sm">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 uppercase">URL kodu (isteğe bağlı)</label>
+                    <input type="text" name="new_brand_host_slug" maxlength="80" placeholder="Yedekteki slug" class="mt-1 w-full p-3 border border-slate-200 rounded-xl bg-white text-sm">
+                </div>
             </div>
         </div>
-        <label class="flex items-start gap-2 text-sm text-slate-700">
+        <label class="flex items-start gap-2 text-sm text-slate-700 rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2.5">
+            <input type="checkbox" name="migration_mode" class="mt-1">
+            <span>
+                <strong>Migrasyon modu</strong>
+                <span class="block text-xs text-slate-500 mt-0.5">Farklı sunucudan gelen yedeklerde durum/öncelik kimliklerini ada göre eşleştirir; bulunamazsa varsayılan katalog kullanılır.</span>
+            </span>
+        </label>
+        <label id="replace-brand-row" class="flex items-start gap-2 text-sm text-slate-700">
             <input type="checkbox" name="replace_brand_data" class="mt-1">
             <span>Mevcut müşteri ve servis kayıtlarını sil, yedeği sıfırdan yükle</span>
         </label>
         <button type="submit" class="px-4 py-2.5 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 whitespace-nowrap"
-                onclick="return confirm('Seçilen markaya yedek yüklenecek. Devam?');">Marka yedeğini içe aktar</button>
+                onclick="return confirm('Yedek içe aktarılacak. Devam?');">Marka yedeğini içe aktar</button>
     </form>
+    <script>
+    (function () {
+        var createCb = document.getElementById('create-new-brand');
+        var existing = document.getElementById('existing-brand-target');
+        var newFields = document.getElementById('new-brand-fields');
+        var brandSelect = document.getElementById('import-brand-select');
+        var replaceRow = document.getElementById('replace-brand-row');
+        if (!createCb) return;
+        function sync() {
+            var creating = createCb.checked;
+            existing.classList.toggle('hidden', creating);
+            newFields.classList.toggle('hidden', !creating);
+            brandSelect.required = !creating;
+            if (creating) {
+                brandSelect.value = '';
+                replaceRow.classList.add('opacity-50', 'pointer-events-none');
+            } else {
+                replaceRow.classList.remove('opacity-50', 'pointer-events-none');
+            }
+        }
+        createCb.addEventListener('change', sync);
+        sync();
+    })();
+    </script>
 </section>
 
 <section class="bg-white p-6 rounded-3xl border-2 border-violet-200 shadow-sm space-y-6 mb-6">

@@ -2,6 +2,13 @@
 
 from __future__ import annotations
 
+from datetime import timedelta
+
+from django.utils import timezone
+
+DEFAULT_TRIAL_DAYS = 14
+DEFAULT_BILLING_DAYS = 30
+
 RESTAURANT_TIER_CHOICES = ('starter', 'growth', 'enterprise')
 
 TIER_DISPLAY = {
@@ -9,6 +16,46 @@ TIER_DISPLAY = {
     'growth': 'Growth',
     'enterprise': 'Enterprise',
 }
+
+
+def plan_trial_days(plan) -> int:
+    if not plan:
+        return DEFAULT_TRIAL_DAYS
+    days = getattr(plan, 'trial_days', None)
+    return days if days else DEFAULT_TRIAL_DAYS
+
+
+def plan_billing_days(plan) -> int:
+    if not plan:
+        return DEFAULT_BILLING_DAYS
+    days = getattr(plan, 'billing_days', None)
+    return days if days else DEFAULT_BILLING_DAYS
+
+
+def billing_days_for_restaurant_tier(tier: str, owner=None) -> int:
+    if owner and getattr(owner, 'active_plan', None):
+        return plan_billing_days(owner.active_plan)
+    from core_settings.models import Plan
+
+    plan = Plan.objects.filter(restaurant_plan_tier=tier, is_active=True).order_by('pk').first()
+    if not plan:
+        plan = Plan.objects.filter(name__icontains=tier, is_active=True).order_by('pk').first()
+    return plan_billing_days(plan)
+
+
+def extend_brand_subscription(brand, days: int) -> None:
+    from common.panel_routing import is_restaurant_brand
+    from restaurant.compat import get_tenant_profile
+
+    if not brand or not is_restaurant_brand(brand) or days <= 0:
+        return
+    tenant = get_tenant_profile(brand)
+    today = timezone.localdate()
+    if tenant.plan_expiry and tenant.plan_expiry >= today:
+        tenant.plan_expiry = tenant.plan_expiry + timedelta(days=days)
+    else:
+        tenant.plan_expiry = today + timedelta(days=days)
+    tenant.save(update_fields=['plan_expiry'])
 
 
 def kobiops_plan_to_tier(plan) -> str:
@@ -40,7 +87,7 @@ def sync_brand_plan_from_owner(owner, brand) -> None:
     from restaurant.compat import ensure_restaurant_tenant, get_tenant_profile
     from restaurant.models import RestaurantProfile
 
-    ensure_restaurant_tenant(brand)
+    ensure_restaurant_tenant(brand, owner=owner)
     tier = kobiops_plan_to_tier(owner.active_plan)
     tenant = get_tenant_profile(brand)
     if tenant.plan_tier != tier:
@@ -63,8 +110,10 @@ def sync_owner_brands_from_plan(owner) -> None:
         brand__is_active=True,
         brand__panel_kind=BusinessBrand.PANEL_HQ,
     ).values_list('brand_id', flat=True)
+    billing_days = plan_billing_days(owner.active_plan)
     for brand in BusinessBrand.objects.filter(pk__in=brand_ids):
         sync_brand_plan_from_owner(owner, brand)
+        extend_brand_subscription(brand, billing_days)
 
 
 def sync_owner_plan_from_tier(owner, tier: str) -> None:

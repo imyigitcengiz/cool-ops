@@ -10,7 +10,7 @@
                 {% include 'common/erp_sidebar_toggle.html' %}
                 <div class="erp-module-header__text min-w-0">
                     <h1 class="erp-module-header__title truncate">Roller & İzinler</h1>
-                    <p class="erp-module-header__subtitle truncate">Ekibiniz için rol ve izin tanımları</p>
+                    <p class="erp-module-header__subtitle truncate">Hazır uygulama rolleri ve özel tanımlar</p>
                 </div>
             </div>
         </div>
@@ -26,43 +26,73 @@
 <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
     <div>
         <h2 class="text-xl font-bold text-slate-900">Roller</h2>
-        <p class="text-sm text-slate-500 mt-1">Sistem rolleri tüm aboneliklerde ortaktır; özel roller yalnızca sizin ekibinize aittir.</p>
+        <p class="text-sm text-slate-500 mt-1">Platform sistem rolleri süper admin tarafından yönetilir. Hazır roller planınıza göre atanabilir; özel roller yalnızca ekibinize aittir.</p>
     </div>
-    <a href="{% url 'brand_team_role_create' %}" class="px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-bold hover:bg-brand-700">+ Yeni rol</a>
+    <a href="{% url 'brand_team_role_create' %}" class="px-4 py-2 rounded-xl bg-brand-600 text-white text-sm font-bold hover:bg-brand-700">+ Yeni özel rol</a>
 </div>
 
-<div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-    <table class="w-full text-sm">
-        <thead class="bg-slate-50 text-left">
-            <tr>
-                <th class="px-5 py-3 font-bold text-slate-600">Rol</th>
-                <th class="px-5 py-3 font-bold text-slate-600">Kullanıcı</th>
-                <th class="px-5 py-3 font-bold text-slate-600">Tür</th>
-                <th class="px-5 py-3 font-bold text-slate-600 text-right">İşlem</th>
-            </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100">
-            {% for role in roles %}
-            <tr class="hover:bg-slate-50">
-                <td class="px-5 py-4">
-                    <p class="font-semibold text-slate-900">{{ role.name }}</p>
-                    <p class="text-xs text-slate-500">{{ role.description|default:"—" }}</p>
-                </td>
-                <td class="px-5 py-4">{{ role.user_count }}</td>
-                <td class="px-5 py-4">
-                    {% if role.is_system %}<span class="px-2 py-0.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold">Sistem</span>{% else %}<span class="px-2 py-0.5 rounded-lg bg-violet-50 text-violet-700 text-xs font-bold">Özel</span>{% endif %}
-                </td>
-                <td class="px-5 py-4 text-right">
-                    <a href="{% url 'brand_team_role_edit' role.pk %}" class="px-3 py-1.5 rounded-lg bg-brand-50 text-brand-700 text-xs font-bold hover:bg-brand-100">{% if role.is_system %}Görüntüle{% else %}Düzenle{% endif %}</a>
-                    {% if not role.is_system and role.user_count == 0 %}
-                    <a href="{% url 'brand_team_role_delete' role.pk %}" class="ml-2 px-3 py-1.5 rounded-lg bg-red-50 text-red-700 text-xs font-bold hover:bg-red-100">Sil</a>
-                    {% endif %}
-                </td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="4" class="px-5 py-10 text-center text-slate-400">Henüz rol tanımlı değil.</td></tr>
-            {% endfor %}
-        </tbody>
-    </table>
+{% if preset_roles %}
+<div class="mb-8">
+    <h3 class="text-sm font-bold text-slate-700 mb-3">Hazır roller</h3>
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-left">
+                <tr>
+                    <th class="px-5 py-3 font-bold text-slate-600">Rol</th>
+                    <th class="px-5 py-3 font-bold text-slate-600">Kullanıcı</th>
+                    <th class="px-5 py-3 font-bold text-slate-600 text-right">İşlem</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for role in preset_roles %}
+                <tr class="hover:bg-slate-50">
+                    <td class="px-5 py-4">
+                        <p class="font-semibold text-slate-900">{{ role.name }}</p>
+                        <p class="text-xs text-slate-500">{{ role.description|default:"—" }}</p>
+                    </td>
+                    <td class="px-5 py-4">{{ role.user_count }}</td>
+                    <td class="px-5 py-4 text-right">
+                        <a href="{% url 'brand_team_role_edit' role.pk %}" class="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-600 text-xs font-bold">Görüntüle</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div>
+    <h3 class="text-sm font-bold text-slate-700 mb-3">Özel roller</h3>
+    <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 text-left">
+                <tr>
+                    <th class="px-5 py-3 font-bold text-slate-600">Rol</th>
+                    <th class="px-5 py-3 font-bold text-slate-600">Kullanıcı</th>
+                    <th class="px-5 py-3 font-bold text-slate-600 text-right">İşlem</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for role in custom_roles %}
+                <tr class="hover:bg-slate-50">
+                    <td class="px-5 py-4">
+                        <p class="font-semibold text-slate-900">{{ role.name }}</p>
+                        <p class="text-xs text-slate-500">{{ role.description|default:"—" }}</p>
+                    </td>
+                    <td class="px-5 py-4">{{ role.user_count }}</td>
+                    <td class="px-5 py-4 text-right">
+                        <a href="{% url 'brand_team_role_edit' role.pk %}" class="px-3 py-1.5 rounded-lg bg-brand-50 text-brand-700 text-xs font-bold hover:bg-brand-100">Düzenle</a>
+                        {% if role.user_count == 0 %}
+                        <a href="{% url 'brand_team_role_delete' role.pk %}" class="ml-2 px-3 py-1.5 rounded-lg bg-red-50 text-red-700 text-xs font-bold hover:bg-red-100">Sil</a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr><td colspan="3" class="px-5 py-10 text-center text-slate-400">Henüz özel rol tanımlı değil.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
 </div>
 {% endblock %}

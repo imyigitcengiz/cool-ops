@@ -1,0 +1,6 @@
+{% with t=meta.theme %}
+<span class="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-bold {{ t.badge_bg|default:'bg-slate-100' }} {{ t.badge_text|default:'text-slate-700' }}">
+    <i data-lucide="{{ meta.icon|default:'layout-grid' }}" class="w-3 h-3"></i>
+    {{ meta.panel_name }}
+</span>
+{% endwith %}

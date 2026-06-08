@@ -19,9 +19,10 @@ from restaurant.compat import (
     get_tenant_profile,
     serialize_brand_for_api,
 )
+from common.brand_team import subscription_owner_for_brand
+from common.plan_sync import plan_trial_days
 from restaurant.api.plan_limits import (
     PLAN_LIMITS,
-    TRIAL_DAYS,
     brand_plan,
     get_brand_usage,
     get_plan_status,
@@ -445,6 +446,8 @@ def plan_status_view(request):
     brand = profile.brand
     plan = brand_plan(brand)
     limits = PLAN_LIMITS.get(plan, PLAN_LIMITS['starter'])
+    owner = subscription_owner_for_brand(brand)
+    trial_days = plan_trial_days(getattr(owner, 'active_plan', None) if owner else None)
     return Response({
         'brand_id': brand.id,
         'brand_name': brand.name,
@@ -453,7 +456,7 @@ def plan_status_view(request):
         'plan_status': get_plan_status(brand),
         'limits': limits,
         'usage': get_brand_usage(brand),
-        'trial_days': TRIAL_DAYS,
+        'trial_days': trial_days,
         'all_plans': {
             key: {'label': val['label'], 'branches': val['branches'], 'staff': val['staff'], 'price': val['price']}
             for key, val in PLAN_LIMITS.items()

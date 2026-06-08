@@ -116,3 +116,71 @@ class BrandBackupTests(TestCase):
         )
         self.assertTrue(ok, msg)
         self.assertEqual(Customer.objects.filter(brand=self.target).count(), 1)
+
+    def test_import_creates_new_brand_from_backup(self):
+        uploaded = SimpleUploadedFile(
+            'backup.json.gz',
+            self._export_payload(),
+            content_type='application/gzip',
+        )
+        before = BusinessBrand.objects.count()
+        ok, msg = import_brand_backup_file(
+            uploaded,
+            brand_id=None,
+            create_new_brand=True,
+            new_brand_owner_id=self.owner.pk,
+            new_brand_name='Taşınan Mağaza',
+        )
+        self.assertTrue(ok, msg)
+        self.assertEqual(BusinessBrand.objects.count(), before + 1)
+        created = BusinessBrand.objects.get(name='Taşınan Mağaza')
+        self.assertEqual(Customer.objects.filter(brand=created).count(), 1)
+        self.assertIn('Yeni mağaza oluşturuldu', msg)
+
+    def test_migration_mode_maps_catalog_by_name(self):
+        other_status = StatusOption.objects.create(name='Taşınan Durum', sort_order=99)
+        other_priority, _ = PriorityOption.objects.get_or_create(
+            name='tasinan-oncelik',
+            defaults={'color': '#334155'},
+        )
+
+        raw = gzip.decompress(self._export_payload())
+        payload = json.loads(raw.decode('utf-8'))
+        payload['migration_catalog'] = {
+            'statuses': {'99991': 'Taşınan Durum'},
+            'priorities': {'99992': 'tasinan-oncelik'},
+        }
+        payload['fixture'] = [
+            row for row in payload['fixture']
+            if row.get('model') != 'services.servicerecord'
+        ] + [{
+            'model': 'services.servicerecord',
+            'pk': self.service.pk,
+            'fields': {
+                'brand': self.brand.pk,
+                'customer': self.customer.pk,
+                'status': 99991,
+                'priority': 99992,
+                'notes': 'Migrasyon',
+                'warranty_status': 'active',
+                'products': [],
+                'service_types': [],
+            },
+        }]
+        uploaded = SimpleUploadedFile(
+            'migrated.json.gz',
+            gzip.compress(json.dumps(payload).encode('utf-8')),
+            content_type='application/gzip',
+        )
+        ok, msg = import_brand_backup_file(
+            uploaded,
+            self.target.pk,
+            replace_existing=True,
+            migration_mode=True,
+        )
+        self.assertTrue(ok, msg)
+        service = ServiceRecord.objects.filter(brand=self.target).first()
+        self.assertIsNotNone(service)
+        self.assertEqual(service.status_id, other_status.pk)
+        self.assertEqual(service.priority_id, other_priority.pk)
+        self.assertIn('Migrasyon modu', msg)

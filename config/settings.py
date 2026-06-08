@@ -247,6 +247,7 @@ TEMPLATES = [
                 'common.context_processors.tenant_context',
                 'common.context_processors.active_brand_context',
                 'common.context_processors.admin_nav_context',
+                'common.context_test_store.test_store_inspection_context',
                 'services.context_processors.services_weather_banner',
             ],
         },

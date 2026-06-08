@@ -117,15 +117,54 @@ BRAND_FORBIDDEN_ROLE_SLUGS = frozenset({'admin'})
 BRAND_FORBIDDEN_PERMISSION_CODENAMES = frozenset({'tools.backup'})
 
 
-def brand_assignable_permissions_queryset():
+def _plan_access_codenames(owner) -> set[str]:
+    from common.module_catalog import MODULES
+    from common.module_plan import owner_selected_modules
+
+    codenames = {'access.home'}
+    if not owner:
+        return codenames
+    plan_modules = set(owner_selected_modules(owner))
+    for mod in MODULES:
+        if mod['slug'] in plan_modules and mod.get('access_perm'):
+            codenames.add(mod['access_perm'])
+    return codenames
+
+
+def _role_matches_owner_plan(role, owner) -> bool:
+    from users.models import Role
+
+    if role.scope != Role.SCOPE_APP_PRESET:
+        return True
+    role_access = set(
+        role.permissions.filter(codename__startswith='access.')
+        .values_list('codename', flat=True)
+    )
+    if not role_access:
+        return True
+    return bool(role_access & _plan_access_codenames(owner))
+
+
+def brand_assignable_permissions_queryset(owner=None):
     from users.models import Permission
 
-    return Permission.objects.exclude(codename__in=BRAND_FORBIDDEN_PERMISSION_CODENAMES)
+    qs = Permission.objects.exclude(codename__in=BRAND_FORBIDDEN_PERMISSION_CODENAMES)
+    if not owner or owner.is_superuser:
+        return qs
+
+    allowed_access = _plan_access_codenames(owner)
+    allowed_ids = set(
+        qs.filter(
+            Q(kind=Permission.KIND_ACCESS, codename__in=allowed_access)
+            | ~Q(codename__startswith='access.')
+        ).values_list('pk', flat=True)
+    )
+    return qs.filter(pk__in=allowed_ids)
 
 
-def sanitize_brand_permission_ids(permission_ids: list[int]) -> list[int]:
+def sanitize_brand_permission_ids(permission_ids: list[int], owner=None) -> list[int]:
     allowed = set(
-        brand_assignable_permissions_queryset()
+        brand_assignable_permissions_queryset(owner)
         .filter(pk__in=permission_ids)
         .values_list('pk', flat=True)
     )
@@ -137,21 +176,41 @@ def assignable_roles_queryset(manager):
 
     if manager.is_superuser:
         return Role.objects.order_by('name')
+
+    preset_ids = [
+        role.pk
+        for role in Role.objects.filter(
+            scope=Role.SCOPE_APP_PRESET,
+            app_id=Role.APP_KOBIOPS,
+        ).prefetch_related('permissions')
+        if _role_matches_owner_plan(role, manager)
+    ]
     return (
-        Role.objects.filter(Q(is_system=True) | Q(owner=manager))
+        Role.objects.filter(
+            Q(scope=Role.SCOPE_TENANT_CUSTOM, owner=manager)
+            | Q(pk__in=preset_ids)
+        )
         .exclude(slug__in=BRAND_FORBIDDEN_ROLE_SLUGS)
         .order_by('name')
     )
 
 
 def role_assignable_by_brand_manager(manager, role) -> bool:
+    from users.models import Role
+
     if not role:
         return False
     if manager.is_superuser:
         return True
     if role.slug in BRAND_FORBIDDEN_ROLE_SLUGS:
         return False
-    return role.is_system or role.owner_id == manager.pk
+    if role.scope == Role.SCOPE_PLATFORM_SYSTEM:
+        return False
+    if role.scope == Role.SCOPE_TENANT_CUSTOM:
+        return role.owner_id == manager.pk
+    if role.scope == Role.SCOPE_APP_PRESET:
+        return _role_matches_owner_plan(role, manager)
+    return False
 
 
 def owned_brands_queryset(manager):
@@ -182,6 +241,18 @@ def attach_user_to_brand(
     if is_default:
         BrandMembership.objects.filter(user=user).exclude(pk=mem.pk).update(is_default=False)
     return mem
+
+
+def sync_restaurant_profile_for_brand(user, brand, restaurant_role: str) -> None:
+    from common.panel_routing import is_restaurant_brand
+    from users.utils import get_or_create_user_profile
+
+    if not brand or not is_restaurant_brand(brand) or not restaurant_role:
+        return
+    profile = get_or_create_user_profile(user)
+    profile.restaurant_brand = brand
+    profile.restaurant_role = restaurant_role
+    profile.save(update_fields=['restaurant_brand', 'restaurant_role'])
 
 
 def check_team_user_limit(owner, brand: BusinessBrand) -> None:

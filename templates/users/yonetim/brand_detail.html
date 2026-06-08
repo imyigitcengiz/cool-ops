@@ -4,7 +4,11 @@
 <div class="flex flex-wrap items-start justify-between gap-4 mb-6">
     <div>
         <h1 class="text-2xl font-bold text-slate-900">{{ brand.name }}</h1>
-        <p class="text-sm text-slate-500 mt-1">{{ brand.slug }}{% if brand.host_slug and brand.host_slug != brand.slug %} · URL kodu: {{ brand.tenant_key }}{% endif %}{% if not brand.is_active %} · <span class="text-red-600 font-semibold">Pasif</span>{% endif %}</p>
+        <p class="text-sm text-slate-500 mt-1 flex flex-wrap items-center gap-2">
+            <span>{{ brand.slug }}{% if brand.host_slug and brand.host_slug != brand.slug %} · URL kodu: {{ brand.tenant_key }}{% endif %}{% if not brand.is_active %} · <span class="text-red-600 font-semibold">Pasif</span>{% endif %}</span>
+            {% include 'users/yonetim/components/panel_badge.html' with meta=panel_meta %}
+            {% if brand.is_test_store %}<span class="inline-flex px-2 py-0.5 rounded-full text-xs font-bold bg-violet-100 text-violet-800">Test mağazası</span>{% endif %}
+        </p>
         {% if tenant_url %}<p class="text-xs text-brand-700 mt-1">Kalıcı URL: <a href="{{ tenant_url }}" target="_blank" rel="noopener" class="font-semibold underline">{{ tenant_url }}</a></p>{% endif %}
     </div>
     <div class="flex flex-wrap gap-2">

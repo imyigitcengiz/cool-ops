@@ -2,7 +2,7 @@ from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.db.models import Prefetch, Q
 from django.shortcuts import redirect, get_object_or_404
-from django.urls import reverse_lazy
+from django.urls import reverse, reverse_lazy
 from django.views import View
 from django.views.generic import TemplateView, ListView, CreateView, UpdateView, DeleteView, FormView
 
@@ -13,6 +13,7 @@ from .admin_forms import (
     AdminBrandCreateForm,
     AdminBrandUpdateForm,
     AdminPlatformUserCreateForm,
+    AdminRoleForm,
     AdminUserUpdateForm,
     RoleForm,
 )
@@ -31,7 +32,7 @@ from .admin_services import (
     sync_user_brand_memberships,
     tenant_usage_rows,
 )
-from .mixins import SuperuserRequiredMixin
+from .mixins import PlatformStaffRequiredMixin, SuperuserRequiredMixin
 from .models import Permission, Role
 
 User = get_user_model()
@@ -50,7 +51,7 @@ class SuperAdminDashboardView(SuperuserRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         stats = platform_dashboard_stats()
         context.update(stats)
-        context['total_roles'] = Role.objects.filter(is_system=True).count()
+        context['total_roles'] = Role.objects.filter(scope=Role.SCOPE_PLATFORM_SYSTEM).count()
         context['summary'] = platform_summary_stats()
         from common.brand_team import subscription_owners_queryset
         from core_settings.models import BrandMembership
@@ -90,26 +91,43 @@ def _attach_admin_owned_brands(users):
         ]
 
 
-class AdminBrandInspectView(SuperuserRequiredMixin, View):
-    """Süper admin — marka sahibi olarak inceleme (impersonation)."""
+class AdminBrandInspectView(PlatformStaffRequiredMixin, View):
+    """Süper admin / test yetkilisi — marka sahibi olarak inceleme (impersonation)."""
+
+    @staticmethod
+    def _inspect_fail_redirect(request):
+        from common.platform_test_access import is_platform_test_inspector
+        from users.impersonation import get_real_user
+
+        actor = get_real_user(request)
+        if is_platform_test_inspector(actor) and not actor.is_superuser:
+            return redirect('admin_panels')
+        return redirect('admin_brands')
 
     def post(self, request, pk):
         brand = get_object_or_404(BusinessBrand, pk=pk, is_active=True)
         from common.brand_team import subscription_owner_for_brand
         from common.panel_routing import is_restaurant_brand, is_restaurant_plan, resolve_brand_panel_url
+        from common.platform_test_access import can_inspect_brand
         from restaurant.onboarding import apply_restaurant_owner_setup
-        from users.impersonation import ImpersonationError, start_impersonation
+        from users.impersonation import ImpersonationError, get_real_user, start_impersonation
+
+        actor = get_real_user(request)
+        ok, reason = can_inspect_brand(actor, brand)
+        if not ok:
+            messages.error(request, reason)
+            return self._inspect_fail_redirect(request)
 
         owner = subscription_owner_for_brand(brand)
         if not owner:
             messages.error(request, 'Bu markanın tanımlı bir abonelik sahibi yok.')
-            return redirect('admin_brands')
+            return self._inspect_fail_redirect(request)
 
         try:
-            start_impersonation(request, owner)
+            start_impersonation(request, owner, brand=brand)
         except ImpersonationError as exc:
             messages.error(request, str(exc))
-            return redirect('admin_brands')
+            return self._inspect_fail_redirect(request)
 
         if not set_active_brand(request, brand.pk):
             messages.error(request, 'Marka oturumu başlatılamadı.')
@@ -144,7 +162,21 @@ class RoleListView(SuperuserRequiredMixin, ListView):
 
     def get_queryset(self):
         from django.db.models import Count
-        return Role.objects.annotate(user_count=Count('users')).order_by('name')
+
+        qs = Role.objects.annotate(user_count=Count('users')).order_by('name')
+        tab = (self.request.GET.get('tab') or 'system').strip()
+        if tab == 'app':
+            return qs.filter(scope=Role.SCOPE_APP_PRESET)
+        if tab == 'tenant':
+            return qs.filter(scope=Role.SCOPE_TENANT_CUSTOM)
+        return qs.filter(scope=Role.SCOPE_PLATFORM_SYSTEM)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['active_tab'] = (self.request.GET.get('tab') or 'system').strip()
+        if context['active_tab'] not in ('system', 'app', 'tenant'):
+            context['active_tab'] = 'system'
+        return context
 
 
 class RoleFormMixin:
@@ -185,10 +217,11 @@ class RoleFormMixin:
         context['action_permissions_by_module'] = action_by_module
         role = getattr(self, 'object', None)
         if role and role.pk:
-            context['role_can_delete'] = not role.is_system and not role.users.exists()
+            locked = role.scope in (Role.SCOPE_PLATFORM_SYSTEM, Role.SCOPE_APP_PRESET)
+            context['role_can_delete'] = not locked and not role.users.exists()
             context['role_delete_blocked_reason'] = ''
-            if role.is_system:
-                context['role_delete_blocked_reason'] = 'Sistem rolleri silinemez.'
+            if locked:
+                context['role_delete_blocked_reason'] = 'Platform ve uygulama şablonları silinemez.'
             elif role.users.exists():
                 context['role_delete_blocked_reason'] = f'Bu role atanmış {role.users.count()} kullanıcı var.'
         else:
@@ -199,27 +232,47 @@ class RoleFormMixin:
 
 class RoleCreateView(SuperuserRequiredMixin, RoleFormMixin, CreateView):
     model = Role
-    form_class = RoleForm
+    form_class = AdminRoleForm
     template_name = 'users/yonetim/role_form.html'
     success_url = reverse_lazy('admin_roles')
 
     def form_valid(self, form):
-        form.instance.is_system = False
+        scope = form.cleaned_data.get('scope')
+        form.instance.is_system = scope in (Role.SCOPE_PLATFORM_SYSTEM, Role.SCOPE_APP_PRESET)
+        if scope == Role.SCOPE_PLATFORM_SYSTEM:
+            form.instance.app_id = ''
         messages.success(self.request, 'Rol oluşturuldu.')
         return super().form_valid(form)
+
+    def get_success_url(self):
+        scope = self.object.scope
+        if scope == Role.SCOPE_APP_PRESET:
+            return f'{reverse("admin_roles")}?tab=app'
+        if scope == Role.SCOPE_PLATFORM_SYSTEM:
+            return f'{reverse("admin_roles")}?tab=system'
+        return reverse('admin_roles')
 
 
 class RoleUpdateView(SuperuserRequiredMixin, RoleFormMixin, UpdateView):
     model = Role
-    form_class = RoleForm
+    form_class = AdminRoleForm
     template_name = 'users/yonetim/role_form.html'
     success_url = reverse_lazy('admin_roles')
 
     def form_valid(self, form):
-        if self.object.is_system:
+        if self.object.scope in (Role.SCOPE_PLATFORM_SYSTEM, Role.SCOPE_APP_PRESET):
             form.instance.slug = self.object.slug
+            form.instance.scope = self.object.scope
+            form.instance.app_id = self.object.app_id
         messages.success(self.request, 'Rol güncellendi.')
         return super().form_valid(form)
+
+    def get_success_url(self):
+        if self.object.scope == Role.SCOPE_APP_PRESET:
+            return f'{reverse("admin_roles")}?tab=app'
+        if self.object.scope == Role.SCOPE_TENANT_CUSTOM:
+            return f'{reverse("admin_roles")}?tab=tenant'
+        return f'{reverse("admin_roles")}?tab=system'
 
 
 class RoleDeleteView(SuperuserRequiredMixin, DeleteView):
@@ -228,10 +281,13 @@ class RoleDeleteView(SuperuserRequiredMixin, DeleteView):
     success_url = reverse_lazy('admin_roles')
 
     def get_queryset(self):
-        return Role.objects.filter(is_system=False)
+        return Role.objects.filter(scope=Role.SCOPE_TENANT_CUSTOM)
 
     def delete(self, request, *args, **kwargs):
         role = self.get_object()
+        if role.scope != Role.SCOPE_TENANT_CUSTOM:
+            messages.error(request, 'Yalnızca abonelik özel rolleri silinebilir.')
+            return redirect('admin_roles')
         if role.users.exists():
             messages.error(request, 'Bu role atanmış kullanıcılar var; silinemez.')
             return redirect('admin_roles')
@@ -461,15 +517,28 @@ class AdminBrandListView(SuperuserRequiredMixin, ListView):
         kind = self.request.GET.get('tur', '').strip()
         if kind in (BusinessBrand.PANEL_HQ, BusinessBrand.PANEL_DEALER):
             qs = qs.filter(panel_kind=kind)
+        panel = self.request.GET.get('panel', '').strip()
+        if panel in ('kobiops', 'kobipos'):
+            from restaurant.models import RestaurantTenantProfile
+
+            kobipos_ids = RestaurantTenantProfile.objects.values_list('brand_id', flat=True)
+            if panel == 'kobipos':
+                qs = qs.filter(pk__in=kobipos_ids)
+            else:
+                qs = qs.exclude(pk__in=kobipos_ids)
         return qs
 
     def get_context_data(self, **kwargs):
+        from common.brand_panel_meta import resolve_brand_panel_meta
+
         context = super().get_context_data(**kwargs)
         for brand in context.get('brands', []):
             owners = getattr(brand, 'owner_memberships', [])
             brand.owner_user = owners[0].user if owners else brand.created_by
+            brand.panel_meta = resolve_brand_panel_meta(brand, owner=brand.owner_user)
         context['active_status_filter'] = self.request.GET.get('durum', 'active')
         context['active_kind_filter'] = self.request.GET.get('tur', '')
+        context['active_panel_filter'] = self.request.GET.get('panel', '')
         return context
 
 
@@ -535,9 +604,13 @@ class AdminBrandDetailView(SuperuserRequiredMixin, TemplateView):
         owner_mem = memberships.filter(role=BrandMembership.ROLE_OWNER).first()
         from customers.models import Customer
 
+        from common.brand_panel_meta import resolve_brand_panel_meta
+
+        owner_user = owner_mem.user if owner_mem else brand.created_by
         context['brand'] = brand
         context['memberships'] = memberships
-        context['owner_user'] = owner_mem.user if owner_mem else brand.created_by
+        context['owner_user'] = owner_user
+        context['panel_meta'] = resolve_brand_panel_meta(brand, owner=owner_user)
         context['first_owner_user'] = brand.first_owner
         context['dealer_panels'] = brand.dealer_panels.filter(is_active=True).order_by('name')
         context['tenant_url'] = build_brand_public_url(brand, self.request)
@@ -695,9 +768,17 @@ class AdminSystemBackupView(SuperuserRequiredMixin, TemplateView):
         from core_settings.models import BusinessBrand
 
         context = super().get_context_data(**kwargs)
+        from common.brand_panel_meta import resolve_brand_panel_meta
+
         context['backup_status'] = backup_status_summary()
         context['factory_reset_confirm_phrase'] = FACTORY_RESET_CONFIRM_PHRASE
-        context['backup_brands'] = BusinessBrand.objects.filter(is_active=True).order_by('name')
+        backup_brands = list(BusinessBrand.objects.filter(is_active=True).order_by('name'))
+        for brand in backup_brands:
+            brand.panel_meta = resolve_brand_panel_meta(brand)
+        context['backup_brands'] = backup_brands
+        from common.brand_team import subscription_owners_queryset
+
+        context['backup_owners'] = subscription_owners_queryset().order_by('username')
         return context
 
     def post(self, request, *args, **kwargs):

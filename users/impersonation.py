@@ -38,11 +38,15 @@ def get_impersonator(request):
     return get_real_user(request)
 
 
-def can_impersonate(actor, target, *, already_impersonating: bool = False) -> tuple[bool, str]:
+def can_impersonate(
+    actor,
+    target,
+    *,
+    already_impersonating: bool = False,
+    brand=None,
+) -> tuple[bool, str]:
     if not actor or not actor.is_authenticated:
         return False, 'Giriş gerekli.'
-    if not actor.is_superuser:
-        return False, 'Yalnızca süper admin kullanıcı geçişi yapabilir.'
     if already_impersonating:
         return False, 'Önce mevcut kullanıcı görünümünden çıkın.'
     if target.pk == actor.pk:
@@ -51,15 +55,29 @@ def can_impersonate(actor, target, *, already_impersonating: bool = False) -> tu
         return False, 'Başka bir süper admin hesabına geçiş yapılamaz.'
     if not target.is_active:
         return False, 'Pasif kullanıcı ile geçiş yapılamaz.'
-    return True, ''
+    if actor.is_superuser:
+        return True, ''
+    if brand is not None:
+        from common.brand_team import subscription_owner_for_brand
+        from common.platform_test_access import can_inspect_brand
+
+        ok, reason = can_inspect_brand(actor, brand)
+        if not ok:
+            return False, reason
+        owner = subscription_owner_for_brand(brand)
+        if not owner or owner.pk != target.pk:
+            return False, 'Hedef kullanıcı bu markanın abonelik sahibi değil.'
+        return True, ''
+    return False, 'Yalnızca süper admin veya test mağaza yetkilisi geçiş yapabilir.'
 
 
-def start_impersonation(request, target) -> None:
+def start_impersonation(request, target, *, brand=None) -> None:
     actor = get_real_user(request)
     ok, reason = can_impersonate(
         actor,
         target,
         already_impersonating=is_impersonating(request),
+        brand=brand,
     )
     if not ok:
         raise ImpersonationError(reason)

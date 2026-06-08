@@ -45,7 +45,7 @@ def apply_restaurant_owner_setup(user, brand, request=None) -> str:
     profile.restaurant_brand = brand
     profile.save(update_fields=['restaurant_role', 'restaurant_brand'])
 
-    ensure_restaurant_tenant(brand)
+    ensure_restaurant_tenant(brand, owner=user)
 
     plan_mods = plan_included_modules(user.active_plan)
     if plan_mods:

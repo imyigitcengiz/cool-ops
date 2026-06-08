@@ -17,7 +17,7 @@ from django.utils import timezone
 from core_settings.models import BusinessBrand
 from restaurant.compat import get_tenant_profile
 from restaurant.models import Invoice, RestaurantProfile
-from restaurant.api.plan_limits import BILLING_CYCLE_DAYS, PLAN_LIMITS
+from restaurant.api.plan_limits import PLAN_LIMITS
 
 
 def get_active_provider():
@@ -73,12 +73,18 @@ def fulfill_subscription_payment(invoice):
         return invoice
     brand = invoice.brand
     tenant = get_tenant_profile(brand)
+    from common.brand_team import subscription_owner_for_brand
+    from common.plan_sync import billing_days_for_restaurant_tier
+
+    owner = subscription_owner_for_brand(brand)
+    cycle_days = billing_days_for_restaurant_tier(invoice.plan, owner=owner)
+
     tenant.plan_tier = invoice.plan
     today = timezone.localdate()
     if tenant.plan_expiry and tenant.plan_expiry >= today:
-        tenant.plan_expiry = tenant.plan_expiry + timedelta(days=BILLING_CYCLE_DAYS)
+        tenant.plan_expiry = tenant.plan_expiry + timedelta(days=cycle_days)
     else:
-        tenant.plan_expiry = today + timedelta(days=BILLING_CYCLE_DAYS)
+        tenant.plan_expiry = today + timedelta(days=cycle_days)
     tenant.save(update_fields=['plan_tier', 'plan_expiry'])
     brand.is_active = True
     brand.save(update_fields=['is_active'])
@@ -92,7 +98,6 @@ def fulfill_subscription_payment(invoice):
     invoice.paid_at = timezone.now()
     invoice.save(update_fields=['paid', 'payment_status', 'paid_at'])
 
-    from common.brand_team import subscription_owner_for_brand
     from common.plan_sync import sync_owner_plan_from_tier
 
     owner = subscription_owner_for_brand(brand)

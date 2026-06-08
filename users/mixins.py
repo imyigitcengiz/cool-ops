@@ -24,6 +24,26 @@ class SuperuserRequiredMixin(UserPassesTestMixin):
         )
 
 
+class PlatformStaffRequiredMixin(UserPassesTestMixin):
+    """Süper admin veya test mağaza yetkilisi (sınırlı yönetim erişimi)."""
+
+    login_url = reverse_lazy('login')
+
+    def test_func(self):
+        from common.platform_test_access import is_platform_test_inspector
+
+        user = get_real_user(self.request)
+        return user.is_authenticated and is_platform_test_inspector(user)
+
+    def handle_no_permission(self):
+        if not self.request.user.is_authenticated:
+            return super().handle_no_permission()
+        return permission_denied_redirect(
+            self.request,
+            'Bu alan yalnızca süper admin veya test mağaza yetkilileri içindir.',
+        )
+
+
 class BrandTeamManagerMixin(LoginRequiredMixin, UserPassesTestMixin):
     """Abonelik / marka sahibi ekip yönetimi."""
 

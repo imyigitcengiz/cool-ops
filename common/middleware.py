@@ -122,6 +122,15 @@ class PermissionMiddleware:
         user = request.user
 
         if any(_path_matches(path, prefix) for prefix in SUPERUSER_ONLY_PREFIXES):
+            from common.platform_test_access import (
+                is_platform_staff_yonetim_path,
+                is_platform_test_inspector,
+            )
+
+            if is_platform_test_inspector(real_user) and is_platform_staff_yonetim_path(
+                path, request.method,
+            ):
+                return self.get_response(request)
             return permission_denied_redirect(request, 'Bu sayfaya erişim yetkiniz yok.')
 
         required = _resolve_required_permission(path, request.method)

@@ -14,7 +14,7 @@ from core_settings.models import BillingInvoice, Plan, SiteSettings
 
 from .admin_forms import AdminBillingInvoiceForm, AdminPlanForm, AdminSiteSettingsForm
 from .admin_services import membership_matrix_rows, usage_report_csv_rows
-from .mixins import SuperuserRequiredMixin
+from .mixins import PlatformStaffRequiredMixin, SuperuserRequiredMixin
 from .models import ImpersonationAudit, PlatformAuditLog
 
 User = get_user_model()
@@ -34,34 +34,83 @@ class AdminApplicationsView(SuperuserRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         from common.panel_registry import SHELL_LABELS, application_rows
+        from common.platform_test_access import default_test_brand_for_panel
 
         context = super().get_context_data(**kwargs)
         rows = []
+        panel_test_brands = {}
         for row in application_rows(self.request):
             mod = row['module']
             panel = row['panel'] or {}
+            panel_id = panel.get('id', '')
+            if panel_id and panel_id not in panel_test_brands:
+                panel_test_brands[panel_id] = default_test_brand_for_panel(panel_id)
             rows.append({
                 **row,
                 'panel': panel,
+                'panel_meta': {
+                    'panel_name': panel.get('name', ''),
+                    'icon': panel.get('icon', ''),
+                    'theme': panel.get('theme') or {},
+                },
                 'shell_label': SHELL_LABELS.get(panel.get('shell', ''), panel.get('shell', '')),
                 'status': mod.get('status', ''),
                 'status_label': _STATUS_LABELS.get(mod.get('status', ''), mod.get('status', '')),
+                'default_test_brand': panel_test_brands.get(panel_id),
             })
         context['applications'] = rows
         return context
 
 
-class AdminPanelsView(SuperuserRequiredMixin, TemplateView):
+class AdminPanelsView(PlatformStaffRequiredMixin, TemplateView):
     """Marka panelleri ve barındırdıkları uygulamalar."""
 
     template_name = 'users/yonetim/panels.html'
 
     def get_context_data(self, **kwargs):
         from common.panel_registry import panel_rows
+        from common.platform_test_access import is_platform_test_inspector
+        from users.impersonation import get_real_user
 
         context = super().get_context_data(**kwargs)
         context['panels'] = panel_rows(self.request)
+        actor = get_real_user(self.request)
+        context['can_inspect_any_brand'] = bool(actor.is_superuser)
+        context['is_test_inspector_only'] = (
+            is_platform_test_inspector(actor) and not actor.is_superuser
+        )
         return context
+
+
+class AdminPanelTestEnterView(PlatformStaffRequiredMixin, View):
+    """Panel test mağazasına gir — yoksa otomatik demo mağaza oluşturur."""
+
+    def post(self, request):
+        from common.platform_test_access import (
+            default_test_brand_for_panel,
+            ensure_default_test_brand_for_panel,
+        )
+        from users.admin_views import AdminBrandInspectView
+
+        panel_id = (request.POST.get('panel_id') or '').strip()
+        if panel_id not in ('kobiops', 'kobipos'):
+            messages.error(request, 'Geçersiz panel.')
+            return redirect('admin_panels')
+
+        had_brand = default_test_brand_for_panel(panel_id) is not None
+        try:
+            brand = ensure_default_test_brand_for_panel(panel_id)
+        except ValueError as exc:
+            messages.error(request, str(exc))
+            return redirect('admin_panels')
+        except Exception as exc:
+            messages.error(request, f'Test mağazası oluşturulamadı: {exc}')
+            return redirect('admin_panels')
+
+        if not had_brand:
+            messages.info(request, f'"{brand.name}" demo test mağazası oluşturuldu.')
+
+        return AdminBrandInspectView().post(request, pk=brand.pk)
 
 
 class AdminPlanListView(SuperuserRequiredMixin, ListView):

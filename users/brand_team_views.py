@@ -12,8 +12,10 @@ from common.brand_team import (
     owned_brand_ids,
     owned_brands_queryset,
     sanitize_brand_permission_ids,
+    sync_restaurant_profile_for_brand,
     team_users_queryset,
 )
+from common.panel_routing import is_restaurant_brand
 from core_settings.models import BrandMembership, BusinessBrand
 from users.admin_forms import RoleForm
 from users.admin_views import RoleFormMixin
@@ -91,8 +93,19 @@ class BrandTeamUserCreateView(BrandTeamManagerMixin, CreateView):
         from users.utils import get_or_create_user_profile
 
         get_or_create_user_profile(user)
+        restaurant_role = form.cleaned_data.get('restaurant_role') or ''
+        if restaurant_role and is_restaurant_brand(brand):
+            sync_restaurant_profile_for_brand(user, brand, restaurant_role)
         messages.success(self.request, 'Ekip üyesi oluşturuldu.')
         return redirect(self.success_url)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        manager = _manager(self.request)
+        context['show_restaurant_role'] = any(
+            is_restaurant_brand(b) for b in owned_brands_queryset(manager)
+        )
+        return context
 
 
 class BrandTeamUserUpdateView(BrandTeamManagerMixin, UpdateView):
@@ -145,6 +158,7 @@ class BrandTeamUserUpdateView(BrandTeamManagerMixin, UpdateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['is_edit'] = True
+        context['show_restaurant_role'] = getattr(self.get_form(), 'show_restaurant_role', False)
         context.update(_brand_team_delete_context(_manager(self.request), self.object))
         return context
 
@@ -200,12 +214,20 @@ class BrandTeamUserDeleteView(BrandTeamManagerMixin, DeleteView):
 
 
 class BrandTeamRoleFormMixin(RoleFormMixin):
+    def _manager_user(self):
+        return _manager(self.request)
+
     def _permission_ids_from_post(self):
-        return sanitize_brand_permission_ids(super()._permission_ids_from_post())
+        return sanitize_brand_permission_ids(
+            super()._permission_ids_from_post(),
+            owner=self._manager_user(),
+        )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        allowed_ids = set(brand_assignable_permissions_queryset().values_list('pk', flat=True))
+        allowed_ids = set(
+            brand_assignable_permissions_queryset(self._manager_user()).values_list('pk', flat=True)
+        )
         context['access_permissions'] = [
             p for p in context['access_permissions'] if p.pk in allowed_ids
         ]
@@ -232,6 +254,13 @@ class BrandTeamRoleListView(BrandTeamManagerMixin, ListView):
             .order_by('name')
         )
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        roles = list(context['roles'])
+        context['preset_roles'] = [r for r in roles if r.scope == Role.SCOPE_APP_PRESET]
+        context['custom_roles'] = [r for r in roles if r.scope == Role.SCOPE_TENANT_CUSTOM]
+        return context
+
 
 class BrandTeamRoleCreateView(BrandTeamManagerMixin, BrandTeamRoleFormMixin, CreateView):
     model = Role
@@ -241,6 +270,8 @@ class BrandTeamRoleCreateView(BrandTeamManagerMixin, BrandTeamRoleFormMixin, Cre
 
     def form_valid(self, form):
         form.instance.is_system = False
+        form.instance.scope = Role.SCOPE_TENANT_CUSTOM
+        form.instance.app_id = ''
         form.instance.owner = _manager(self.request)
         messages.success(self.request, 'Rol oluşturuldu.')
         return super().form_valid(form)
@@ -257,17 +288,15 @@ class BrandTeamRoleUpdateView(BrandTeamManagerMixin, BrandTeamRoleFormMixin, Upd
         return assignable_roles_queryset(manager)
 
     def form_valid(self, form):
-        if self.object.is_system:
-            form.instance.slug = self.object.slug
-            form.instance.name = self.object.name
-            messages.info(self.request, 'Sistem rolleri düzenlenemez.')
+        if self.object.scope != Role.SCOPE_TENANT_CUSTOM:
+            messages.info(self.request, 'Hazır roller düzenlenemez.')
             return redirect(self.success_url)
         messages.success(self.request, 'Rol güncellendi.')
         return super().form_valid(form)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['role_is_readonly'] = self.object.is_system
+        context['role_is_readonly'] = self.object.scope != Role.SCOPE_TENANT_CUSTOM
         return context
 
 
@@ -278,7 +307,7 @@ class BrandTeamRoleDeleteView(BrandTeamManagerMixin, DeleteView):
 
     def get_queryset(self):
         manager = _manager(self.request)
-        return Role.objects.filter(is_system=False, owner=manager)
+        return Role.objects.filter(scope=Role.SCOPE_TENANT_CUSTOM, owner=manager)
 
     def delete(self, request, *args, **kwargs):
         role = self.get_object()

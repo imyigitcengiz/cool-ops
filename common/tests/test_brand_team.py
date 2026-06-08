@@ -64,7 +64,15 @@ class BrandTeamTests(TestCase):
     def test_owner_cannot_assign_admin_role(self):
         admin_role = Role.objects.filter(slug='admin').first()
         if not admin_role:
-            admin_role = Role.objects.create(slug='admin', name='Yönetici', is_system=True)
+            admin_role = Role.objects.create(
+                slug='admin',
+                name='Yönetici',
+                is_system=True,
+                scope=Role.SCOPE_PLATFORM_SYSTEM,
+            )
+        else:
+            admin_role.scope = Role.SCOPE_PLATFORM_SYSTEM
+            admin_role.save(update_fields=['scope'])
         self.assertNotIn(admin_role, list(assignable_roles_queryset(self.owner)))
 
         self.client.force_login(self.owner)
@@ -100,10 +108,35 @@ class BrandTeamTests(TestCase):
         role = Role.objects.get(slug='yedek-rol')
         self.assertFalse(role.permissions.filter(codename='tools.backup').exists())
 
+    def test_platform_system_roles_not_assignable_by_owner(self):
+        Role.objects.update_or_create(
+            slug='admin',
+            defaults={
+                'name': 'Yönetici',
+                'scope': Role.SCOPE_PLATFORM_SYSTEM,
+                'is_system': True,
+            },
+        )
+        platform_ids = set(
+            Role.objects.filter(scope=Role.SCOPE_PLATFORM_SYSTEM).values_list('pk', flat=True)
+        )
+        assignable_ids = set(assignable_roles_queryset(self.owner).values_list('pk', flat=True))
+        self.assertFalse(platform_ids & assignable_ids)
+
     def test_owner_can_create_team_user(self):
         staff_role = Role.objects.filter(slug='operation').first()
         if not staff_role:
-            staff_role = Role.objects.create(slug='operation', name='Operasyon', is_system=True)
+            staff_role = Role.objects.create(
+                slug='operation',
+                name='Operasyon',
+                is_system=True,
+                scope=Role.SCOPE_APP_PRESET,
+                app_id=Role.APP_KOBIOPS,
+            )
+        else:
+            staff_role.scope = Role.SCOPE_APP_PRESET
+            staff_role.app_id = Role.APP_KOBIOPS
+            staff_role.save(update_fields=['scope', 'app_id'])
         self.client.force_login(self.owner)
         response = self.client.post('/panel/ekip/kullanicilar/yeni/', {
             'username': 'newstaff',

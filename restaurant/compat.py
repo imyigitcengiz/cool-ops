@@ -116,8 +116,14 @@ def get_tenant_profile(brand):
     return tenant
 
 
-def ensure_restaurant_tenant(brand, *, trial_days=14):
+def ensure_restaurant_tenant(brand, *, trial_days=None, owner=None):
+    from common.plan_sync import plan_trial_days
     from restaurant.models import RestaurantTenantProfile, RestaurantProfile
+
+    if trial_days is None and owner is not None:
+        trial_days = plan_trial_days(getattr(owner, 'active_plan', None))
+    if trial_days is None:
+        trial_days = plan_trial_days(None)
     tenant, created = RestaurantTenantProfile.objects.get_or_create(
         brand=brand,
         defaults={

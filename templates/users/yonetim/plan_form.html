@@ -7,6 +7,9 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div class="md:col-span-2"><label class="text-sm font-semibold text-slate-700">Plan adı</label><div class="mt-1">{{ form.name }}</div></div>
         <div><label class="text-sm font-semibold text-slate-700">Fiyat (₺)</label><div class="mt-1">{{ form.price }}</div></div>
+        <div><label class="text-sm font-semibold text-slate-700">KobiPOS kademesi</label><div class="mt-1">{{ form.restaurant_plan_tier }}</div></div>
+        <div><label class="text-sm font-semibold text-slate-700">Deneme süresi (gün)</label><div class="mt-1">{{ form.trial_days }}</div></div>
+        <div><label class="text-sm font-semibold text-slate-700">Abonelik dönemi (gün)</label><div class="mt-1">{{ form.billing_days }}</div></div>
         <div class="flex items-end"><label class="flex items-center gap-2 text-sm font-semibold text-slate-700 pb-3">{{ form.is_active }} Aktif plan</label></div>
         <div><label class="text-sm font-semibold text-slate-700">Maks. merkez panel</label><div class="mt-1">{{ form.max_hq_brands }}</div></div>
         <div><label class="text-sm font-semibold text-slate-700">Maks. bayi alt panel</label><div class="mt-1">{{ form.max_dealer_panels }}</div></div>

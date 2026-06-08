@@ -134,6 +134,29 @@ class SiteSettings(models.Model):
         verbose_name='Profil kurulumu tamamlandı',
         help_text='İlk kurulum sihirbazı tamamlandığında doldurulur.',
     )
+    test_store_inspectors = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name='test_store_inspector_for',
+        verbose_name='Test mağaza yetkilileri',
+        help_text='Platform yönetim rolündeki kullanıcılar — yalnızca test mağazalarına girebilir.',
+    )
+    default_test_brand_kobiops = models.ForeignKey(
+        'BusinessBrand',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        verbose_name='Varsayılan KobiOPS test markası',
+    )
+    default_test_brand_kobipos = models.ForeignKey(
+        'BusinessBrand',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='+',
+        verbose_name='Varsayılan KobiPOS test markası',
+    )
 
     class Meta:
         verbose_name = "Site Ayarları"
@@ -191,6 +214,16 @@ class Plan(models.Model):
         default='',
         verbose_name='KobiPOS plan kademesi',
         help_text='starter, growth veya enterprise — boşsa plan adından türetilir.',
+    )
+    trial_days = models.PositiveIntegerField(
+        default=14,
+        verbose_name='Deneme süresi (gün)',
+        help_text='Yeni kayıt / ücretsiz planda marka aboneliğinin ilk süresi.',
+    )
+    billing_days = models.PositiveIntegerField(
+        default=30,
+        verbose_name='Abonelik dönemi (gün)',
+        help_text='Ödeme veya plan yükseltmede eklenen süre.',
     )
     is_active = models.BooleanField(default=True, verbose_name="Aktif")
 
@@ -296,6 +329,11 @@ class BusinessBrand(models.Model):
         help_text='Eski kayıtlar ve üyeliksiz kullanıcılar için.',
     )
     is_active = models.BooleanField(default=True, verbose_name='Aktif')
+    is_test_store = models.BooleanField(
+        default=False,
+        verbose_name='Test mağazası',
+        help_text='Platform personeli ve süper admin önizlemesi için işaretleyin.',
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

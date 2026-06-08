@@ -33,9 +33,39 @@ class Permission(models.Model):
 
 
 class Role(models.Model):
+    SCOPE_PLATFORM_SYSTEM = 'platform_system'
+    SCOPE_APP_PRESET = 'app_preset'
+    SCOPE_TENANT_CUSTOM = 'tenant_custom'
+    SCOPE_CHOICES = [
+        (SCOPE_PLATFORM_SYSTEM, 'Platform sistemi'),
+        (SCOPE_APP_PRESET, 'Uygulama şablonu'),
+        (SCOPE_TENANT_CUSTOM, 'Abonelik özel'),
+    ]
+
+    APP_KOBIOPS = 'kobiops'
+    APP_KOBIPOS = 'kobipos'
+    APP_ID_CHOICES = [
+        ('', '—'),
+        (APP_KOBIOPS, 'KobiOPS'),
+        (APP_KOBIPOS, 'KobiPOS'),
+    ]
+
     slug = models.SlugField(max_length=40, unique=True)
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
+    scope = models.CharField(
+        max_length=20,
+        choices=SCOPE_CHOICES,
+        default=SCOPE_TENANT_CUSTOM,
+        verbose_name='Kapsam',
+    )
+    app_id = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        choices=APP_ID_CHOICES,
+        verbose_name='Uygulama',
+    )
     is_system = models.BooleanField(default=False, verbose_name='Sistem rolü')
     owner = models.ForeignKey(
         'User',

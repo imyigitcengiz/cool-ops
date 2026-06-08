@@ -4,10 +4,11 @@ from datetime import timedelta
 
 from django.utils import timezone
 
+from common.plan_sync import DEFAULT_BILLING_DAYS, DEFAULT_TRIAL_DAYS, plan_trial_days
 from restaurant.compat import get_api_profile, get_tenant_profile
 
-TRIAL_DAYS = 14
-BILLING_CYCLE_DAYS = 30
+TRIAL_DAYS = DEFAULT_TRIAL_DAYS
+BILLING_CYCLE_DAYS = DEFAULT_BILLING_DAYS
 GRACE_DAYS = 3
 
 PLAN_ORDER = {'starter': 1, 'growth': 2, 'enterprise': 3}
@@ -97,8 +98,12 @@ def get_plan_status(brand):
 
     is_trial = False
     if tenant.trial_started_at:
+        from common.brand_team import subscription_owner_for_brand
+
+        owner = subscription_owner_for_brand(brand)
+        trial_limit = plan_trial_days(getattr(owner, 'active_plan', None) if owner else None)
         trial_window = (expiry - tenant.trial_started_at.date()).days
-        is_trial = trial_window <= TRIAL_DAYS + 1
+        is_trial = trial_window <= trial_limit + 1
 
     if days_remaining > 3:
         status = 'active'

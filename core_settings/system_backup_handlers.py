@@ -57,15 +57,34 @@ def handle_system_backup_post(request, *, redirect_name: str):
             return redirect(redirect_name)
 
     if 'import_brand_backup' in request.POST:
-        brand_id = request.POST.get('brand_id', '').strip()
-        if not brand_id.isdigit():
-            messages.error(request, 'Geçerli bir hedef marka seçin.')
-            return redirect(redirect_name)
+        create_new = request.POST.get('create_new_brand') == 'on'
+        migration_mode = request.POST.get('migration_mode') == 'on'
         replace = request.POST.get('replace_brand_data') == 'on'
+        brand_id_raw = request.POST.get('brand_id', '').strip()
+        owner_raw = request.POST.get('new_brand_owner', '').strip()
+        new_name = (request.POST.get('new_brand_name') or '').strip()
+        new_host_slug = (request.POST.get('new_brand_host_slug') or '').strip()
+
+        brand_id = int(brand_id_raw) if brand_id_raw.isdigit() else None
+        owner_id = int(owner_raw) if owner_raw.isdigit() else None
+
+        if create_new:
+            if not owner_id:
+                messages.error(request, 'Yeni mağaza için abonelik sahibi seçin.')
+                return redirect(redirect_name)
+        elif not brand_id:
+            messages.error(request, 'Geçerli bir hedef marka seçin veya sıfırdan oluşturmayı işaretleyin.')
+            return redirect(redirect_name)
+
         ok, msg = import_brand_backup_file(
             request.FILES.get('brand_backup_file'),
-            int(brand_id),
-            replace_existing=replace,
+            brand_id,
+            replace_existing=replace or create_new,
+            migration_mode=migration_mode,
+            create_new_brand=create_new,
+            new_brand_owner_id=owner_id,
+            new_brand_name=new_name,
+            new_brand_host_slug=new_host_slug,
         )
         if ok:
             messages.success(request, msg)

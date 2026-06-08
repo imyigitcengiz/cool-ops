@@ -25,14 +25,29 @@ def sync_permissions_to_db(reset_system_role_permissions=False, apps=None):
 
     if reset_system_role_permissions:
         for slug, data in DEFAULT_ROLES.items():
-            role, _ = Role.objects.get_or_create(
-                slug=slug,
-                defaults={
-                    'name': data['name'],
-                    'description': data['description'],
-                    'is_system': data.get('is_system', False),
-                },
-            )
+            defaults = {
+                'name': data['name'],
+                'description': data['description'],
+                'is_system': data.get('is_system', False),
+            }
+            role_field_names = {f.name for f in Role._meta.get_fields()}
+            if 'scope' in role_field_names:
+                defaults['scope'] = data.get('scope', 'tenant_custom')
+            if 'app_id' in role_field_names:
+                defaults['app_id'] = data.get('app_id', '')
+            role, created = Role.objects.get_or_create(slug=slug, defaults=defaults)
+            if not created:
+                updates = {}
+                if 'scope' in role_field_names and data.get('scope'):
+                    updates['scope'] = data['scope']
+                if 'app_id' in role_field_names and 'app_id' in data:
+                    updates['app_id'] = data['app_id']
+                if data.get('is_system'):
+                    updates['is_system'] = True
+                if updates:
+                    for key, value in updates.items():
+                        setattr(role, key, value)
+                    role.save(update_fields=list(updates.keys()))
             role.permissions.set([perm_map[c] for c in data['permissions'] if c in perm_map])
 
     return perm_map

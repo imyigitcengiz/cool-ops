@@ -79,12 +79,16 @@ DEFAULT_ROLES = {
         'name': 'Yönetici',
         'description': 'Tüm modül ve fonksiyon izinleri (süper admin paneli hariç).',
         'is_system': True,
+        'scope': 'platform_system',
+        'app_id': '',
         'permissions': [row[0] for row in PERMISSIONS if row[0] != 'tools.backup'],
     },
     'operation': {
         'name': 'Operasyon',
         'description': 'Servis, contact ve operasyon araçları.',
         'is_system': True,
+        'scope': 'app_preset',
+        'app_id': 'kobiops',
         'permissions': [
             'access.home', 'access.services', 'access.contact', 'access.outreach', 'access.tools',
             'services.manage', 'services.bulk', 'services.print', 'services.whatsapp',
@@ -96,6 +100,8 @@ DEFAULT_ROLES = {
         'name': 'Servis Personeli',
         'description': 'Servis kayıtları ve müşteri görüntüleme.',
         'is_system': True,
+        'scope': 'app_preset',
+        'app_id': 'kobiops',
         'permissions': [
             'access.home', 'access.services', 'access.contact',
             'services.manage', 'services.print', 'services.whatsapp',
@@ -107,6 +113,8 @@ DEFAULT_ROLES = {
         'name': 'Satış Temsilcisi',
         'description': 'Muhasebe modülünde satış kayıtları ve müşteri erişimi.',
         'is_system': True,
+        'scope': 'app_preset',
+        'app_id': 'kobiops',
         'permissions': [
             'access.home', 'access.accounting', 'access.contact',
             'sales.manage', 'sales.reports', 'sales.export',
@@ -118,11 +126,21 @@ DEFAULT_ROLES = {
         'name': 'Muhasebe',
         'description': 'Maaş, avans, gelir-gider, satış kayıtları ve müşteri görüntüleme.',
         'is_system': True,
+        'scope': 'app_preset',
+        'app_id': 'kobiops',
         'permissions': [
             'access.home', 'access.accounting', 'access.contact',
             'contact.customers_view', 'contact.payroll', 'accounting.finance',
             'sales.manage', 'sales.reports', 'sales.export',
         ],
+    },
+    'restaurant_access': {
+        'name': 'Restoran Erişimi',
+        'description': 'KobiPOS paneline giriş — restoran dikeyi abonelikleri.',
+        'is_system': True,
+        'scope': 'app_preset',
+        'app_id': 'kobiops',
+        'permissions': ['access.home', 'access.restaurant'],
     },
 }
 

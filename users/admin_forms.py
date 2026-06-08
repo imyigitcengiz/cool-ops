@@ -22,12 +22,22 @@ class RoleForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         self.permission_ids = kwargs.pop('permission_ids', None)
         super().__init__(*args, **kwargs)
-        if self.instance.pk and self.instance.is_system:
+        locked = (
+            self.instance.pk
+            and (
+                self.instance.scope in (Role.SCOPE_PLATFORM_SYSTEM, Role.SCOPE_APP_PRESET)
+                or self.instance.is_system
+            )
+        )
+        if locked:
             self.fields['slug'].widget.attrs['readonly'] = True
 
     def clean_slug(self):
         slug = self.cleaned_data.get('slug')
-        if self.instance.pk and self.instance.is_system:
+        if self.instance.pk and (
+            self.instance.scope in (Role.SCOPE_PLATFORM_SYSTEM, Role.SCOPE_APP_PRESET)
+            or self.instance.is_system
+        ):
             return self.instance.slug
         return slug
 
@@ -37,6 +47,35 @@ class RoleForm(forms.ModelForm):
             perms = Permission.objects.filter(pk__in=self.permission_ids)
             role.permissions.set(perms)
         return role
+
+
+class AdminRoleForm(RoleForm):
+    class Meta(RoleForm.Meta):
+        fields = ['name', 'slug', 'description', 'scope', 'app_id']
+        widgets = {
+            **RoleForm.Meta.widgets,
+            'scope': forms.Select(attrs={'class': INPUT}),
+            'app_id': forms.Select(attrs={'class': INPUT}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['scope'].choices = [
+            (Role.SCOPE_PLATFORM_SYSTEM, 'Platform sistemi'),
+            (Role.SCOPE_APP_PRESET, 'Uygulama şablonu'),
+        ]
+        if self.instance.pk and self.instance.scope == Role.SCOPE_TENANT_CUSTOM:
+            self.fields['scope'].disabled = True
+            self.fields['app_id'].disabled = True
+
+    def clean(self):
+        cleaned = super().clean()
+        scope = cleaned.get('scope')
+        if scope == Role.SCOPE_APP_PRESET and not cleaned.get('app_id'):
+            self.add_error('app_id', 'Uygulama şablonu için uygulama seçin.')
+        if scope == Role.SCOPE_PLATFORM_SYSTEM:
+            cleaned['app_id'] = ''
+        return cleaned
 
 
 class AdminUserCreateForm(forms.ModelForm):
@@ -432,6 +471,7 @@ class AdminBrandUpdateForm(forms.ModelForm):
             'parent_brand',
             'tenant_routing',
             'is_active',
+            'is_test_store',
         ]
         widgets = {
             'name': forms.TextInput(attrs={'class': INPUT}),
@@ -445,6 +485,7 @@ class AdminBrandUpdateForm(forms.ModelForm):
             'parent_brand': forms.Select(attrs={'class': INPUT}),
             'tenant_routing': forms.Select(attrs={'class': INPUT}),
             'is_active': forms.CheckboxInput(attrs={'class': CHECKBOX}),
+            'is_test_store': forms.CheckboxInput(attrs={'class': CHECKBOX}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -452,6 +493,9 @@ class AdminBrandUpdateForm(forms.ModelForm):
         from core_settings.models import BrandMembership, BusinessBrand
 
         super().__init__(*args, **kwargs)
+        self.fields['is_test_store'].help_text = (
+            'İşaretlenirse platform personeli bu markayı test olarak inceleyebilir.'
+        )
         self.fields['owner'].queryset = subscription_owners_queryset().order_by('username')
         if self.instance and self.instance.pk:
             owner_mem = BrandMembership.objects.filter(
@@ -557,6 +601,9 @@ class AdminPlanForm(forms.ModelForm):
         fields = [
             'name',
             'price',
+            'restaurant_plan_tier',
+            'trial_days',
+            'billing_days',
             'max_hq_brands',
             'max_dealer_panels',
             'max_users_per_brand',
@@ -566,6 +613,12 @@ class AdminPlanForm(forms.ModelForm):
         widgets = {
             'name': forms.TextInput(attrs={'class': INPUT}),
             'price': forms.NumberInput(attrs={'class': INPUT, 'step': '0.01'}),
+            'restaurant_plan_tier': forms.Select(
+                attrs={'class': INPUT},
+                choices=[('', '— Otomatik —'), ('starter', 'Starter'), ('growth', 'Growth'), ('enterprise', 'Enterprise')],
+            ),
+            'trial_days': forms.NumberInput(attrs={'class': INPUT, 'min': 0}),
+            'billing_days': forms.NumberInput(attrs={'class': INPUT, 'min': 1}),
             'max_hq_brands': forms.NumberInput(attrs={'class': INPUT}),
             'max_dealer_panels': forms.NumberInput(attrs={'class': INPUT}),
             'max_users_per_brand': forms.NumberInput(attrs={'class': INPUT}),

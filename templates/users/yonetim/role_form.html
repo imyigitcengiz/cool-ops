@@ -11,6 +11,10 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div><label class="text-sm font-semibold text-slate-700">Rol adı</label><div class="mt-1">{{ form.name }}</div></div>
             <div><label class="text-sm font-semibold text-slate-700">Slug</label><div class="mt-1">{{ form.slug }}</div></div>
+            {% if form.scope %}
+            <div><label class="text-sm font-semibold text-slate-700">Kapsam</label><div class="mt-1">{{ form.scope }}</div></div>
+            <div><label class="text-sm font-semibold text-slate-700">Uygulama</label><div class="mt-1">{{ form.app_id }}</div></div>
+            {% endif %}
         </div>
         <div><label class="text-sm font-semibold text-slate-700">Açıklama</label><div class="mt-1">{{ form.description }}</div></div>
     </div>
@@ -70,7 +74,7 @@
 
     <div class="flex flex-wrap gap-3 justify-between items-center">
         <div>
-            {% if object and not object.is_system %}
+            {% if object and object.scope == 'tenant_custom' %}
                 {% if role_can_delete %}
                 <a href="{% url 'admin_role_delete' object.pk %}" class="inline-flex px-4 py-2.5 rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm font-bold hover:bg-red-100">Rolü sil</a>
                 {% elif role_delete_blocked_reason %}

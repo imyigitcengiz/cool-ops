@@ -37,8 +37,8 @@
                         </div>
                     </td>
                     <td class="px-5 py-4">
-                        <p class="font-semibold text-slate-800">{{ row.panel.name }}</p>
-                        <p class="text-xs text-slate-500">{{ row.shell_label }}</p>
+                        {% include 'users/yonetim/components/panel_badge.html' with meta=row.panel_meta %}
+                        <p class="text-xs text-slate-500 mt-1">{{ row.shell_label }}</p>
                     </td>
                     <td class="px-5 py-4">
                         <code class="text-xs bg-slate-100 px-2 py-1 rounded-lg">{{ row.panel.path_prefix }}</code>
@@ -52,10 +52,13 @@
                         </span>
                     </td>
                     <td class="px-5 py-4 text-right">
-                        <a href="{{ row.panel_url }}" target="_blank" rel="noopener"
-                           class="inline-flex items-center gap-1 text-sm font-bold text-red-700 hover:underline">
-                            Paneli aç <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
-                        </a>
+                        <form method="post" action="{% url 'admin_panel_test_enter' %}" class="inline">
+                            {% csrf_token %}
+                            <input type="hidden" name="panel_id" value="{{ row.panel.id }}">
+                            <button type="submit" class="inline-flex items-center gap-1 text-sm font-bold text-brand-700 hover:underline">
+                                Test mağazaya gir <i data-lucide="log-in" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </form>
                     </td>
                 </tr>
                 {% empty %}

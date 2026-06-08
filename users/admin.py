@@ -20,7 +20,8 @@ class PermissionAdmin(admin.ModelAdmin):
 
 @admin.register(Role)
 class RoleAdmin(admin.ModelAdmin):
-    list_display = ('name', 'slug', 'is_system')
+    list_display = ('name', 'slug', 'scope', 'app_id', 'is_system')
+    list_filter = ('scope', 'app_id', 'is_system')
     prepopulated_fields = {'slug': ('name',)}
     filter_horizontal = ('permissions',)
     search_fields = ('name', 'slug')

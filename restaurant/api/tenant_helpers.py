@@ -3,14 +3,8 @@
 from rest_framework import status
 from rest_framework.response import Response
 
+from common.app_role_catalog import validate_restaurant_role_assignment
 from restaurant.api.security import is_api_superuser
-
-STORE_OWNER_ASSIGNABLE_ROLES = frozenset({
-    'manager', 'waiter', 'cashier', 'kitchen',
-})
-SUPERUSER_ASSIGNABLE_ROLES = frozenset({
-    'store_owner', 'manager', 'waiter', 'cashier', 'kitchen',
-})
 
 
 def get_user_brand(user, request=None):
@@ -22,17 +16,11 @@ def get_user_brand(user, request=None):
 
 
 def validate_role_assignment(caller_user, caller_role, new_role):
-    if new_role == 'super_admin':
-        return False, 'super_admin rolü atanamaz.'
-    if is_api_superuser(caller_user):
-        allowed = SUPERUSER_ASSIGNABLE_ROLES
-    elif caller_role == 'store_owner':
-        allowed = STORE_OWNER_ASSIGNABLE_ROLES
-    else:
-        return False, 'Rol atama yetkiniz yok.'
-    if new_role not in allowed:
-        return False, f'"{new_role}" rolünü atama yetkiniz yok.'
-    return True, None
+    return validate_restaurant_role_assignment(
+        assigner_is_superuser=is_api_superuser(caller_user),
+        assigner_role=caller_role,
+        new_role=new_role,
+    )
 
 
 def user_owns_brand(user, brand, request=None):

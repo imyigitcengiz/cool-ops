@@ -25,6 +25,16 @@ PANELS: tuple[dict, ...] = (
         'shell': SHELL_DJANGO_ERP,
         'icon': 'wrench',
         'sort': 10,
+        'theme': {
+            'accent': 'red',
+            'icon_bg': 'bg-red-50',
+            'icon_text': 'text-red-700',
+            'badge_bg': 'bg-red-100',
+            'badge_text': 'text-red-800',
+            'border': 'border-red-200',
+            'button_bg': 'bg-red-600',
+            'button_hover': 'hover:bg-red-700',
+        },
     },
     {
         'id': PANEL_KOBIPOS,
@@ -35,6 +45,16 @@ PANELS: tuple[dict, ...] = (
         'shell': SHELL_REACT_SPA,
         'icon': 'utensils',
         'sort': 20,
+        'theme': {
+            'accent': 'amber',
+            'icon_bg': 'bg-amber-50',
+            'icon_text': 'text-amber-700',
+            'badge_bg': 'bg-amber-100',
+            'badge_text': 'text-amber-800',
+            'border': 'border-amber-200',
+            'button_bg': 'bg-amber-600',
+            'button_hover': 'hover:bg-amber-700',
+        },
     },
 )
 
@@ -132,12 +152,21 @@ def application_rows(request=None) -> list[dict]:
 
 def panel_rows(request=None) -> list[dict]:
     """Admin panel listesi — panel + barındırdığı uygulamalar."""
+    from common.platform_test_access import (
+        active_brand_count_for_panel,
+        default_test_brand_for_panel,
+    )
+
     rows = []
     for panel in all_panels():
+        test_brand = default_test_brand_for_panel(panel['id'])
         rows.append({
             'panel': panel,
             'apps': apps_for_panel(panel['id']),
             'entry_url': panel_url(panel['id'], request),
             'shell_label': SHELL_LABELS.get(panel['shell'], panel['shell']),
+            'theme': panel.get('theme') or {},
+            'brand_count': active_brand_count_for_panel(panel['id']),
+            'default_test_brand': test_brand,
         })
     return rows
