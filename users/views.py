@@ -91,11 +91,14 @@ class UserLogoutView(AuthLogoutView):
     next_page = reverse_lazy('landing')
 
     def dispatch(self, request, *args, **kwargs):
-        from users.impersonation import SESSION_IMPERSONATE_USER_ID, SESSION_IMPERSONATOR_KEY
+        from common.brand_scope import clear_active_brand
+        from users.impersonation import is_impersonating, stop_impersonation
 
         if request.method == 'POST':
-            request.session.pop(SESSION_IMPERSONATE_USER_ID, None)
-            request.session.pop(SESSION_IMPERSONATOR_KEY, None)
+            if is_impersonating(request):
+                stop_impersonation(request)
+            else:
+                clear_active_brand(request)
         response = super().dispatch(request, *args, **kwargs)
         if request.method == 'POST':
             messages.info(request, 'Oturum kapatıldı.')

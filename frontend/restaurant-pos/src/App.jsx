@@ -206,6 +206,8 @@ function App() {
   const [sessionInspect, setSessionInspect] = useState({
     active: false,
     actor: null,
+    brandName: '',
+    isTestStore: false,
   });
 
   // Close mobile menu when tab changes
@@ -243,8 +245,10 @@ function App() {
           setAuthToken(data.token);
           setCurrentUser(data.user);
           setSessionInspect({
-            active: Boolean(data.impersonating && data.real_user_is_superuser),
+            active: Boolean(data.impersonating),
             actor: data.inspect_actor || null,
+            brandName: data.test_store_brand_name || '',
+            isTestStore: Boolean(data.test_store_inspection_active),
           });
           setAuthLoading(false);
           return;
@@ -351,10 +355,10 @@ function App() {
     setCurrentTab('dashboard');
   };
 
-  const handleStopDjangoInspect = () => {
+  const submitDjangoPost = (action) => {
     const form = document.createElement('form');
     form.method = 'POST';
-    form.action = '/profil/gecis/bitir/';
+    form.action = action;
     const csrf = document.cookie.match(/csrftoken=([^;]+)/);
     if (csrf) {
       const input = document.createElement('input');
@@ -365,6 +369,13 @@ function App() {
     }
     document.body.appendChild(form);
     form.submit();
+  };
+
+  const handleStopDjangoInspect = () => {
+    const action = sessionInspect.isTestStore
+      ? '/yonetim/paneller/test-kapat/'
+      : '/profil/gecis/bitir/';
+    submitDjangoPost(action);
   };
 
   const handleReturnToSuperAdmin = async () => {
@@ -390,9 +401,25 @@ function App() {
     localStorage.removeItem('original_super_user');
   };
 
-  const handleLogout = () => {
-    // Call logout API
-    apiFetch('/auth/logout/', { method: 'POST' }).catch(() => {});
+  const handleLogout = async () => {
+    try {
+      await apiFetch('/auth/logout/', { method: 'POST' });
+    } catch {
+      /* token logout optional */
+    }
+    try {
+      const csrf = document.cookie.match(/csrftoken=([^;]+)/);
+      const body = new URLSearchParams();
+      if (csrf) body.set('csrfmiddlewaretoken', csrf[1]);
+      await fetch('/cikis/', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: body.toString(),
+      });
+    } catch {
+      /* django logout optional */
+    }
     localStorage.removeItem('auth_token');
     localStorage.removeItem('auth_user');
     localStorage.removeItem('original_super_token');
@@ -400,7 +427,8 @@ function App() {
     setAuthToken(null);
     setCurrentUser(null);
     setOriginalSuperToken(null);
-    setCurrentTab('dashboard');
+    setSessionInspect({ active: false, actor: null, brandName: '', isTestStore: false });
+    window.location.href = '/';
   };
 
   const handleProfileUpdate = (updatedUser) => {
@@ -986,29 +1014,30 @@ function App() {
   }
 
   return (
-    <div className="app-container">
+    <div className={`app-container${sessionInspect.active ? ' app-container--inspect' : ''}`}>
       {sessionInspect.active && (
-        <div style={{
-          position: 'sticky', top: 0, zIndex: 70, background: '#f59e0b', color: '#78350f',
-          padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          gap: '12px', fontSize: '13px', fontWeight: 600, borderBottom: '1px solid #d97706',
-        }}>
-          <span>
-            Marka inceleme modu
-            {sessionInspect.actor ? ` — süper admin: ${sessionInspect.actor}` : ''}
-          </span>
+        <div className="inspect-preview-strip">
+          <p className="inspect-preview-strip__label">
+            {sessionInspect.isTestStore && (
+              <span className="inspect-preview-strip__badge">Test</span>
+            )}
+            {sessionInspect.brandName && (
+              <span className="inspect-preview-strip__brand">{sessionInspect.brandName}</span>
+            )}
+            {sessionInspect.brandName && <span className="inspect-preview-strip__sep">·</span>}
+            <span className="inspect-preview-strip__user">{currentUser?.username || currentUser?.email}</span>
+          </p>
           <button
             type="button"
             onClick={handleStopDjangoInspect}
-            style={{
-              padding: '6px 14px', borderRadius: '8px', border: '1px solid #92400e',
-              background: '#fffbeb', cursor: 'pointer', fontWeight: 700, fontSize: '12px',
-            }}
+            className="inspect-preview-strip__exit"
+            title="Yönetim paneline dön"
           >
-            Yönetime dön
+            Çık
           </button>
         </div>
       )}
+      <div className="app-body">
       {mobileMenuOpen && <div className="sidebar-overlay" onClick={() => setMobileMenuOpen(false)} />}
       {/* Sidebar Navigation */}
       <aside className={`sidebar ${mobileMenuOpen ? 'sidebar-open' : ''}`}>
@@ -1261,10 +1290,10 @@ function App() {
             </nav>
 
             <div className="sidebar-footer">
-              {/* Return to Super Admin — when impersonating */}
-              {(sessionInspect.active || originalSuperToken || localStorage.getItem('original_super_token')) && (
+              {/* SPA içi süper admin geçişi (Django inceleme şeridi ayrı gösterilir) */}
+              {!sessionInspect.active && (originalSuperToken || localStorage.getItem('original_super_token')) && (
                 <button
-                  onClick={sessionInspect.active ? handleStopDjangoInspect : handleReturnToSuperAdmin}
+                  onClick={handleReturnToSuperAdmin}
                   style={{
                     width: '100%', padding: '8px 14px', fontSize: '12px', display: 'flex', gap: '8px',
                     justifyContent: 'center', alignItems: 'center', marginTop: '4px',
@@ -1456,6 +1485,7 @@ function App() {
           </div>
         </section>
       </main>
+      </div>
 
       {/* Command Palette Search */}
       {showSearch && (

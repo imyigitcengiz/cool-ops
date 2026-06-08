@@ -108,13 +108,22 @@ def get_active_brand(request):
     return brand
 
 
-def set_active_brand(request, brand_id: int) -> bool:
-    if not _brand_id_allowed_for_user(request.user, brand_id):
+def set_active_brand(request, brand_id: int, *, user=None) -> bool:
+    actor = user or request.user
+    if not _brand_id_allowed_for_user(actor, brand_id):
         return False
     request.session[SESSION_ACTIVE_BRAND] = brand_id
     request._active_brand_id = brand_id
     request._active_brand_obj = None
     return True
+
+
+def clear_active_brand(request) -> None:
+    request.session.pop(SESSION_ACTIVE_BRAND, None)
+    if hasattr(request, '_active_brand_id'):
+        request._active_brand_id = None
+    if hasattr(request, '_active_brand_obj'):
+        request._active_brand_obj = None
 
 
 def ensure_session_brand(request) -> None:

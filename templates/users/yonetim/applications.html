@@ -52,13 +52,22 @@
                         </span>
                     </td>
                     <td class="px-5 py-4 text-right">
+                        {% if test_inspect_session.active and test_inspect_session.panel_id == row.panel.id %}
+                        <form method="post" action="{% url 'admin_panel_test_stop' %}" class="inline">
+                            {% csrf_token %}
+                            <button type="submit" class="inline-flex items-center gap-1 text-sm font-bold text-amber-800 hover:underline">
+                                Test marka oturumu kapat <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+                            </button>
+                        </form>
+                        {% else %}
                         <form method="post" action="{% url 'admin_panel_test_enter' %}" class="inline">
                             {% csrf_token %}
                             <input type="hidden" name="panel_id" value="{{ row.panel.id }}">
                             <button type="submit" class="inline-flex items-center gap-1 text-sm font-bold text-brand-700 hover:underline">
-                                Test mağazaya gir <i data-lucide="log-in" class="w-3.5 h-3.5"></i>
+                                Test markaya gir <i data-lucide="log-in" class="w-3.5 h-3.5"></i>
                             </button>
                         </form>
+                        {% endif %}
                     </td>
                 </tr>
                 {% empty %}

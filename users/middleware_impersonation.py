@@ -23,7 +23,9 @@ class ImpersonationMiddleware:
                 return self.get_response(request)
 
             actor = request.user
-            if not actor.is_superuser:
+            from common.platform_test_access import is_platform_test_inspector
+
+            if not (actor.is_superuser or is_platform_test_inspector(actor)):
                 request.session.pop(SESSION_IMPERSONATE_USER_ID, None)
                 return self.get_response(request)
 

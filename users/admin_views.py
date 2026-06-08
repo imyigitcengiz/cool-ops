@@ -123,17 +123,25 @@ class AdminBrandInspectView(PlatformStaffRequiredMixin, View):
             messages.error(request, 'Bu markanın tanımlı bir abonelik sahibi yok.')
             return self._inspect_fail_redirect(request)
 
+        if brand.is_test_store:
+            from common.plan_sync import apply_test_store_premium_plan
+
+            apply_test_store_premium_plan(brand, owner=owner)
+            owner = User.objects.select_related('role').get(pk=owner.pk)
+
         try:
-            start_impersonation(request, owner, brand=brand)
+            start_impersonation(request, owner, brand=brand, switch=True)
         except ImpersonationError as exc:
             messages.error(request, str(exc))
             return self._inspect_fail_redirect(request)
 
-        if not set_active_brand(request, brand.pk):
+        if not set_active_brand(request, brand.pk, user=owner):
             messages.error(request, 'Marka oturumu başlatılamadı.')
             return redirect('admin_users')
 
-        if is_restaurant_brand(brand) or is_restaurant_plan(owner.active_plan):
+        if is_restaurant_brand(brand):
+            apply_restaurant_owner_setup(owner, brand, request=request)
+        elif not brand.is_test_store and is_restaurant_plan(owner.active_plan):
             apply_restaurant_owner_setup(owner, brand, request=request)
 
         from users.platform_audit import log_platform_audit
@@ -648,6 +656,10 @@ class AdminBrandUpdateView(SuperuserRequiredMixin, UpdateView):
         owner = form.cleaned_data.get('owner')
         if owner:
             reassign_brand_owner(self.object, owner)
+        if form.instance.is_test_store:
+            from common.plan_sync import apply_test_store_premium_plan
+
+            apply_test_store_premium_plan(form.instance, owner=owner)
         messages.success(self.request, f'"{form.instance.name}" markası güncellendi.')
         return response
 

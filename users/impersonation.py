@@ -71,8 +71,10 @@ def can_impersonate(
     return False, 'Yalnızca süper admin veya test mağaza yetkilisi geçiş yapabilir.'
 
 
-def start_impersonation(request, target, *, brand=None) -> None:
+def start_impersonation(request, target, *, brand=None, switch: bool = False) -> None:
     actor = get_real_user(request)
+    if switch and is_impersonating(request):
+        stop_impersonation(request)
     ok, reason = can_impersonate(
         actor,
         target,
@@ -111,6 +113,9 @@ def stop_impersonation(request):
     actor = get_real_user(request)
     request.session.pop(SESSION_IMPERSONATE_USER_ID, None)
     request.session.pop(SESSION_IMPERSONATOR_KEY, None)
+    from common.brand_scope import clear_active_brand
+
+    clear_active_brand(request)
     request.session.modified = True
     from users.impersonation_audit import log_impersonation_audit
     from users.models import ImpersonationAudit

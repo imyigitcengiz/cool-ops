@@ -78,6 +78,25 @@ body.erp-app {
   font-family: 'Inter', system-ui, sans-serif;
 }
 
+/* Önizleme şeridi — flex gövdede tam genişlik, ince üst çubuk */
+.preview-strip {
+  width: 100%;
+  flex: 0 0 auto;
+  height: 2rem;
+  min-height: 2rem;
+  max-height: 2rem;
+  box-sizing: border-box;
+}
+
+.erp-app-frame {
+  display: flex;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  overflow: hidden;
+}
+
 body.erp-sidebar-body-lock {
   overflow: hidden;
 }

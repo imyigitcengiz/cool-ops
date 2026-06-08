@@ -8,9 +8,9 @@
     {% include 'common/erp_head_assets.html' %}
     {% block extra_head %}{% endblock %}
 </head>
-<body class="erp-app erp-unified-shell {{ erp_shell_theme|default:'erp-theme-sky' }} flex h-screen overflow-hidden bg-slate-50 text-slate-900{% block body_class %}{% endblock %}">
+<body class="erp-app erp-unified-shell {{ erp_shell_theme|default:'erp-theme-sky' }} flex flex-col h-screen overflow-hidden bg-slate-50 text-slate-900{% block body_class %}{% endblock %}">
     {% include 'common/impersonation_banner.html' %}
-    {% include 'common/test_store_banner.html' %}
+    <div class="erp-app-frame flex flex-1 min-h-0 min-w-0 w-full overflow-hidden">
     {% include 'common/erp_unified_sidebar.html' %}
     {% if erp_sidebar_expand and erp_sidebar_expand != 'panel' %}
     <script>
@@ -53,6 +53,7 @@
             {% block content %}{% endblock %}
         </div>
     </main>
+    </div>
     {% block shell_scripts %}{% endblock %}
     {% block shell_includes %}
     {% include 'common/erp_shell_extras.html' %}

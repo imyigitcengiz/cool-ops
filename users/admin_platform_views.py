@@ -34,9 +34,10 @@ class AdminApplicationsView(SuperuserRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         from common.panel_registry import SHELL_LABELS, application_rows
-        from common.platform_test_access import default_test_brand_for_panel
+        from common.platform_test_access import default_test_brand_for_panel, get_test_inspect_session
 
         context = super().get_context_data(**kwargs)
+        context['test_inspect_session'] = get_test_inspect_session(self.request)
         rows = []
         panel_test_brands = {}
         for row in application_rows(self.request):
@@ -69,7 +70,7 @@ class AdminPanelsView(PlatformStaffRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         from common.panel_registry import panel_rows
-        from common.platform_test_access import is_platform_test_inspector
+        from common.platform_test_access import get_test_inspect_session, is_platform_test_inspector
         from users.impersonation import get_real_user
 
         context = super().get_context_data(**kwargs)
@@ -79,6 +80,7 @@ class AdminPanelsView(PlatformStaffRequiredMixin, TemplateView):
         context['is_test_inspector_only'] = (
             is_platform_test_inspector(actor) and not actor.is_superuser
         )
+        context['test_inspect_session'] = get_test_inspect_session(self.request)
         return context
 
 
@@ -111,6 +113,33 @@ class AdminPanelTestEnterView(PlatformStaffRequiredMixin, View):
             messages.info(request, f'"{brand.name}" demo test mağazası oluşturuldu.')
 
         return AdminBrandInspectView().post(request, pk=brand.pk)
+
+
+class AdminPanelTestStopView(PlatformStaffRequiredMixin, View):
+    """Açık test marka inceleme oturumunu kapatır."""
+
+    def post(self, request):
+        from common.platform_test_access import get_test_inspect_session
+        from users.impersonation import stop_impersonation
+
+        session = get_test_inspect_session(request)
+        if not session['active']:
+            messages.info(request, 'Açık test marka oturumu yok.')
+            return redirect('admin_panels')
+
+        brand_name = session['brand_name'] or 'Test marka'
+        actor, previous = stop_impersonation(request)
+        if not actor:
+            messages.error(request, 'Oturum kapatılamadı.')
+            return redirect('admin_panels')
+
+        prev_label = getattr(previous, 'display_name', '') or getattr(previous, 'username', '')
+        messages.success(
+            request,
+            f'"{brand_name}" test marka oturumu kapatıldı.'
+            + (f' ({prev_label})' if prev_label else ''),
+        )
+        return redirect('admin_panels')
 
 
 class AdminPlanListView(SuperuserRequiredMixin, ListView):

@@ -1,11 +1,1 @@
-{% if test_store_inspection_active %}
-<div class="sticky top-0 z-[59] bg-violet-600 text-white border-b border-violet-700 shadow-md">
-    <div class="max-w-7xl mx-auto px-4 py-2 flex flex-wrap items-center justify-between gap-2 text-sm">
-        <p class="font-semibold flex items-center gap-2">
-            <i data-lucide="flask-conical" class="w-4 h-4"></i>
-            Test mağazası önizlemesi{% if test_store_brand_name %}: {{ test_store_brand_name }}{% endif %}
-        </p>
-        <span class="text-xs opacity-90">Canlı müşteri verisi değildir.</span>
-    </div>
-</div>
-{% endif %}
+{# Test mağaza bilgisi impersonation_banner içinde gösterilir — çift şerit önlenir. #}

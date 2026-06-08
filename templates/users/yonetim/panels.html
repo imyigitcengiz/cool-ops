@@ -11,6 +11,22 @@
 </div>
 {% endif %}
 
+{% if test_inspect_session.active %}
+<div class="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+    <p>
+        <span class="font-semibold">Açık test marka oturumu:</span>
+        {{ test_inspect_session.brand_name }}
+        <span class="text-amber-800/80">· {{ test_inspect_session.target_display_name }}</span>
+    </p>
+    <form method="post" action="{% url 'admin_panel_test_stop' %}" class="shrink-0">
+        {% csrf_token %}
+        <button type="submit" class="px-3 py-1.5 rounded-xl border border-amber-300 bg-white text-xs font-bold text-amber-900 hover:bg-amber-100">
+            Test marka oturumu kapat
+        </button>
+    </form>
+</div>
+{% endif %}
+
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
     {% for row in panels %}
     {% with theme=row.theme panel=row.panel %}
@@ -25,13 +41,22 @@
                     <p class="text-sm text-slate-500">{{ panel.summary }}</p>
                 </div>
             </div>
+            {% if test_inspect_session.active and test_inspect_session.panel_id == panel.id %}
+            <form method="post" action="{% url 'admin_panel_test_stop' %}" class="shrink-0">
+                {% csrf_token %}
+                <button type="submit" class="px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-50 text-xs font-bold text-amber-900 hover:bg-amber-100">
+                    Test marka oturumu kapat
+                </button>
+            </form>
+            {% else %}
             <form method="post" action="{% url 'admin_panel_test_enter' %}" class="shrink-0">
                 {% csrf_token %}
                 <input type="hidden" name="panel_id" value="{{ panel.id }}">
                 <button type="submit" class="px-3 py-1.5 rounded-xl text-white text-xs font-bold {{ theme.button_bg|default:'bg-slate-800' }} {{ theme.button_hover|default:'hover:bg-slate-900' }}">
-                    Test mağazaya gir
+                    Test markaya gir
                 </button>
             </form>
+            {% endif %}
         </div>
         <div class="px-5 py-3 bg-slate-50 border-b border-slate-100 flex flex-wrap gap-3 text-xs">
             <span><strong>Yol:</strong> <code>{{ panel.path_prefix }}</code></span>

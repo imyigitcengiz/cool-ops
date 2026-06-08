@@ -40,7 +40,17 @@ def can_inspect_brand(actor, brand) -> tuple[bool, str]:
     return True, ''
 
 
-DEMO_OWNER_USERNAME = '_platform_demo_owner'
+LEGACY_DEMO_OWNER_USERNAME = '_platform_demo_owner'
+DEMO_OWNER_USERNAME_BY_PANEL = {
+    'kobiops': '_platform_demo_owner_kobiops',
+    'kobipos': '_platform_demo_owner_kobipos',
+}
+# Geriye dönük uyumluluk
+DEMO_OWNER_USERNAME = LEGACY_DEMO_OWNER_USERNAME
+
+
+def demo_owner_username(panel_id: str) -> str:
+    return DEMO_OWNER_USERNAME_BY_PANEL.get(panel_id, LEGACY_DEMO_OWNER_USERNAME)
 
 
 def default_test_brand_for_panel(panel_id: str):
@@ -65,27 +75,44 @@ def default_test_brand_for_panel(panel_id: str):
 
 
 def _get_or_create_demo_owner(panel_id: str = 'kobiops'):
-    from core_settings.models import Plan
-    from common.module_plan import plan_included_modules
+    from common.plan_sync import premium_plan_for_test_store
 
+    username = demo_owner_username(panel_id)
     user, created = User.objects.get_or_create(
-        username=DEMO_OWNER_USERNAME,
+        username=username,
         defaults={'is_active': True},
     )
     if created:
         user.set_unusable_password()
 
-    plan_qs = Plan.objects.filter(is_active=True).order_by('price')
-    if panel_id == 'kobipos':
-        for plan in plan_qs:
-            if 'restaurant' in plan_included_modules(plan):
-                user.plan = plan
-                break
-    elif not user.plan_id:
-        user.plan = plan_qs.first()
-
+    plan = premium_plan_for_test_store(panel_id)
+    if plan:
+        user.plan = plan
     user.save()
     return user
+
+
+def _ensure_demo_brand_owner(brand, panel_id: str):
+    """Test markanın paneline özel demo sahibini garanti eder (paylaşımlı eski sahip ayrılır)."""
+    from common.brand_team import subscription_owner_for_brand
+    from users.admin_services import reassign_brand_owner
+
+    target = _get_or_create_demo_owner(panel_id)
+    owner = subscription_owner_for_brand(brand)
+    legacy_usernames = {
+        LEGACY_DEMO_OWNER_USERNAME,
+        *DEMO_OWNER_USERNAME_BY_PANEL.values(),
+    }
+    if owner and owner.username in legacy_usernames and owner.pk != target.pk:
+        reassign_brand_owner(brand, target)
+        owner = target
+    elif not owner or owner.pk != target.pk:
+        reassign_brand_owner(brand, target)
+        owner = target
+    from common.plan_sync import apply_test_store_premium_plan
+
+    apply_test_store_premium_plan(brand, owner=owner)
+    return owner
 
 
 def ensure_default_test_brand_for_panel(panel_id: str):
@@ -94,8 +121,11 @@ def ensure_default_test_brand_for_panel(panel_id: str):
     from common.panel_registry import PANEL_KOBIPOS, panel_by_id
     from core_settings.models import BusinessBrand, SiteSettings
 
+    from common.plan_sync import apply_test_store_premium_plan
+
     existing = default_test_brand_for_panel(panel_id)
     if existing:
+        _ensure_demo_brand_owner(existing, panel_id)
         return existing
 
     owner = _get_or_create_demo_owner(panel_id)
@@ -123,6 +153,7 @@ def ensure_default_test_brand_for_panel(panel_id: str):
         settings.default_test_brand_kobipos = brand
         settings.save(update_fields=['default_test_brand_kobipos'])
 
+    _ensure_demo_brand_owner(brand, panel_id)
     return brand
 
 
@@ -145,7 +176,7 @@ def active_brand_count_for_panel(panel_id: str) -> int:
 def is_platform_staff_yonetim_path(path: str, method: str = 'GET') -> bool:
     if path == '/yonetim/paneller/' or path.startswith('/yonetim/paneller'):
         return True
-    if path == '/yonetim/paneller/test-gir/':
+    if path in ('/yonetim/paneller/test-gir/', '/yonetim/paneller/test-kapat/'):
         return True
     if method.upper() == 'POST' and '/yonetim/markalar/' in path and path.rstrip('/').endswith('/incele'):
         return True
@@ -153,13 +184,37 @@ def is_platform_staff_yonetim_path(path: str, method: str = 'GET') -> bool:
 
 
 def is_inspecting_test_store(request) -> bool:
+    return bool(get_test_inspect_session(request)['active'])
+
+
+def get_test_inspect_session(request) -> dict:
+    """Açık test marka inceleme oturumu (impersonation + is_test_store marka)."""
+    from common.brand_panel_meta import brand_panel_id
     from common.brand_scope import get_active_brand
     from users.impersonation import get_real_user, is_impersonating
 
+    empty = {
+        'active': False,
+        'brand': None,
+        'panel_id': '',
+        'brand_name': '',
+        'target_username': '',
+        'target_display_name': '',
+    }
     if not is_impersonating(request):
-        return False
+        return empty
     actor = get_real_user(request)
     if not is_platform_test_inspector(actor):
-        return False
+        return empty
     brand = get_active_brand(request)
-    return bool(brand and brand.is_test_store)
+    if not brand or not brand.is_test_store:
+        return empty
+    target = request.user
+    return {
+        'active': True,
+        'brand': brand,
+        'panel_id': brand_panel_id(brand, owner=target),
+        'brand_name': brand.name,
+        'target_username': getattr(target, 'username', '') or '',
+        'target_display_name': getattr(target, 'display_name', '') or getattr(target, 'username', ''),
+    }

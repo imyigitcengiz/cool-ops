@@ -48,6 +48,8 @@ def resolve_brand_panel(brand, owner=None) -> dict:
     """Marka için hedef panel kaydı."""
     if is_restaurant_brand(brand):
         return panel_by_id(PANEL_KOBIPOS) or panel_by_id(DEFAULT_PANEL_ID)
+    if brand and getattr(brand, 'is_test_store', False):
+        return panel_by_id(PANEL_KOBIOPS) or panel_by_id(DEFAULT_PANEL_ID)
     if owner and is_restaurant_plan(
         getattr(owner, 'active_plan', None) or getattr(owner, 'plan', None)
     ):

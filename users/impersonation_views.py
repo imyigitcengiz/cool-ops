@@ -43,6 +43,16 @@ class ImpersonateStopView(LoginRequiredMixin, View):
     login_url = reverse_lazy('login')
 
     def post(self, request):
+        from common.platform_test_access import get_test_inspect_session, is_platform_test_inspector
+        from users.impersonation import get_real_user
+
+        test_session = get_test_inspect_session(request)
+        real_actor = get_real_user(request)
+        return_to_panels = bool(
+            test_session['active']
+            or (is_platform_test_inspector(real_actor) and not real_actor.is_superuser)
+        )
+
         actor, previous = stop_impersonation(request)
         if not actor:
             messages.info(request, 'Aktif kullanıcı geçişi yok.')
@@ -54,4 +64,6 @@ class ImpersonateStopView(LoginRequiredMixin, View):
             f'Kullanıcı görünümü sonlandırıldı. Tekrar "{actor.display_name}" olarak oturum açtınız.'
             + (f' (Önceki: {prev_label})' if prev_label else ''),
         )
+        if return_to_panels:
+            return redirect('admin_panels')
         return redirect('admin_dashboard')

@@ -127,12 +127,23 @@ def session_bridge_view(request):
     profile = get_api_profile(request.user, request)
     token, _ = Token.objects.get_or_create(user=request.user)
     impersonator = get_impersonator(request)
+    from common.platform_test_access import is_inspecting_test_store
+
+    test_store_active = is_inspecting_test_store(request)
+    test_store_brand_name = ''
+    if test_store_active:
+        from common.brand_scope import get_active_brand
+
+        brand = get_active_brand(request)
+        test_store_brand_name = brand.name if brand else ''
     return Response({
         'token': token.key,
         'user': _serialize_user(request.user, profile, request),
         'impersonating': is_impersonating(request),
         'real_user_is_superuser': bool(impersonator and impersonator.is_superuser),
         'inspect_actor': impersonator.username if impersonator else None,
+        'test_store_inspection_active': test_store_active,
+        'test_store_brand_name': test_store_brand_name,
     })
 
 

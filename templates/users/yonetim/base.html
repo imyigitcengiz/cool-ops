@@ -7,7 +7,9 @@
     {% load static %}
     {% include 'common/erp_head_assets.html' %}
 </head>
-<body class="erp-app erp-theme-sky flex h-screen overflow-hidden bg-slate-100">
+<body class="erp-app erp-theme-sky flex flex-col h-screen overflow-hidden bg-slate-100">
+    {% include 'common/impersonation_banner.html' %}
+    <div class="erp-app-frame flex flex-1 min-h-0 min-w-0 w-full overflow-hidden">
     {% include 'common/erp_mobile_sidebar_start.html' with sidebar_width='w-64' %}
         <div class="p-6 border-b border-slate-800">
             <a href="{% url 'admin_dashboard' %}" class="text-lg font-bold text-white flex items-center gap-2">
@@ -47,6 +49,7 @@
             {% block content %}{% endblock %}
         </div>
     </main>
+    </div>
     {% include 'common/team_chat_widget.html' %}
     {% include 'common/erp_shell_extras.html' %}
     {% include 'common/erp_mobile_sidebar_script.html' %}
