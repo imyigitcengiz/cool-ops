@@ -43,8 +43,14 @@ class PublicLandingView(TemplateView):
 
     def get_context_data(self, **kwargs):
         from common.landing_content import (
+            LANDING_HUB_INTRO,
             LANDING_VERTICAL_COPY,
+            LANDING_RESTAURANT_FEATURES,
+            LANDING_RESTAURANT_PLANS,
+            DEFAULT_LANDING_VERTICAL,
             LANDING_PILLARS,
+            LANDING_AUDIENCE_KOBIOPS,
+            LANDING_AUDIENCE_KOBIPOS,
             LANDING_SERVICES_FEATURES,
             LANDING_MUHASEBE_FEATURES,
             LANDING_REHBER_FEATURES,
@@ -55,8 +61,6 @@ class PublicLandingView(TemplateView):
             LANDING_SECTORS,
             LANDING_FLOW_SAHA,
             LANDING_FLOW_HIZMET,
-            LANDING_DEPLOY_PLATFORMS,
-            LANDING_AUDIENCE,
             build_landing_particle_groups,
         )
         from common.module_catalog import (
@@ -87,7 +91,17 @@ class PublicLandingView(TemplateView):
         apps.sort(key=lambda a: (a.get('sort', 99), a['name']))
         integrations.sort(key=lambda a: (a.get('sort', 99), a['name']))
         roadmap.sort(key=lambda a: (a.get('sort', 99), a['name']))
-        context['landing_vertical_copy'] = LANDING_VERTICAL_COPY['kobi']
+        active_vertical = self.request.GET.get('vertical', DEFAULT_LANDING_VERTICAL)
+        if active_vertical not in LANDING_VERTICAL_COPY:
+            active_vertical = DEFAULT_LANDING_VERTICAL
+        context['landing_vertical'] = active_vertical
+        context['landing_vertical_copy'] = LANDING_VERTICAL_COPY[active_vertical]
+        context['landing_hub_intro'] = LANDING_HUB_INTRO
+        context['landing_audience'] = (
+            LANDING_AUDIENCE_KOBIPOS if active_vertical == 'restaurant' else LANDING_AUDIENCE_KOBIOPS
+        )
+        context['landing_restaurant_features'] = LANDING_RESTAURANT_FEATURES
+        context['landing_restaurant_plans'] = LANDING_RESTAURANT_PLANS
         context['landing_apps'] = apps
         context['landing_integrations'] = integrations
         context['landing_roadmap'] = roadmap
@@ -103,10 +117,14 @@ class PublicLandingView(TemplateView):
         context['landing_flow_saha'] = LANDING_FLOW_SAHA
         context['landing_flow_hizmet'] = LANDING_FLOW_HIZMET
         context['landing_particle_groups'] = build_landing_particle_groups()
+        from common.panel_registry import PANEL_KOBIPOS, PANEL_KOBIOPS, panel_url
         from core_settings.models import Plan
+
+        kobiops_url = panel_url(PANEL_KOBIOPS)
+        kobipos_url = panel_url(PANEL_KOBIPOS)
+        context['landing_kobiops_login_url'] = f"{reverse('login')}?next={kobiops_url}"
+        context['landing_kobipos_login_url'] = f"{reverse('login')}?next={kobipos_url}"
         context['plans'] = Plan.objects.filter(is_active=True).order_by('price')
-        context['landing_deploy_platforms'] = LANDING_DEPLOY_PLATFORMS
-        context['landing_audience'] = LANDING_AUDIENCE
         return context
 
 
@@ -260,12 +278,14 @@ class SubscriptionView(LoginRequiredMixin, TemplateView):
 
         elif action == 'upgrade_plan':
             from common.module_plan import clamp_owner_modules_to_plan
+            from common.plan_sync import sync_owner_brands_from_plan
             from core_settings.models import Plan, BillingInvoice
             try:
                 plan = Plan.objects.get(pk=request.POST.get('plan_id'), is_active=True)
                 user.plan = plan
                 user.save(update_fields=['plan'])
                 clamp_owner_modules_to_plan(user)
+                sync_owner_brands_from_plan(user)
                 BillingInvoice.objects.create(user=user, plan=plan, amount=plan.price, status='paid')
                 messages.success(request, f'Aboneliğiniz "{plan.name}" planına güncellendi.')
             except Plan.DoesNotExist:

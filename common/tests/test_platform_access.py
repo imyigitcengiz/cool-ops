@@ -25,22 +25,22 @@ class PlatformAccessTests(TestCase):
             self.owner.save()
         create_brand_for_user(self.owner, 'HQ')
 
-    def test_superuser_can_access_panel(self):
+    def test_superuser_tenant_panel_redirects_to_yonetim(self):
         self.client.force_login(self.superuser)
         response = self.client.get('/panel/')
-        self.assertEqual(response.status_code, 200)
+        self.assertRedirects(response, '/yonetim/')
 
-    def test_superuser_can_access_contact(self):
+    def test_superuser_contact_redirects_to_yonetim(self):
         self.client.force_login(self.superuser)
         response = self.client.get('/contact/')
-        self.assertEqual(response.status_code, 200)
+        self.assertRedirects(response, '/yonetim/')
 
-    def test_superuser_login_can_use_panel_next(self):
+    def test_superuser_login_panel_next_redirects_to_yonetim(self):
         response = self.client.post('/giris/?next=/panel/', {
             'username': 'super',
             'password': 'test1234',
-        })
-        self.assertRedirects(response, '/panel/')
+        }, follow=True)
+        self.assertTrue(any(url == '/yonetim/' for url, _ in response.redirect_chain))
 
     def test_superuser_roles_next_goes_to_roles_page(self):
         response = self.client.post('/giris/?next=/yonetim/roller/', {
@@ -63,8 +63,9 @@ class PlatformAccessTests(TestCase):
         role = Role.objects.filter(slug='admin').first()
         plain = User.objects.create_user(username='plain', password='test1234', role=role)
         self.client.force_login(plain)
-        response = self.client.get('/ayarlar/yedekler/')
-        self.assertRedirects(response, '/panel/')
+        response = self.client.get('/ayarlar/yedekler/', follow=True)
+        self.assertTrue(response.redirect_chain)
+        self.assertTrue(response.redirect_chain[-1][0].startswith('/panel/'))
 
     def test_brand_owner_without_role_can_access_panel(self):
         owner = User.objects.create_user(username='owner_norole', password='test1234')
@@ -74,10 +75,15 @@ class PlatformAccessTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertLessEqual(len(response.redirect_chain), 1)
 
-    def test_brand_owner_yonetim_redirects_without_loop(self):
+    def test_brand_owner_cannot_access_yonetim(self):
         owner = User.objects.create_user(username='owner_yon', password='test1234')
         create_brand_for_user(owner, 'Yon HQ')
         self.client.force_login(owner)
-        response = self.client.get('/yonetim/', follow=True)
-        self.assertEqual(response.status_code, 200)
-        self.assertLessEqual(len(response.redirect_chain), 2)
+        response = self.client.get('/yonetim/')
+        self.assertEqual(response.status_code, 403)
+
+    def test_staff_without_superuser_cannot_access_django_admin(self):
+        staff = User.objects.create_user(username='staff', password='test1234', is_staff=True)
+        self.client.force_login(staff)
+        response = self.client.get('/admin/')
+        self.assertEqual(response.status_code, 403)

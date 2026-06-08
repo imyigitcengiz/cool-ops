@@ -15,6 +15,9 @@ def gy_branding(request):
     return {
         'gy': {
             'app_name': ml.APP_NAME,
+            'kobiops': ml.PRODUCT_KOBIOPS,
+            'kobipos': ml.PRODUCT_KOBIPOS,
+            'app_tagline': ml.APP_TAGLINE,
             'ana_panel': ml.ANA_PANEL,
             'ozellikler': ml.OZELLIKLER,
             'modul_merkezi': ml.MODUL_MERKEZI,
@@ -161,3 +164,14 @@ def active_brand_context(request):
 def _all_module_slugs():
     from common.module_catalog import MODULES
     return [m['slug'] for m in MODULES]
+
+
+def admin_nav_context(request):
+    """Süper admin sidebar — yalnızca /yonetim/ altında."""
+    if not getattr(request, 'path', '').startswith('/yonetim/'):
+        return {}
+    match = getattr(request, 'resolver_match', None)
+    url_name = getattr(match, 'url_name', None) if match else None
+    from users.admin_nav import admin_nav_groups
+
+    return {'admin_nav_groups': admin_nav_groups(url_name, request)}

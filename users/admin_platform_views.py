@@ -20,6 +20,50 @@ from .models import ImpersonationAudit, PlatformAuditLog
 User = get_user_model()
 
 
+_STATUS_LABELS = {
+    'active': 'Aktif',
+    'beta': 'Beta',
+    'roadmap': 'Yol haritası',
+}
+
+
+class AdminApplicationsView(SuperuserRequiredMixin, TemplateView):
+    """Sistemdeki uygulama modülleri ve panel eşlemesi (salt okunur)."""
+
+    template_name = 'users/yonetim/applications.html'
+
+    def get_context_data(self, **kwargs):
+        from common.panel_registry import SHELL_LABELS, application_rows
+
+        context = super().get_context_data(**kwargs)
+        rows = []
+        for row in application_rows(self.request):
+            mod = row['module']
+            panel = row['panel'] or {}
+            rows.append({
+                **row,
+                'panel': panel,
+                'shell_label': SHELL_LABELS.get(panel.get('shell', ''), panel.get('shell', '')),
+                'status': mod.get('status', ''),
+                'status_label': _STATUS_LABELS.get(mod.get('status', ''), mod.get('status', '')),
+            })
+        context['applications'] = rows
+        return context
+
+
+class AdminPanelsView(SuperuserRequiredMixin, TemplateView):
+    """Marka panelleri ve barındırdıkları uygulamalar."""
+
+    template_name = 'users/yonetim/panels.html'
+
+    def get_context_data(self, **kwargs):
+        from common.panel_registry import panel_rows
+
+        context = super().get_context_data(**kwargs)
+        context['panels'] = panel_rows(self.request)
+        return context
+
+
 class AdminPlanListView(SuperuserRequiredMixin, ListView):
     model = Plan
     template_name = 'users/yonetim/plan_list.html'

@@ -13,7 +13,7 @@ import os
 
 from common.panel_env import detect_panel_fqdn, detect_panel_origin, is_http_only_panel_host
 
-_IS_PROD = not os.environ.get('DJANGO_DEBUG', '1').lower() in ('1', 'true', 'yes')
+_IS_PROD = not os.environ.get('DJANGO_DEBUG', '0').lower() in ('1', 'true', 'yes')
 
 
 def _resolve_use_ssl() -> bool:

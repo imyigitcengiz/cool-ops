@@ -1,4 +1,5 @@
 Django==5.2.14
+djangorestframework==3.16.0
 django-filter==25.2
 python-dateutil>=2.9.0
 pillow==12.2.0

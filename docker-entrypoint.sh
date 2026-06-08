@@ -47,9 +47,17 @@ python manage.py sync_permissions 2>/dev/null || true
 python manage.py ensure_chat 2>/dev/null || true
 
 if [ "${DJANGO_ENSURE_SUPERADMIN_RESET:-0}" = "1" ]; then
-  python manage.py ensure_superadmin --reset-password || true
+  if [ -z "${DJANGO_SUPERADMIN_PASSWORD:-}" ]; then
+    echo "[cool-ops] HATA: DJANGO_ENSURE_SUPERADMIN_RESET=1 için DJANGO_SUPERADMIN_PASSWORD gerekli."
+    exit 1
+  fi
+  python manage.py ensure_superadmin --reset-password
 elif [ "${DJANGO_ENSURE_SUPERADMIN:-0}" = "1" ]; then
-  python manage.py ensure_superadmin || true
+  if [ -z "${DJANGO_SUPERADMIN_PASSWORD:-}" ] && [ "${DJANGO_DEBUG:-0}" != "1" ]; then
+    echo "[cool-ops] HATA: Üretimde DJANGO_ENSURE_SUPERADMIN=1 için DJANGO_SUPERADMIN_PASSWORD gerekli."
+    exit 1
+  fi
+  python manage.py ensure_superadmin
 fi
 
 if [ "${DJANGO_WHATSAPP_BRIDGE_WAIT_ON_START:-0}" = "1" ] && [ "${DJANGO_WHATSAPP_BRIDGE_CAN_SPAWN:-0}" != "1" ] && [ -n "${WHATSAPP_BRIDGE_URL:-}" ]; then

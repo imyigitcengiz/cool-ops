@@ -1,0 +1,70 @@
+{% extends 'users/yonetim/base.html' %}
+{% block title %}Uygulama Modülleri{% endblock %}
+{% block header_title %}Uygulama Modülleri{% endblock %}
+{% block header_subtitle %}Sistemdeki uygulamalar ve açtıkları marka panelleri{% endblock %}
+{% block content %}
+{% include 'users/yonetim/components/page_header.html' with title="Uygulama Modülleri" subtitle="Her uygulama hangi marka panelini açar — merkezi kayıt (salt okunur)." %}
+
+<div class="mb-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600">
+    Yeni uygulama eklemek için <code class="text-xs bg-white px-1.5 py-0.5 rounded">common/panel_registry.py</code> ve
+    <code class="text-xs bg-white px-1.5 py-0.5 rounded">common/module_catalog.py</code> dosyalarına kayıt ekleyin; bu liste otomatik güncellenir.
+</div>
+
+<div class="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-slate-50 border-b border-slate-200">
+                <tr>
+                    <th class="text-left px-5 py-3 font-bold text-slate-600">Uygulama</th>
+                    <th class="text-left px-5 py-3 font-bold text-slate-600">Panel</th>
+                    <th class="text-left px-5 py-3 font-bold text-slate-600">Panel yolu</th>
+                    <th class="text-left px-5 py-3 font-bold text-slate-600">Durum</th>
+                    <th class="text-right px-5 py-3 font-bold text-slate-600">İşlem</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for row in applications %}
+                <tr class="hover:bg-slate-50/80">
+                    <td class="px-5 py-4">
+                        <div class="flex items-center gap-3">
+                            <span class="w-9 h-9 rounded-xl bg-slate-100 flex items-center justify-center shrink-0">
+                                <i data-lucide="{{ row.module.icon }}" class="w-4 h-4 text-slate-600"></i>
+                            </span>
+                            <div>
+                                <p class="font-bold text-slate-900">{{ row.module.name }}</p>
+                                <p class="text-xs text-slate-500">{{ row.module.slug }}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-5 py-4">
+                        <p class="font-semibold text-slate-800">{{ row.panel.name }}</p>
+                        <p class="text-xs text-slate-500">{{ row.shell_label }}</p>
+                    </td>
+                    <td class="px-5 py-4">
+                        <code class="text-xs bg-slate-100 px-2 py-1 rounded-lg">{{ row.panel.path_prefix }}</code>
+                    </td>
+                    <td class="px-5 py-4">
+                        <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-bold
+                            {% if row.status == 'active' %}bg-emerald-100 text-emerald-800
+                            {% elif row.status == 'beta' %}bg-amber-100 text-amber-800
+                            {% else %}bg-slate-100 text-slate-600{% endif %}">
+                            {{ row.status_label }}
+                        </span>
+                    </td>
+                    <td class="px-5 py-4 text-right">
+                        <a href="{{ row.panel_url }}" target="_blank" rel="noopener"
+                           class="inline-flex items-center gap-1 text-sm font-bold text-red-700 hover:underline">
+                            Paneli aç <i data-lucide="external-link" class="w-3.5 h-3.5"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="px-5 py-8 text-center text-slate-500">Kayıtlı uygulama modülü yok.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

@@ -63,6 +63,17 @@ class SuperAdminDashboardView(SuperuserRequiredMixin, TemplateView):
                 for m in user.brand_memberships.all()
                 if m.role == BrandMembership.ROLE_OWNER
             ]
+        try:
+            from restaurant.models import RestaurantBranch, RestaurantTenantProfile
+            context['restaurant_tenant_count'] = RestaurantTenantProfile.objects.count()
+            context['restaurant_branch_count'] = RestaurantBranch.objects.count()
+            context['restaurant_franchise_panels'] = RestaurantBranch.objects.filter(
+                panel_enabled=True, is_active=True,
+            ).count()
+        except Exception:
+            context['restaurant_tenant_count'] = 0
+            context['restaurant_branch_count'] = 0
+            context['restaurant_franchise_panels'] = 0
         return context
 
 
@@ -80,13 +91,33 @@ def _attach_admin_owned_brands(users):
 
 
 class AdminBrandInspectView(SuperuserRequiredMixin, View):
-    """Süper admin — markayı doğrudan inceler (impersonate gerekmez)."""
+    """Süper admin — marka sahibi olarak inceleme (impersonation)."""
 
     def post(self, request, pk):
         brand = get_object_or_404(BusinessBrand, pk=pk, is_active=True)
+        from common.brand_team import subscription_owner_for_brand
+        from common.panel_routing import is_restaurant_brand, is_restaurant_plan, resolve_brand_panel_url
+        from restaurant.onboarding import apply_restaurant_owner_setup
+        from users.impersonation import ImpersonationError, start_impersonation
+
+        owner = subscription_owner_for_brand(brand)
+        if not owner:
+            messages.error(request, 'Bu markanın tanımlı bir abonelik sahibi yok.')
+            return redirect('admin_brands')
+
+        try:
+            start_impersonation(request, owner)
+        except ImpersonationError as exc:
+            messages.error(request, str(exc))
+            return redirect('admin_brands')
+
         if not set_active_brand(request, brand.pk):
             messages.error(request, 'Marka oturumu başlatılamadı.')
             return redirect('admin_users')
+
+        if is_restaurant_brand(brand) or is_restaurant_plan(owner.active_plan):
+            apply_restaurant_owner_setup(owner, brand, request=request)
+
         from users.platform_audit import log_platform_audit
         from users.models import PlatformAuditLog
 
@@ -94,16 +125,16 @@ class AdminBrandInspectView(SuperuserRequiredMixin, View):
             request,
             action=PlatformAuditLog.ACTION_BRAND_INSPECT,
             brand=brand,
-            detail=brand.name,
+            detail=f'{brand.name} (sahip: {owner.username})',
         )
         messages.success(
             request,
-            f'"{brand.name}" markasına süper admin olarak girdiniz.',
+            f'"{brand.name}" markası {owner.get_full_name() or owner.username} olarak inceleniyor.',
         )
         next_url = (request.POST.get('next') or '').strip()
         if next_url.startswith('/'):
             return redirect(next_url)
-        return redirect('home')
+        return redirect(resolve_brand_panel_url(brand, owner=owner, request=request))
 
 
 class RoleListView(SuperuserRequiredMixin, ListView):
@@ -296,10 +327,20 @@ class AdminUserCreateView(SuperuserRequiredMixin, CreateView):
                 user.delete()
                 form.add_error('brand_name', str(exc))
                 return self.form_invalid(form)
-            messages.success(
-                self.request,
-                f'Abonelik sahibi "{user.display_name}" ve marka "{brand.name}" oluşturuldu.',
-            )
+            from common.panel_routing import is_restaurant_plan
+            from restaurant.onboarding import apply_restaurant_owner_setup
+
+            if is_restaurant_plan(user.active_plan):
+                apply_restaurant_owner_setup(user, brand, request=self.request)
+                messages.success(
+                    self.request,
+                    f'Abonelik sahibi "{user.display_name}" ve KobiPOS markası "{brand.name}" oluşturuldu.',
+                )
+            else:
+                messages.success(
+                    self.request,
+                    f'Abonelik sahibi "{user.display_name}" ve marka "{brand.name}" oluşturuldu.',
+                )
             return redirect(self.success_url)
 
         brand = form.cleaned_data['brand']
@@ -483,7 +524,7 @@ class AdminBrandDetailView(SuperuserRequiredMixin, TemplateView):
 
         context = super().get_context_data(**kwargs)
         brand = get_object_or_404(
-            BusinessBrand.objects.select_related('parent_brand', 'created_by'),
+            BusinessBrand.objects.select_related('parent_brand', 'created_by', 'first_owner'),
             pk=self.kwargs['pk'],
         )
         memberships = (
@@ -497,6 +538,7 @@ class AdminBrandDetailView(SuperuserRequiredMixin, TemplateView):
         context['brand'] = brand
         context['memberships'] = memberships
         context['owner_user'] = owner_mem.user if owner_mem else brand.created_by
+        context['first_owner_user'] = brand.first_owner
         context['dealer_panels'] = brand.dealer_panels.filter(is_active=True).order_by('name')
         context['tenant_url'] = build_brand_public_url(brand, self.request)
         context['tenant_key'] = brand.tenant_key

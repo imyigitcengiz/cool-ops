@@ -20,10 +20,43 @@ def page_not_found(request, exception=None):
 
 
 def permission_denied(request, exception=None):
+    detail = ''
+    if exception is not None:
+        detail = getattr(exception, 'args', [None])[0] or str(exception)
     return render(
         request,
         'errors/403.html',
-        {'exception': exception},
+        {'exception': detail},
+        status=403,
+    )
+
+
+def bad_request(request, exception=None):
+    detail = ''
+    if exception is not None:
+        detail = getattr(exception, 'args', [None])[0] or str(exception)
+    return render(
+        request,
+        'errors/400.html',
+        {'error_message': detail},
+        status=400,
+    )
+
+
+def server_error(request):
+    return render(request, 'errors/500.html', status=500)
+
+
+def csrf_failure(request, reason=''):
+    return render(
+        request,
+        'errors/403.html',
+        {
+            'exception': (
+                'Oturum doğrulaması başarısız oldu. '
+                'Sayfayı yenileyip işlemi tekrar deneyin.'
+            ),
+        },
         status=403,
     )
 
@@ -60,4 +93,7 @@ class IntroducerKnowledgeBaseView(TemplateView):
         slug = self.request.GET.get('yol', '').strip()
         context['active_journey'] = get_journey(slug)
         context['active_journey_slug'] = context['active_journey']['slug'] if context['active_journey'] else ''
+        from common.panel_registry import PANEL_KOBIPOS, panel_url
+
+        context['kobipos_panel_url'] = panel_url(PANEL_KOBIPOS)
         return context

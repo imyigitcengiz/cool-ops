@@ -2,15 +2,71 @@
 
 from __future__ import annotations
 
+from common.module_labels import APP_NAME, PRODUCT_KOBIPOS, PRODUCT_KOBIOPS
+
+LANDING_HUB_INTRO: dict = {
+    'headline': 'İşletmenizi tek platformdan büyütün',
+    'lead': (
+        f'{APP_NAME}; saha operasyonları için {PRODUCT_KOBIOPS} ve restoran yönetimi için '
+        f'{PRODUCT_KOBIPOS} olmak üzere iki uzmanlaşmış ürün sunar. Tek hesap, ortak altyapı, '
+        'sektörünüze göre doğru panele yönlendirme.'
+    ),
+    'products': (
+        {
+            'slug': 'kobiops',
+            'name': PRODUCT_KOBIOPS,
+            'icon': 'wrench',
+            'tagline': 'Montaj, servis ve KOBİ operasyonları',
+            'description': (
+                'Rehber, yardım masası, ön muhasebe, teklif, stok reçetesi ve WhatsApp — '
+                'saha ekipleri ve bayi ağları için operasyon paneli.'
+            ),
+            'vertical': 'kobi',
+            'cta': f'{PRODUCT_KOBIOPS}\'u keşfet',
+        },
+        {
+            'slug': 'kobipos',
+            'name': PRODUCT_KOBIPOS,
+            'icon': 'utensils',
+            'tagline': 'Restoran & kafe · bulut POS',
+            'description': (
+                'Masa siparişi, mutfak ekranı, menü, kasa, franchise paneli ve ciro raporları — '
+                'restoranlar için uçtan uca yönetim.'
+            ),
+            'vertical': 'restaurant',
+            'cta': f'{PRODUCT_KOBIPOS}\'u keşfet',
+        },
+    ),
+}
+
 LANDING_VERTICAL_COPY: dict[str, dict] = {
+    'restaurant': {
+        'badge': f'{PRODUCT_KOBIPOS} · Restoran & Kafe',
+        'product_name': PRODUCT_KOBIPOS,
+        'headline': 'Restoranınızı buluttan yönetin, hızla büyütün.',
+        'lead': (
+            f'{PRODUCT_KOBIPOS} ile masa siparişleri, mutfak akışı, hızlı ödemeler ve ciro analizleri '
+            'tek panelde. Yeni başlayan ve büyüyen restoranlar için optimize edilmiş bulut altyapısı — '
+            '14 gün ücretsiz deneme.'
+        ),
+        'highlights': (
+            ('utensils', 'Masa & Sipariş', 'Garsonlar saniyeler içinde sipariş girsin'),
+            ('chef-hat', 'Mutfak Ekranı', 'KDS ile hazırlık sürelerini izleyin'),
+            ('credit-card', 'Hızlı Ödeme', 'Nakit ve kart ile hesap kapatma'),
+            ('book-open', 'Menü Yönetimi', 'Anlık fiyat ve kategori güncellemesi'),
+            ('pie-chart', 'Raporlama', 'Ciro, en çok satan ürünler'),
+            ('git-branch', 'Franchise', 'Çok şubeli yapı ve harici panel'),
+        ),
+    },
     'kobi': {
-        'badge': 'Modüler operasyon paneli · self-host',
+        'badge': f'{PRODUCT_KOBIOPS} · KOBİ operasyon paneli',
+        'product_name': PRODUCT_KOBIOPS,
         'headline': 'Müşteri, servis, satış, kasa ve ekibiniz tek panelde.',
         'lead': (
-            'Montaj ve saha servis KOBİ’leri için tasarlanmış; modüller açılıp kapatılarak '
-            'bayi ağları, hizmet firmaları ve iletişim odaklı ekipler de aynı altyapıyı kullanabilir. '
-            'Rehber, yardım masası, ön muhasebe, WhatsApp ve medya — kendi sunucunuzda.'
-        ),
+            f'{PRODUCT_KOBIOPS}; montaj ve saha servis KOBİ’leri için tasarlanmış modüler operasyon paneli. '
+            'Modüller ihtiyaca göre açılıp kapatılır; bayi ağları ve hizmet firmaları aynı altyapıyı kullanır. '
+            'Rehber, yardım masası, ön muhasebe, WhatsApp ve medya — {APP_NAME} güvencesiyle.'
+        ).replace('{APP_NAME}', APP_NAME),
         'highlights': (
             ('headphones', 'Yardım Masası', 'İş emri, saha planı, WhatsApp'),
             ('book-user', 'Rehber', 'Müşteri 360°, firma, ekip'),
@@ -40,8 +96,8 @@ LANDING_PILLARS: tuple[tuple[str, str], ...] = (
         'Muhasebe, saha, satış ve yönetici rolleri yalnızca yetkili ekranları görür.',
     ),
     (
-        'Self-host',
-        'Docker; Dokploy, Coolify, VPS. SQLite + medya volume — veriler sizde kalır.',
+        'Tek platform, iki ürün',
+        f'{APP_NAME} altında {PRODUCT_KOBIOPS} (saha operasyonları) ve {PRODUCT_KOBIPOS} (restoran) aynı hesapla yönetilir.',
     ),
     (
         'WhatsApp entegrasyonu',
@@ -151,18 +207,42 @@ LANDING_DEPLOY_PLATFORMS: tuple[str, ...] = (
     'Docker Compose',
 )
 
-LANDING_AUDIENCE: tuple[str, ...] = (
+LANDING_AUDIENCE_KOBIOPS: tuple[str, ...] = (
     'Montaj, teknik servis ve saha ekipleri',
     'Bayi ve çözüm ortağı ağları',
     'B2B teklif, satış ve tahsilat takibi yapan KOBİ’ler',
     'Malzeme stokunu reçeteyle yöneten üretici / montaj işletmeleri',
     'Personel maaşı, avans ve departman kadrosunu Excel dışında yönetenler',
     'WhatsApp ile müşteri ve saha iletişimi kuran işletmeler',
-    'Self-host ve veri egemenliği isteyen kurumsal ekipler',
 )
+
+LANDING_AUDIENCE_KOBIPOS: tuple[str, ...] = (
+    'Tek şubeli restoran ve kafeler',
+    'Çok şubeli ve franchise yapıdaki zincirler',
+    'Masa + paket servis + mutfak ekranı kullanan işletmeler',
+    'Menü ve fiyat güncellemelerini anlık yönetmek isteyenler',
+    'Günlük ciro ve satış raporlarını tek ekranda görmek isteyenler',
+)
+
+LANDING_AUDIENCE: tuple[str, ...] = LANDING_AUDIENCE_KOBIOPS
 
 # Geriye dönük — eski şablon anahtarları
 LANDING_FLOW = LANDING_FLOW_SAHA
+
+LANDING_RESTAURANT_FEATURES: tuple[tuple[str, str, str], ...] = (
+    ('cloud', 'Bulut Tabanlı', 'Sunucu kurulum derdi yok; mobil ve tabletten yönetin'),
+    ('zap', 'Masa Yönetimi', 'Renkli durum göstergeleriyle anlık salon takibi'),
+    ('layers', 'Mutfak Ekranı', 'Siparişler anında mutfağa düşer'),
+    ('credit-card', 'Ödeme', 'Parçalı ödeme ve hızlı hesap kapatma'),
+    ('shield', 'Menü', 'Kategori ve ürün yönetimi tüm cihazlarda senkron'),
+    ('award', 'Raporlar', 'Günlük ciro ve satış grafikleri'),
+)
+
+LANDING_RESTAURANT_PLANS: tuple[tuple[str, str, str, str], ...] = (
+    ('starter', 'Starter', '499', '1 şube · 5 personel · Temel POS'),
+    ('growth', 'Growth', '999', '3 şube · 15 personel · Franchise + QR'),
+    ('enterprise', 'Enterprise', '1999', 'Sınırsız şube · WhatsApp + CRM'),
+)
 
 DEFAULT_LANDING_VERTICAL = 'kobi'
 

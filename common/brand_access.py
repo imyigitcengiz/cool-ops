@@ -5,16 +5,19 @@ from __future__ import annotations
 from django.http import HttpRequest
 from django.urls import reverse
 
+from common.panel_registry import panel_by_id, panel_path_prefixes
+from common.panel_routing import (
+    is_restaurant_plan,
+    resolve_brand_panel_url,
+    restaurant_panel_url,
+)
 from core_settings.models import BrandMembership, BusinessBrand
 
 
-PLATFORM_PANEL_PREFIXES = (
-    '/panel/',
-)
+PLATFORM_PANEL_PREFIXES = panel_path_prefixes()
 
-DEALER_BLOCKED_PREFIXES = (
-    '/panel/',
-)
+_kobiops = panel_by_id('kobiops') or {}
+DEALER_BLOCKED_PREFIXES = (_kobiops.get('path_prefix', '/panel/'),)
 
 
 def user_owns_hq_brand(user) -> bool:
@@ -100,6 +103,25 @@ def resolve_post_login_url(request: HttpRequest, user) -> str:
 
     if user.is_superuser:
         return reverse('admin_dashboard')
+
+    from common.brand_scope import default_brand_for_user, get_active_brand_id
+    from core_settings.models import BusinessBrand
+
+    brand = None
+    brand_id = get_active_brand_id(request)
+    if brand_id:
+        brand = BusinessBrand.objects.filter(pk=brand_id, is_active=True).first()
+    if not brand:
+        brand = default_brand_for_user(user)
+
+    if brand:
+        target = resolve_brand_panel_url(brand, owner=user, request=request)
+        if target != reverse('home'):
+            return target
+
+    if is_restaurant_plan(user.active_plan):
+        return restaurant_panel_url(request)
+
     return reverse('home')
 
 

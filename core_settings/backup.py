@@ -644,7 +644,7 @@ def _seed_factory_defaults():
 
     ensure_default_statuses()
     if not SiteSettings.objects.exists():
-        SiteSettings.objects.create(site_name='CoolOPS')
+        SiteSettings.objects.create(site_name='Kobi Hub')
     if not WorkSchedulePlan.objects.exists():
         plan = WorkSchedulePlan.objects.create(
             name='Standart mesai',

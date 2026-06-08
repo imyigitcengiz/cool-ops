@@ -1,0 +1,21 @@
+<nav class="flex-1 p-4 space-y-1 overflow-y-auto">
+    {% for group in admin_nav_groups %}
+        {% if group.border_top %}
+        <div class="pt-4 mt-4 border-t border-slate-800"></div>
+        {% endif %}
+        {% if group.label %}
+        <p class="px-3 {% if not forloop.first and not group.border_top %}pt-4 {% endif %}text-[10px] font-bold uppercase tracking-wider text-slate-500">{{ group.label }}</p>
+        {% endif %}
+        {% for item in group.items %}
+        <a href="{% url item.url_name %}"{% if item.url_name == 'admin_system_updates' %} id="navSystemUpdates"{% endif %}
+           class="flex items-center gap-3 px-3 py-2 rounded-xl {% if item.active %}bg-red-600 text-white{% else %}hover:bg-slate-900{% endif %}"
+           {% if item.url_name == 'admin_panels' and group.key == 'footer' %}title="Marka panel eşlemelerini görüntüleyin"{% endif %}>
+            <i data-lucide="{{ item.icon }}" class="w-5 h-5"></i>
+            <span class="text-sm font-medium flex-1">{{ item.label }}</span>
+            {% if item.url_name == 'admin_system_updates' %}
+            <span id="navUpdateBadge" class="hidden min-w-[1.25rem] h-5 px-1.5 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">!</span>
+            {% endif %}
+        </a>
+        {% endfor %}
+    {% endfor %}
+</nav>

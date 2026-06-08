@@ -3,22 +3,28 @@
 from __future__ import annotations
 
 from common.landing_content import (
-    LANDING_AUDIENCE,
-    LANDING_DEPLOY_PLATFORMS,
+    LANDING_AUDIENCE_KOBIPOS,
+    LANDING_AUDIENCE_KOBIOPS,
     LANDING_FLOW_HIZMET,
     LANDING_FLOW_SAHA,
+    LANDING_HUB_INTRO,
     LANDING_INTEGRATION_DETAILS,
     LANDING_MUHASEBE_FEATURES,
     LANDING_OUTREACH_FEATURES,
     LANDING_PILLARS,
     LANDING_PLATFORM_FEATURES,
     LANDING_REHBER_FEATURES,
+    LANDING_RESTAURANT_FEATURES,
     LANDING_SECTORS,
     LANDING_SERVICES_FEATURES,
     LANDING_SETTINGS_FEATURES,
     LANDING_VERTICAL_COPY,
     DEFAULT_LANDING_VERTICAL,
 )
+from common.module_labels import APP_NAME, PRODUCT_KOBIPOS, PRODUCT_KOBIOPS
+from common.panel_registry import PANEL_KOBIPOS, panel_by_id
+
+_KOBIPOS_PANEL_PATH = (panel_by_id(PANEL_KOBIPOS) or {}).get('path_prefix', '/restoran/')
 
 
 def _step(
@@ -63,9 +69,9 @@ INTRODUCER_JOURNEYS: tuple[dict, ...] = (
                 1, 'Açılış ve değer önerisi', '5 dk',
                 'Dinleyicinin Excel / dağınık araçlar yerine neden tek panel istediğini netleştirin.',
                 (
-                    'CoolOPS resmi muhasebe değil — günlük operasyon kararları için ön muhasebe.',
-                    'Modüller ve parçacıklar ihtiyaca göre açılır; aynı altyapı bayi ve hizmet profiline de uyar.',
-                    'Veriler self-host: Docker, kendi sunucunuz, SQLite + medya volume.',
+                    f'{PRODUCT_KOBIOPS} resmi muhasebe değil — günlük operasyon kararları için ön muhasebe.',
+                    f'{APP_NAME} altında modüller ve parçacıklar ihtiyaca göre açılır; bayi ve hizmet profiline de uyar.',
+                    'Bulut tabanlı panel; tek hesapla KobiOPS ve KobiPOS arasında geçiş mümkün.',
                 ),
                 checklist=(
                     'Dinleyici profilini sorun: saha ekip var mı, stok/reçete takibi gerekli mi?',
@@ -317,6 +323,15 @@ INTRODUCER_JOURNEYS: tuple[dict, ...] = (
                     'Beklenti yönetimi: tam ERP değil, ilişki ve iletişim merkezi.',
                 ),
             ),
+            _step(
+                6, f'Restoran & kafe ({PRODUCT_KOBIPOS})', '—',
+                f'{PRODUCT_KOBIPOS} — ayrı panel ve demo yolu.',
+                (
+                    f'{APP_NAME} tanıtımında {PRODUCT_KOBIPOS} sekmesine geçin veya /?vertical=restaurant kullanın.',
+                    f'"{PRODUCT_KOBIPOS} tam demo" yolunu izleyin; panel {_KOBIPOS_PANEL_PATH}.',
+                    'KobiOPS modülleri (rehber, servis) bu sektörde gösterilmez.',
+                ),
+            ),
         ),
     },
 )
@@ -324,12 +339,13 @@ INTRODUCER_JOURNEYS: tuple[dict, ...] = (
 INTRODUCER_FAQ: tuple[tuple[str, str], ...] = (
     (
         'Logo, Mikro veya resmi muhasebe yerine geçer mi?',
-        'Hayır. CoolOPS operasyon ve ön muhasebe içindir: tahsilat, kasa, stok, maaş, servis. '
+        f'Hayır. {PRODUCT_KOBIOPS} operasyon ve ön muhasebe içindir: tahsilat, kasa, stok, maaş, servis. '
         'E-defter ve resmi muhasebe entegrasyonu yol haritasındadır; günlük saha kararları için tasarlanmıştır.',
     ),
     (
-        'Bulut mu, self-host mu?',
-        'Self-host odaklı: Docker Compose, Dokploy, Coolify, VPS. Veriler sizde kalır; SQLite + medya volume.',
+        f'{APP_NAME} ile {PRODUCT_KOBIPOS} arasındaki fark nedir?',
+        f'{APP_NAME} ürün ailesidir. {PRODUCT_KOBIOPS} montaj/saha KOBİ operasyonları; {PRODUCT_KOBIPOS} restoran '
+        'masa, mutfak, menü ve franchise yönetimi içindir. Tek hesap, farklı paneller.',
     ),
     (
         'Modülleri kapatabilir miyiz?',
@@ -358,7 +374,7 @@ INTRODUCER_OBJECTIONS: tuple[tuple[str, str], ...] = (
     ),
     (
         'Logo kullanıyoruz, buna gerek yok.',
-        'CoolOPS Logo\'nun yerine değil; saha ekibi, servis, teklif ve operasyon kasasının yanında. '
+        f'{PRODUCT_KOBIOPS} Logo\'nun yerine değil; saha ekibi, servis, teklif ve operasyon kasasının yanında. '
         'Resmi muhasebe ayrı kalır, operasyon hızlanır.',
     ),
     (
@@ -368,9 +384,60 @@ INTRODUCER_OBJECTIONS: tuple[tuple[str, str], ...] = (
     ),
     (
         'Verilerimiz güvende mi?',
-        'Self-host: veritabanı ve medya sizin sunucunuzda. Rol bazlı erişim; yedekleme süper admin araçlarında.',
+        f'{APP_NAME} bulut altyapısı üzerinde çalışır; rol bazlı erişim ve yedekleme yönetim araçlarında.',
     ),
 )
+
+INTRODUCER_JOURNEYS_RESTAURANT: dict = {
+    'slug': 'restoran-kobipos',
+    'icon': 'utensils',
+    'title': f'Tam demo — {PRODUCT_KOBIPOS}',
+    'duration': '30–40 dk',
+    'audience': 'Restoran, kafe ve franchise işletmeleri',
+    'summary': (
+        f'{PRODUCT_KOBIPOS} ile masa siparişi, mutfak ekranı, menü yönetimi ve günlük ciro raporlarını '
+        'uçtan uca gösterin.'
+    ),
+    'steps': (
+        _step(
+            1, 'Açılış ve değer önerisi', '5 dk',
+            f'{APP_NAME} ve {PRODUCT_KOBIPOS} konumlandırmasını netleştirin.',
+            (
+                f'{PRODUCT_KOBIPOS} saha operasyon paneli ({PRODUCT_KOBIOPS}) değil — restoran POS odaklıdır.',
+                '14 gün ücretsiz deneme; masa, mutfak ve kasa tek panelde.',
+                'Franchise ve çok şube Growth planında.',
+            ),
+            checklist=('İşletme tipini sorun: tek şube mi, zincir mi?',),
+        ),
+        _step(
+            2, 'Masa ve sipariş akışı', '10 dk',
+            'Garson sipariş girişi → mutfak → ödeme döngüsünü canlı gösterin.',
+            tuple(f[1] for f in LANDING_RESTAURANT_FEATURES[:4]),
+            demo_screens=(
+                _screen('Masalar', note=f'{_KOBIPOS_PANEL_PATH} — Masa görünümü'),
+                _screen('Sipariş girişi', note='Masa detayından ürün ekleme'),
+                _screen('Mutfak ekranı', note='Hazırlanan siparişler'),
+            ),
+        ),
+        _step(
+            3, 'Menü ve raporlar', '8 dk',
+            'Menü güncelleme ve günlük ciro özetini gösterin.',
+            tuple(f[1] for f in LANDING_RESTAURANT_FEATURES[4:]),
+            demo_screens=(
+                _screen('Menü yönetimi', note='Kategori ve ürün fiyatları'),
+                _screen('Yönetim paneli', note='Günlük ciro grafikleri'),
+            ),
+        ),
+        _step(
+            4, 'Kapanış', '5 dk',
+            'Kayıt ve panele yönlendirme.',
+            (
+                f'Kayıt: /kayit/?vertical=restaurant → {PRODUCT_KOBIPOS} paneli {_KOBIPOS_PANEL_PATH}',
+                'Plan yükseltme: franchise, QR menü, CRM Enterprise\'da.',
+            ),
+        ),
+    ),
+}
 
 MODULE_REFERENCE_SECTIONS: tuple[dict, ...] = (
     {
@@ -419,9 +486,10 @@ MODULE_REFERENCE_SECTIONS: tuple[dict, ...] = (
 
 
 def get_journey(slug: str | None) -> dict | None:
+    journeys = INTRODUCER_JOURNEYS + (INTRODUCER_JOURNEYS_RESTAURANT,)
     if not slug:
-        return INTRODUCER_JOURNEYS[0] if INTRODUCER_JOURNEYS else None
-    for journey in INTRODUCER_JOURNEYS:
+        return journeys[0] if journeys else None
+    for journey in journeys:
         if journey['slug'] == slug:
             return journey
     return None
@@ -430,7 +498,8 @@ def get_journey(slug: str | None) -> dict | None:
 def build_introducer_context() -> dict:
     vertical = LANDING_VERTICAL_COPY.get(DEFAULT_LANDING_VERTICAL, {})
     return {
-        'introducer_journeys': INTRODUCER_JOURNEYS,
+        'introducer_journeys': INTRODUCER_JOURNEYS + (INTRODUCER_JOURNEYS_RESTAURANT,),
+        'introducer_hub_intro': LANDING_HUB_INTRO,
         'introducer_faq': INTRODUCER_FAQ,
         'introducer_objections': INTRODUCER_OBJECTIONS,
         'introducer_module_sections': MODULE_REFERENCE_SECTIONS,
@@ -438,7 +507,7 @@ def build_introducer_context() -> dict:
         'introducer_sectors': LANDING_SECTORS,
         'introducer_flow_saha': LANDING_FLOW_SAHA,
         'introducer_flow_hizmet': LANDING_FLOW_HIZMET,
-        'introducer_deploy_platforms': LANDING_DEPLOY_PLATFORMS,
-        'introducer_audience': LANDING_AUDIENCE,
+        'introducer_audience_kobiops': LANDING_AUDIENCE_KOBIOPS,
+        'introducer_audience_kobipos': LANDING_AUDIENCE_KOBIPOS,
         'introducer_vertical_copy': vertical,
     }

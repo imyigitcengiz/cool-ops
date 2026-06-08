@@ -39,9 +39,11 @@ from .admin_views import (
     SuperAdminDashboardView,
 )
 from .admin_platform_views import (
+    AdminApplicationsView,
     AdminAuditLogView,
     AdminBillingInvoiceCreateView,
     AdminBillingInvoiceListView,
+    AdminPanelsView,
     AdminPlanCreateView,
     AdminPlanListView,
     AdminPlanUpdateView,
@@ -95,6 +97,8 @@ urlpatterns = [
     path('yonetim/faturalar/yeni/', AdminBillingInvoiceCreateView.as_view(), name='admin_invoice_create'),
     path('yonetim/ayarlar/', AdminSiteSettingsView.as_view(), name='admin_site_settings'),
     path('yonetim/denetim/', AdminAuditLogView.as_view(), name='admin_audit_log'),
+    path('yonetim/uygulamalar/', AdminApplicationsView.as_view(), name='admin_applications'),
+    path('yonetim/paneller/', AdminPanelsView.as_view(), name='admin_panels'),
     path('yonetim/iliskiler/', AdminRelationsView.as_view(), name='admin_relations'),
     path('yonetim/raporlar/', AdminReportsView.as_view(), name='admin_reports'),
     path('yonetim/raporlar/kullanim/', AdminUsageReportView.as_view(), name='admin_reports_usage'),

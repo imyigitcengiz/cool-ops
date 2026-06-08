@@ -4,19 +4,21 @@ from __future__ import annotations
 
 from django.http import HttpRequest
 
+from common.panel_registry import panel_by_id, panel_path_prefixes
 from users.impersonation import get_real_user, is_impersonating
 
-
-BRAND_PLATFORM_PREFIX = '/panel/'
+_kobiops = panel_by_id('kobiops') or {}
+BRAND_PLATFORM_PREFIX = _kobiops.get('path_prefix', '/panel/')
 
 # Impersonate yokken süper admin yalnızca bu öneklerde dolaşabilir.
 SUPERUSER_PLATFORM_PREFIXES = (
     '/yonetim/',
     '/profil/',
-    '/admin/',
     '/api/bildirimler/',
     '/api/hizli-arama/',
     '/healthz/',
+    '/cikis/',
+    '/bilgi-bankasi/',
 )
 
 # Eski URL'ler — süper panele yönlendirir, middleware izin verir.
@@ -26,7 +28,7 @@ SUPERUSER_LEGACY_PREFIXES = (
 
 # Kiracı modül yolları (marka kapsamı).
 TENANT_MODULE_PREFIXES = (
-    '/panel/',
+    *panel_path_prefixes(),
     '/contact/',
     '/muhasebe/',
     '/services-dashboard/',
@@ -37,6 +39,7 @@ TENANT_MODULE_PREFIXES = (
     '/ortak/',
     '/ayarlar/',
     '/chat/',
+    '/media/',
 )
 
 
@@ -71,5 +74,13 @@ def bare_superuser(request: HttpRequest) -> bool:
 
 
 def bare_superuser_blocked_from_path(request: HttpRequest, path: str) -> bool:
-    """Geriye dönük uyumluluk — süper admin kiracı modüllerine doğrudan erişebilir."""
+    """Süper admin kiracı/marka panellerine doğrudan erişemez — marka incele veya impersonate."""
+    if not bare_superuser(request):
+        return False
+    if path_is_superuser_platform(path):
+        return False
+    if path in ('/', ''):
+        return False
+    if path_is_tenant_module(path) or path_is_brand_platform(path):
+        return True
     return False

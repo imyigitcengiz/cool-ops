@@ -1,0 +1,29 @@
+{% extends 'errors/base.html' %}
+{% block title %}Sunucu hatası{% endblock %}
+{% block error_icon %}triangle-alert{% endblock %}
+{% block error_code %}500{% endblock %}
+{% block error_title %}Beklenmeyen bir hata oluştu{% endblock %}
+{% block error_message %}
+İşleminiz tamamlanamadı. Bir süre sonra tekrar deneyin; sorun devam ederse destek ekibiyle iletişime geçin.
+{% endblock %}
+{% block error_actions %}
+<a href="{% url 'landing' %}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand-600 text-white text-sm font-bold hover:bg-brand-500 transition-colors">
+    <i data-lucide="home" class="w-4 h-4"></i>
+    Ana sayfa
+</a>
+{% if user.is_authenticated %}
+<a href="{% url 'home' %}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/20 text-slate-200 text-sm font-semibold hover:bg-white/5 transition-colors">
+    <i data-lucide="layout-grid" class="w-4 h-4"></i>
+    Ana panel
+</a>
+{% else %}
+<a href="{% url 'login' %}" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/20 text-slate-200 text-sm font-semibold hover:bg-white/5 transition-colors">
+    <i data-lucide="log-in" class="w-4 h-4"></i>
+    Giriş yap
+</a>
+{% endif %}
+<button type="button" onclick="window.location.reload()" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-white/10 text-slate-400 text-sm font-semibold hover:bg-white/5 transition-colors cursor-pointer">
+    <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+    Yenile
+</button>
+{% endblock %}

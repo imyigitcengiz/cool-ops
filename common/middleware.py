@@ -6,6 +6,7 @@ from django.contrib import messages
 
 from common.brand_team import can_manage_brand_team
 from common.permissions import resolve_customer_route_permission
+from common.platform_access import bare_superuser_blocked_from_path
 from users.impersonation import get_real_user, is_impersonating
 from users.permission_catalog import (
     LOGIN_EXEMPT_PREFIXES,
@@ -31,9 +32,13 @@ def _is_api_request(request):
     accept = request.headers.get('Accept', '')
     if 'application/json' in accept and 'text/html' not in accept:
         return True
+    from common.panel_registry import PANEL_KOBIPOS, panel_api_prefix
+
     path = request.path
+    restaurant_api = panel_api_prefix(PANEL_KOBIPOS)
     return (
         '/api/' in path
+        or (restaurant_api and path.startswith(restaurant_api))
         or path.startswith('/chat/')
         or path.startswith('/tools/whatsapp/')
     )
@@ -98,15 +103,23 @@ class PermissionMiddleware:
             return self.get_response(request)
 
         real_user = get_real_user(request)
+
+        if _path_matches(path, '/admin/'):
+            if not real_user.is_superuser:
+                return permission_denied_redirect(request, 'Django admin için süper admin yetkisi gerekir.')
+            return self.get_response(request)
+
         if real_user.is_superuser and not is_impersonating(request):
+            if bare_superuser_blocked_from_path(request, path):
+                messages.info(
+                    request,
+                    'Süper admin olarak marka paneline doğrudan giremezsiniz. '
+                    'Yönetim panelinden "Marka incele" kullanın.',
+                )
+                return redirect('admin_dashboard')
             return self.get_response(request)
 
         user = request.user
-
-        if _path_matches(path, '/admin/'):
-            if not user.is_staff:
-                return permission_denied_redirect(request, 'Django admin için yetkiniz yok.')
-            return self.get_response(request)
 
         if any(_path_matches(path, prefix) for prefix in SUPERUSER_ONLY_PREFIXES):
             return permission_denied_redirect(request, 'Bu sayfaya erişim yetkiniz yok.')
@@ -126,15 +139,10 @@ class PermissionMiddleware:
 
 
 class DokploySslipCsrfMiddleware:
-    """sslip.io / traefik.me: CSRF için http Origin'i otomatik güvenilir listeye ekler."""
+    """sslip.io / traefik.me: CSRF için http Origin (startup'ta da ayarlanır)."""
 
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
-        host = request.get_host().partition(':')[0].lower()
-        if host.endswith('.sslip.io') or host.endswith('.traefik.me'):
-            origin = f'http://{host}'
-            if origin not in settings.CSRF_TRUSTED_ORIGINS:
-                settings.CSRF_TRUSTED_ORIGINS.append(origin)
         return self.get_response(request)

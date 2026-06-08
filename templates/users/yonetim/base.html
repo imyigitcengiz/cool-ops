@@ -16,57 +16,7 @@
             </a>
             <p class="text-xs text-slate-500 mt-2">{{ site_settings.site_name }}</p>
         </div>
-        <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
-            <a href="{% url 'admin_dashboard' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl {% if request.resolver_match.url_name == 'admin_dashboard' %}bg-red-600 text-white{% else %}hover:bg-slate-900{% endif %}">
-                <i data-lucide="layout-dashboard" class="w-5 h-5"></i><span class="text-sm font-medium">Özet</span>
-            </a>
-            <a href="{% url 'admin_users' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl {% if 'admin_user' in request.resolver_match.url_name %}bg-red-600 text-white{% else %}hover:bg-slate-900{% endif %}">
-                <i data-lucide="users" class="w-5 h-5"></i><span class="text-sm font-medium">Kullanıcılar</span>
-            </a>
-            <a href="{% url 'admin_brands' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl {% if 'admin_brand' in request.resolver_match.url_name %}bg-red-600 text-white{% else %}hover:bg-slate-900{% endif %}">
-                <i data-lucide="store" class="w-5 h-5"></i><span class="text-sm font-medium">Markalar</span>
-            </a>
-            <a href="{% url 'admin_relations' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl {% if request.resolver_match.url_name == 'admin_relations' %}bg-red-600 text-white{% else %}hover:bg-slate-900{% endif %}">
-                <i data-lucide="git-branch" class="w-5 h-5"></i><span class="text-sm font-medium">Platform ilişkileri</span>
-            </a>
-            <a href="{% url 'admin_plans' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl {% if 'admin_plan' in request.resolver_match.url_name %}bg-red-600 text-white{% else %}hover:bg-slate-900{% endif %}">
-                <i data-lucide="credit-card" class="w-5 h-5"></i><span class="text-sm font-medium">Planlar</span>
-            </a>
-            <a href="{% url 'admin_invoices' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl {% if 'admin_invoice' in request.resolver_match.url_name %}bg-red-600 text-white{% else %}hover:bg-slate-900{% endif %}">
-                <i data-lucide="receipt" class="w-5 h-5"></i><span class="text-sm font-medium">Faturalar</span>
-            </a>
-            <a href="{% url 'admin_roles' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl {% if 'admin_role' in request.resolver_match.url_name %}bg-red-600 text-white{% else %}hover:bg-slate-900{% endif %}">
-                <i data-lucide="shield-check" class="w-5 h-5"></i><span class="text-sm font-medium">Sistem rolleri</span>
-            </a>
-            <a href="{% url 'admin_reports' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl {% if 'admin_reports' in request.resolver_match.url_name %}bg-red-600 text-white{% else %}hover:bg-slate-900{% endif %}">
-                <i data-lucide="bar-chart-3" class="w-5 h-5"></i><span class="text-sm font-medium">Raporlar</span>
-            </a>
-            <p class="px-3 pt-4 text-[10px] font-bold uppercase tracking-wider text-slate-500">Sistem</p>
-            <a href="{% url 'admin_site_settings' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl {% if request.resolver_match.url_name == 'admin_site_settings' %}bg-red-600 text-white{% else %}hover:bg-slate-900{% endif %}">
-                <i data-lucide="settings" class="w-5 h-5"></i><span class="text-sm font-medium">Site ayarları</span>
-            </a>
-            <a href="{% url 'admin_audit_log' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl {% if request.resolver_match.url_name == 'admin_audit_log' %}bg-red-600 text-white{% else %}hover:bg-slate-900{% endif %}">
-                <i data-lucide="scroll-text" class="w-5 h-5"></i><span class="text-sm font-medium">Denetim</span>
-            </a>
-            <a href="{% url 'admin_system_backup' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl {% if request.resolver_match.url_name == 'admin_system_backup' %}bg-red-600 text-white{% else %}hover:bg-slate-900{% endif %}">
-                <i data-lucide="database-backup" class="w-5 h-5"></i><span class="text-sm font-medium">Yedek & sıfırlama</span>
-            </a>
-            {% if panel_git_updates_enabled %}
-            <a href="{% url 'admin_system_updates' %}" id="navSystemUpdates" class="flex items-center gap-3 px-3 py-2 rounded-xl {% if request.resolver_match.url_name == 'admin_system_updates' %}bg-red-600 text-white{% else %}hover:bg-slate-900{% endif %}">
-                <i data-lucide="refresh-cw" class="w-5 h-5"></i>
-                <span class="text-sm font-medium flex-1">Uygulama güncellemeleri</span>
-                <span id="navUpdateBadge" class="hidden min-w-[1.25rem] h-5 px-1.5 rounded-full bg-amber-500 text-white text-[10px] font-bold flex items-center justify-center">!</span>
-            </a>
-            {% endif %}
-            <div class="pt-4 mt-4 border-t border-slate-800">
-                <a href="{% url 'home' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-900" title="Marka panellerini doğrudan inceleyin">
-                    <i data-lucide="scan-eye" class="w-5 h-5"></i><span class="text-sm font-medium">Marka panelleri</span>
-                </a>
-                <a href="{% url 'profile_settings' %}" class="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-900">
-                    <i data-lucide="user" class="w-5 h-5"></i><span class="text-sm font-medium">Profilim</span>
-                </a>
-            </div>
-        </nav>
+        {% include 'users/yonetim/components/sidebar_nav.html' %}
         {% include 'common/profile_sidebar_card.html' %}
     {% include 'common/erp_mobile_sidebar_end.html' %}
     <main class="flex-1 overflow-y-auto min-w-0">
@@ -78,7 +28,7 @@
                         {% include 'common/erp_sidebar_toggle.html' %}
                         <div class="erp-module-header__text min-w-0">
                             <h1 class="erp-module-header__title truncate">{% block header_title %}Yönetim{% endblock %}</h1>
-                            <p class="erp-module-header__subtitle truncate">{{ site_settings.site_name }}</p>
+                            <p class="erp-module-header__subtitle truncate">{% block header_subtitle %}{{ site_settings.site_name }}{% endblock %}</p>
                         </div>
                     </div>
                     <div class="erp-module-header__tools">

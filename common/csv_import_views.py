@@ -403,5 +403,7 @@ def csv_import_execute_api(request):
         )
         _clear_session(request, token)
         return JsonResponse({'ok': True, 'result': result, 'message': _result_message(import_type, result)})
-    except Exception as exc:
-        return JsonResponse({'ok': False, 'error': str(exc)}, status=400)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('CSV import failed')
+        return JsonResponse({'ok': False, 'error': 'İçe aktarma sırasında bir hata oluştu.'}, status=400)

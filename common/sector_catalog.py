@@ -27,6 +27,7 @@ CORPORATE_SECTORS: tuple[tuple[str, str, str, str, str], ...] = (
     ('hizmet_danismanlik', 'briefcase', 'Hizmet & danışmanlık', FIT_ORTA, 'Saha modülü kapalı; teklif, satış, kasa'),
     ('evde_bakim', 'heart-pulse', 'Evde bakım / sağlık', FIT_ORTA, 'Randevu planı; muhasebe modülü opsiyonel'),
     ('stk_dernek', 'heart-handshake', 'STK & dernek', FIT_KISMI, 'Kampanya, rehber; servis/muhasebe kapalı profil'),
+    ('restoran_kafe', 'utensils', 'Restoran & kafe (KobiPOS)', FIT_TAM, 'KobiPOS: menü, masa, sipariş, mutfak ve franchise'),
 )
 
 # Montaj & saha — sade KOBİ çekirdeği (isteğe bağlı modüller Modül Merkezi'nden açılır)
@@ -34,6 +35,11 @@ _KOBI_CORE_MODULES = LEAN_KOBI_MODULES
 _KOBI_CORE_PARTICLES = LEAN_KOBI_PARTICLES
 
 SECTOR_PRESETS: dict[str, dict[str, tuple[str, ...] | str]] = {
+    'restoran_kafe': {
+        'fit': FIT_TAM,
+        'modules': ('restaurant', 'settings'),
+        'particles': (),
+    },
     'montaj_saha': {
         'fit': FIT_TAM,
         'modules': _KOBI_CORE_MODULES,

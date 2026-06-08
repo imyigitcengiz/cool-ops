@@ -1,0 +1,7 @@
+<div class="{% if actions %}flex flex-wrap items-center justify-between gap-4{% else %}mb-6{% endif %} {% if margin_class %}{{ margin_class }}{% else %}mb-6{% endif %}">
+    <div>
+        <h1 class="text-2xl font-bold text-slate-900">{{ title }}</h1>
+        {% if subtitle %}<p class="text-sm text-slate-500 mt-1">{{ subtitle }}</p>{% endif %}
+    </div>
+    {% if actions %}{{ actions }}{% endif %}
+</div>

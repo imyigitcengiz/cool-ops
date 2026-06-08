@@ -2,7 +2,8 @@
   "name": "kobi-ops",
   "private": true,
   "scripts": {
-    "build:css": "tailwindcss -i ./static/css/tailwind-src.css -o ./static/css/tailwind.css --minify"
+    "build:css": "tailwindcss -i ./static/css/tailwind-src.css -o ./static/css/tailwind.css --minify",
+    "build:restaurant-pos": "cd frontend/restaurant-pos && npm ci && npm run build"
   },
   "devDependencies": {
     "tailwindcss": "^3.4.17"

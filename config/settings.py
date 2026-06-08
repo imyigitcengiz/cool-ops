@@ -59,7 +59,7 @@ def _csrf_origins_for_port(port=8000):
 SECRET_KEY = 'django-insecure-*t7emu@y2jvbpi(gvcrbvtc*#6(cx)om5=xpzzdd*8y*n&6-ta'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get('DJANGO_DEBUG', '1').lower() in ('1', 'true', 'yes')
+DEBUG = os.environ.get('DJANGO_DEBUG', '0').lower() in ('1', 'true', 'yes')
 
 # Geliştirme: aynı Wi‑Fi’deki telefon/tablet/PC’ler LAN IP ile bağlanabilsin
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
@@ -75,8 +75,13 @@ if _lan_ip and _lan_ip not in ALLOWED_HOSTS:
 if DEBUG:
     ALLOWED_HOSTS.append('*')
 
+# Kalıcı veri dizini veya açık prod bayrağı → DEBUG kapalı zorunlu
+_DATA_DIR = os.environ.get('DATA_DIR', '').strip()
+if _DATA_DIR and DEBUG:
+    DEBUG = False
+
 # Dokploy test domainleri (sslip.io) — üretimde kapalı; geliştirmede açılabilir
-_sslip_default = '0' if os.environ.get('DATA_DIR', '').strip() else '1'
+_sslip_default = '0' if _DATA_DIR else '1'
 if os.environ.get('DJANGO_ALLOW_SSLIP_HOSTS', _sslip_default).lower() in ('1', 'true', 'yes'):
     for _wild in ('.sslip.io', '.traefik.me'):
         if _wild not in ALLOWED_HOSTS:
@@ -85,7 +90,7 @@ if os.environ.get('DJANGO_ALLOW_SSLIP_HOSTS', _sslip_default).lower() in ('1', '
 _env_secret = os.environ.get('DJANGO_SECRET_KEY', '').strip()
 if _env_secret:
     SECRET_KEY = _env_secret
-elif 'test' not in sys.argv and (not DEBUG or os.environ.get('DATA_DIR', '').strip()):
+elif 'test' not in sys.argv and (not DEBUG or _DATA_DIR):
     raise ImproperlyConfigured(
         'Üretim ortamında DJANGO_SECRET_KEY ortam değişkeni zorunludur.'
     )
@@ -105,6 +110,17 @@ else:
 _panel_origin = detect_panel_origin()
 if _panel_origin and _panel_origin not in CSRF_TRUSTED_ORIGINS:
     CSRF_TRUSTED_ORIGINS.append(_panel_origin)
+if os.environ.get('DJANGO_ALLOW_SSLIP_HOSTS', _sslip_default).lower() in ('1', 'true', 'yes'):
+    for _host in ALLOWED_HOSTS:
+        if not isinstance(_host, str) or _host.startswith('.') or _host in ('*', 'localhost', '127.0.0.1', '[::1]'):
+            continue
+        if 'sslip.io' in _host or 'traefik.me' in _host:
+            for _scheme in ('http', 'https'):
+                _origin = f'{_scheme}://{_host}'
+                if _origin not in CSRF_TRUSTED_ORIGINS:
+                    CSRF_TRUSTED_ORIGINS.append(_origin)
+
+CSRF_FAILURE_VIEW = 'common.views.csrf_failure'
 
 WHATSAPP_BRIDGE_URL = os.environ.get('WHATSAPP_BRIDGE_URL', 'http://127.0.0.1:3939').strip()
 # Yerel Node köprüsünü Django sürecinden başlatma (Docker/production: 0)
@@ -157,7 +173,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'channels',
-    
+    'rest_framework',
+    'rest_framework.authtoken',
+
     # Local apps
     'users',
     'customers',
@@ -187,8 +205,25 @@ MIDDLEWARE = [
     'common.middleware.LoginRequiredMiddleware',
     'common.middleware.PermissionMiddleware',
     'common.middleware_module_gate.ModuleInstallMiddleware',
+    'restaurant.api.plan_middleware.RestaurantPlanEnforcementMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.TokenAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'login': os.environ.get('DRF_THROTTLE_LOGIN', '10/min'),
+        'register': os.environ.get('DRF_THROTTLE_REGISTER', '5/min'),
+        'franchise_login': os.environ.get('DRF_THROTTLE_FRANCHISE_LOGIN', '15/min'),
+    },
+    'EXCEPTION_HANDLER': 'common.drf_exception_handler.safe_api_exception_handler',
+}
 
 ROOT_URLCONF = 'config.urls'
 
@@ -211,6 +246,7 @@ TEMPLATES = [
                 'common.context_processors.module_install_context',
                 'common.context_processors.tenant_context',
                 'common.context_processors.active_brand_context',
+                'common.context_processors.admin_nav_context',
                 'services.context_processors.services_weather_banner',
             ],
         },
@@ -303,7 +339,7 @@ if GS_BUCKET_NAME:
             "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
         },
     }
-    GS_DEFAULT_ACL = os.environ.get('GS_DEFAULT_ACL', 'publicRead')
+    GS_DEFAULT_ACL = os.environ.get('GS_DEFAULT_ACL', 'private' if not DEBUG else 'publicRead')
     GS_QUERYSTRING_AUTH = False
 
 AUTH_USER_MODEL = 'users.User'
@@ -390,7 +426,8 @@ LOGGING = {
 # Üretim güvenlik katmanı (oturum, parola, HSTS, CSP middleware)
 from config.settings_security import *  # noqa: E402, F403
 
-if os.environ.get('DJANGO_CSP_ENABLED', '').lower() in ('1', 'true', 'yes'):
+_csp_default = '0' if DEBUG else '1'
+if os.environ.get('DJANGO_CSP_ENABLED', _csp_default).lower() in ('1', 'true', 'yes'):
     MIDDLEWARE = [
         *MIDDLEWARE[:1],
         'common.middleware_csp.ContentSecurityPolicyMiddleware',

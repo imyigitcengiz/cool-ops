@@ -1,6 +1,9 @@
 """ERP/CRM modül adları — arayüz metinleri (URL ve izin kodları değişmez)."""
 
-APP_NAME = 'CoolOPS'
+APP_NAME = 'Kobi Hub'
+PRODUCT_KOBIOPS = 'KobiOPS'
+PRODUCT_KOBIPOS = 'KobiPOS'
+APP_TAGLINE = 'Saha operasyonları ve restoran yönetimi tek platformda'
 
 ANA_PANEL = 'Ana Panel'
 OZELLIKLER = 'Özellikler'

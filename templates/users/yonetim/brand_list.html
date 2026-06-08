@@ -2,10 +2,7 @@
 {% block title %}Markalar{% endblock %}
 {% block content %}
 <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
-    <div>
-        <h1 class="text-2xl font-bold text-slate-900">Markalar / mağazalar</h1>
-        <p class="text-sm text-slate-500 mt-1">Düzenle, pasifleştir veya süper admin olarak panele girin.</p>
-    </div>
+    {% include 'users/yonetim/components/page_header.html' with title="Markalar / mağazalar" subtitle="Düzenle, pasifleştir veya süper admin olarak panele girin." margin_class="" %}
     <a href="{% url 'admin_brand_create' %}" class="px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700">+ Yeni marka</a>
 </div>
 

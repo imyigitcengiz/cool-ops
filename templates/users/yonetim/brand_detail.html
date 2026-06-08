@@ -49,6 +49,7 @@
         <h2 class="font-bold text-slate-900 mb-4">İlişki ayarları</h2>
         <dl class="text-sm space-y-2">
             <div class="flex justify-between gap-4"><dt class="text-slate-500">Abonelik sahibi</dt><dd class="font-medium text-slate-900">{% if owner_user %}{{ owner_user.display_name }}{% else %}—{% endif %}</dd></div>
+            <div class="flex justify-between gap-4"><dt class="text-slate-500">İlk sahip</dt><dd class="font-medium text-slate-900">{% if first_owner_user %}{{ first_owner_user.display_name }}{% else %}—{% endif %}</dd></div>
             <div class="flex justify-between gap-4"><dt class="text-slate-500">Merkez marka</dt><dd class="font-medium text-slate-900">{% if brand.parent_brand %}{{ brand.parent_brand.name }}{% else %}—{% endif %}</dd></div>
             <div class="flex justify-between gap-4"><dt class="text-slate-500">Kalıcı URL kodu</dt><dd class="font-medium text-slate-900">{{ tenant_key|default:brand.slug }}</dd></div>
             <div class="flex justify-between gap-4"><dt class="text-slate-500">Erişim yapısı</dt><dd class="font-medium text-slate-900">{{ brand.get_tenant_routing_display }}</dd></div>

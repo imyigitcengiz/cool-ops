@@ -48,11 +48,10 @@ def chat_summary_api(request):
     try:
         ensure_team_thread()
         add_user_to_team_thread(request.user)
-    except DatabaseError as exc:
+    except DatabaseError:
         return JsonResponse({
             'ok': False,
             'error': 'Sohbet tabloları hazır değil. Sunucuda: python manage.py migrate chat',
-            'detail': str(exc),
         }, status=503)
     memberships = (
         ChatMembership.objects.filter(user=request.user)

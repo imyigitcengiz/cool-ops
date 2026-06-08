@@ -14,6 +14,7 @@ from analytics.views import (
 )
 from common.media_views import serve_media_file
 from common.views import IntroducerKnowledgeBaseView, healthz
+from restaurant.public_views import public_website_view
 from common.shell_api import (
     notification_mark_read_api,
     notifications_api,
@@ -46,12 +47,16 @@ urlpatterns = [
     path('crm/', include('config.crm_urls')),
     path('ortak/', include('config.ortak_urls')),
     path('restoran/', include('restaurant.urls')),
+    path('w/<slug:slug>/', public_website_view, name='restaurant_public_website'),
+    path('w/<slug:slug>/<slug:page_slug>/', public_website_view, name='restaurant_public_website_page'),
     path('chat/', include('chat.urls')),
     path('ayarlar/', include('config.site_settings_urls')),
 ]
 
-handler404 = 'common.views.page_not_found'
+handler400 = 'common.views.bad_request'
 handler403 = 'common.views.permission_denied'
+handler404 = 'common.views.page_not_found'
+handler500 = 'common.views.server_error'
 
 _serve_media = os.environ.get('DJANGO_SERVE_MEDIA', '1').lower() not in ('0', 'false', 'no')
 if _serve_media:

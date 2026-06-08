@@ -19,7 +19,7 @@ class SiteSettings(models.Model):
         ('priority', 'Önceliğe Göre'),
     ]
 
-    site_name = models.CharField(max_length=255, default="CoolOPS")
+    site_name = models.CharField(max_length=255, default="Kobi Hub")
     logo = models.ImageField(upload_to=site_logo_upload_to, null=True, blank=True)
     company_phone = models.CharField(max_length=50, blank=True, null=True, verbose_name="Firma Telefonu")
     company_address = models.TextField(blank=True, null=True, verbose_name="Firma Adresi")
@@ -185,6 +185,13 @@ class Plan(models.Model):
         blank=True,
         verbose_name='Plana dahil parçacıklar',
     )
+    restaurant_plan_tier = models.CharField(
+        max_length=20,
+        blank=True,
+        default='',
+        verbose_name='KobiPOS plan kademesi',
+        help_text='starter, growth veya enterprise — boşsa plan adından türetilir.',
+    )
     is_active = models.BooleanField(default=True, verbose_name="Aktif")
 
     class Meta:
@@ -296,6 +303,14 @@ class BusinessBrand(models.Model):
         blank=True,
         related_name='created_brands',
         verbose_name='Oluşturan',
+    )
+    first_owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='founded_brands',
+        verbose_name='İlk sahip',
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

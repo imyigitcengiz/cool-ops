@@ -179,9 +179,33 @@ class User(AbstractUser):
 
 
 class UserProfile(models.Model):
+    RESTAURANT_ROLE_CHOICES = (
+        ('', '—'),
+        ('store_owner', 'Kurum Yöneticisi'),
+        ('manager', 'Operasyon Müdürü'),
+        ('waiter', 'Servis Sorumlusu'),
+        ('cashier', 'Finans Sorumlusu'),
+        ('kitchen', 'Üretim Sorumlusu'),
+    )
+
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
     avatar = models.ImageField(upload_to='profiles/', null=True, blank=True, verbose_name='Profil fotoğrafı')
     phone = models.CharField(max_length=30, blank=True, verbose_name='Telefon')
+    restaurant_role = models.CharField(
+        max_length=20,
+        choices=RESTAURANT_ROLE_CHOICES,
+        blank=True,
+        default='',
+        verbose_name='Restoran POS rolü',
+    )
+    restaurant_brand = models.ForeignKey(
+        'core_settings.BusinessBrand',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='restaurant_staff_profiles',
+        verbose_name='Restoran markası',
+    )
     job_title = models.CharField(max_length=120, blank=True, verbose_name='Ünvan')
     bio = models.TextField(blank=True, verbose_name='Hakkında')
 

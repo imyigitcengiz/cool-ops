@@ -512,11 +512,14 @@ def _plan_module_choices():
             continue
         if mod['slug'].startswith('agency_') or mod['slug'] == 'settings':
             continue
-        choice = (mod['slug'], mod['name'])
         if mod['kind'] == MODULE_KIND_INTEGRATION:
-            integrations.append(choice)
+            integrations.append((mod['slug'], mod['name']))
         elif mod['kind'] == MODULE_KIND_APP:
-            apps.append(choice)
+            from common.panel_registry import panel_for_module
+
+            panel = panel_for_module(mod['slug'])
+            panel_name = panel['name'] if panel else 'Panel'
+            apps.append((mod['slug'], f"{panel_name} — {mod['name']}"))
     return apps, integrations
 
 

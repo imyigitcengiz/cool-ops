@@ -157,11 +157,28 @@ class UserRegisterView(View):
             return Plan.objects.filter(is_active=True, price=0).order_by('price').first()
         return Plan.objects.filter(pk=plan_id, is_active=True).first()
 
-    def _register_context(self, form, selected_plan=None):
+    def _is_restaurant_vertical(self, request):
+        return request.GET.get('vertical') == 'restaurant' or request.POST.get('vertical') == 'restaurant'
+
+    def _register_context(self, form, selected_plan=None, request=None):
+        vertical = 'restaurant' if request and self._is_restaurant_vertical(request) else 'kobi'
+        plans = Plan.objects.filter(is_active=True).order_by('price')
+        if vertical == 'restaurant':
+            plans = [
+                p for p in plans
+                if p.price == 0 or 'restaurant' in (p.included_module_slugs or [])
+            ]
         return {
             'form': form,
             'selected_plan': selected_plan,
-            'plans': Plan.objects.filter(is_active=True).order_by('price'),
+            'plans': plans.distinct(),
+            'register_vertical': vertical,
+            'register_title': 'KobiPOS — 14 gün ücretsiz deneme' if vertical == 'restaurant' else 'Kobi Hub — Üye ol',
+            'register_lead': (
+                '14 gün ücretsiz deneme ile menü, masa ve sipariş yönetimine hemen başlayın.'
+                if vertical == 'restaurant'
+                else 'Modüler operasyon panelinizi dakikalar içinde kurun.'
+            ),
         }
 
     def get(self, request):
@@ -174,7 +191,7 @@ class UserRegisterView(View):
         if plan_id and not selected_plan:
             messages.warning(request, 'Seçilen plan bulunamadı; ücretsiz paketle devam edebilirsiniz.')
         form = UserRegisterForm()
-        return render(request, 'users/register.html', self._register_context(form, selected_plan))
+        return render(request, 'users/register.html', self._register_context(form, selected_plan, request))
 
     def post(self, request):
         if request.user.is_authenticated:
@@ -213,14 +230,20 @@ class UserRegisterView(View):
 
             get_or_create_user_profile(user)
             brand = create_brand_for_user(user, form.cleaned_data['brand_name'])
-            set_active_brand(request, brand.pk)
+
+            redirect_url = 'home'
+            if self._is_restaurant_vertical(request):
+                from restaurant.onboarding import setup_restaurant_signup
+                redirect_url = setup_restaurant_signup(request, user, brand)
+            else:
+                set_active_brand(request, brand.pk)
 
             login(request, user)
             messages.success(
                 request,
                 f'Hesabınız ve "{brand.name}" markanız oluşturuldu. Hoş geldiniz!',
             )
-            return redirect('home')
+            return redirect(redirect_url)
 
-        return render(request, 'users/register.html', self._register_context(form, selected_plan))
+        return render(request, 'users/register.html', self._register_context(form, selected_plan, request))
 

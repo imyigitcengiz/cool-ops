@@ -264,6 +264,7 @@ def create_brand_for_user(
     brand = BusinessBrand(
         name=name,
         created_by=user,
+        first_owner=user,
         panel_kind=panel_kind,
         parent_brand=parent_brand if panel_kind == BusinessBrand.PANEL_DEALER else None,
         tenant_routing=tenant_routing or BusinessBrand.TENANT_SUBDOMAIN,

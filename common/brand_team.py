@@ -210,7 +210,15 @@ def subscription_owner_for_brand(brand: BusinessBrand):
         .order_by('joined_at')
         .first()
     )
-    return mem.user if mem else None
+    if mem:
+        return mem.user
+    first_owner = getattr(target_brand, 'first_owner', None)
+    if first_owner and first_owner.is_active and not first_owner.is_superuser:
+        return first_owner
+    created_by = target_brand.created_by
+    if created_by and created_by.is_active and not created_by.is_superuser:
+        return created_by
+    return None
 
 
 def check_customer_limit(owner, brand: BusinessBrand) -> None:

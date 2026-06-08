@@ -2,33 +2,42 @@
 
 > **Dal:** `restoran-pos` · **Stabil taban:** tag `v1-kobi-stable` (`main`)
 
-Yeni repo açılmaz. Canlı deploy `main` dalından devam eder; restoran işi bu dalda yapılır.
+Canlı deploy `main` dalından devam eder; restoran işi `restoran-pos` dalında tamamlandı.
 
-## Kurallar
+## Entegrasyon durumu
 
-1. `main` — yalnızca KOBİ/saha servis düzeltmeleri (canlı).
-2. `restoran-pos` — BiDoluPos'tan taşınan tüm restoran kodu.
-3. `BiDoluPos/` — yerel referans (git'e eklenmez); silme checklist tamamlanana kadar tutulur.
-4. Mevcut KOBİ modülleri kapatılmaz; restoran `vertical=restaurant` paketi ile ayrılır.
+| Bileşen | Durum |
+|---------|-------|
+| Tek Django backend (`restaurant` app + `/restoran/api/`) | ✅ |
+| React SPA (`frontend/restaurant-pos` → `/restoran/`) | ✅ |
+| Birleşik landing (`?vertical=restaurant`) | ✅ |
+| Kayıt (`/kayit/?vertical=restaurant`) + 14 gün trial | ✅ |
+| Platform yönetim (`/yonetim/`) | ✅ |
+| BiDoluPos `backend/` | ⛔ kullanılmıyor |
 
-## Taşınma sırası (BiDoluPos referans)
+## API
 
-| Faz | BiDoluPos kaynağı | CoolOPS hedefi | Durum |
-|-----|-------------------|----------------|-------|
-| 0 | — | Tag + dal + `restaurant` app iskeleti | ✅ |
-| 1 | `Category`, `MenuItem` | `RestaurantCategory`, `RestaurantMenuItem` + UI | 🔄 iskelet |
-| 2 | `Table` | `RestaurantTable` + salon ekranı | 🔄 iskelet |
-| 3 | `Order`, `OrderItem` | Sipariş modelleri + adisyon | ⏳ |
-| 4 | `Kitchen` view | Mutfak kuyruğu | ⏳ |
-| 5 | `CashRegister`, ödeme | Kasa + muhasebe bağlantısı | ⏳ |
-| 6 | `FranchisePortal` | Bayi paneli (`BusinessBrand` dealer) | ⏳ |
-| 7 | `OfficialWebsite` | Website / QR menü | ⏳ |
-| 8 | Stripe / iyzico | Plan ödeme (platform) | ⏳ |
+- Taban: `/restoran/api/`
+- Oturum köprüsü: `GET /restoran/api/auth/session-bridge/` (Django session → DRF token)
+- Franchise: `/restoran/franchise`
+- Public site: `/w/<slug>/`
+
+## Kurulum
+
+```bash
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py seed_restaurant_plans
+npm run build:restaurant-pos   # isteğe bağlı — SPA derlemesi
+python manage.py runserver
+```
 
 ## BiDoluPos silme checklist
 
-- [ ] Masa + sipariş + mutfak CoolOPS'ta çalışıyor
-- [ ] Restoran vertical testleri geçiyor
+- [x] Backend KobiHub'a taşındı
+- [x] React SPA KobiHub altında
+- [x] Landing + kayıt birleştirildi
+- [ ] Uçtan uca POS testi (staging)
 - [ ] `restoran-pos` → `main` merge + deploy
 - [ ] Yerel `BiDoluPos/` klasörü silindi
 - [ ] `bidolu-pos` GitHub repo archive
@@ -37,9 +46,4 @@ Yeni repo açılmaz. Canlı deploy `main` dalından devam eder; restoran işi bu
 
 ```bash
 git checkout main
-git checkout v1-kobi-stable -- .   # acil geri alma (dikkatli kullan)
 ```
-
-## Deploy
-
-Dokploy şimdilik **`main`** branch. Restoran hazır olunca `restoran-pos` merge edilir; merge öncesi staging isteğe bağlı.

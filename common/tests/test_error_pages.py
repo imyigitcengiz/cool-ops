@@ -6,7 +6,7 @@ from django.contrib.sessions.middleware import SessionMiddleware
 from django.core.exceptions import PermissionDenied
 from django.test import Client, RequestFactory, TestCase, override_settings
 
-from common.views import page_not_found, permission_denied
+from common.views import bad_request, page_not_found, permission_denied, server_error
 from core_settings.models import SiteSettings
 from users.models import Role
 
@@ -61,3 +61,19 @@ class ErrorPageHandlerTests(TestCase):
         response = self.client.get('/panel/ekip/')
         self.assertEqual(response.status_code, 403)
         self.assertContains(response, 'Erişim engellendi', status_code=403)
+
+    def test_500_handler_renders_custom_page(self):
+        request = _request_with_user('/hata/')
+        response = server_error(request)
+        self.assertEqual(response.status_code, 500)
+        content = response.content.decode()
+        self.assertIn('500', content)
+        self.assertIn('Beklenmeyen bir hata oluştu', content)
+
+    def test_400_handler_renders_custom_page(self):
+        request = _request_with_user('/kotu-istek/')
+        response = bad_request(request, exception=ValueError('Geçersiz parametre'))
+        self.assertEqual(response.status_code, 400)
+        content = response.content.decode()
+        self.assertIn('400', content)
+        self.assertIn('Geçersiz istek', content)

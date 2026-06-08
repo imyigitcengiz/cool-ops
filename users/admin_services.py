@@ -352,13 +352,21 @@ def user_delete_context_basic(actor, target):
 
 def reassign_brand_owner(brand, new_owner):
     from common.brand_team import attach_user_to_brand
+    from common.plan_sync import sync_brand_plan_from_owner
     from core_settings.models import BrandMembership
     from django.db import transaction
+    from users.utils import get_or_create_user_profile
 
     if new_owner.is_superuser:
         raise ValueError('Süper admin marka sahibi olamaz.')
 
     with transaction.atomic():
+        previous_owners = list(
+            BrandMembership.objects.filter(
+                brand=brand,
+                role=BrandMembership.ROLE_OWNER,
+            ).exclude(user=new_owner).select_related('user')
+        )
         BrandMembership.objects.filter(
             brand=brand,
             role=BrandMembership.ROLE_OWNER,
@@ -375,6 +383,19 @@ def reassign_brand_owner(brand, new_owner):
             if existing and existing.plan_id:
                 new_owner.plan_id = existing.plan_id
                 new_owner.save(update_fields=['plan_id'])
+
+        for mem in previous_owners:
+            profile = get_or_create_user_profile(mem.user)
+            if profile.restaurant_brand_id == brand.pk:
+                profile.restaurant_brand = None
+                if profile.restaurant_role == 'store_owner':
+                    profile.restaurant_role = ''
+                profile.save(update_fields=['restaurant_brand', 'restaurant_role'])
+
+        from restaurant.onboarding import apply_restaurant_owner_setup
+
+        apply_restaurant_owner_setup(new_owner, brand)
+        sync_brand_plan_from_owner(new_owner, brand)
 
 
 def strip_superuser_brand_memberships(user=None) -> int:

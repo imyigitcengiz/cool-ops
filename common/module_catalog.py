@@ -13,6 +13,10 @@ MODULE_STATUS_ACTIVE = 'active'
 MODULE_STATUS_BETA = 'beta'
 MODULE_STATUS_ROADMAP = 'roadmap'
 
+# Marka paneli — common.panel_registry ile eşleşir
+PANEL_ID_KOBIOPS = 'kobiops'
+PANEL_ID_KOBIPOS = 'kobipos'
+
 VERTICALS: tuple[tuple[str, str, str, str, str], ...] = (
     ('kobi', 'KOBİ & Saha Servis', 'Montaj, teknik servis, B2B satış, saha ekibi', 'wrench', 'emerald'),
     ('restaurant', 'Restoran & Kafe', 'Menü, masa, sipariş ve mutfak', 'utensils', 'amber'),
@@ -25,6 +29,7 @@ MODULES: tuple[dict, ...] = (
     {
         'slug': 'contact',
         'kind': MODULE_KIND_APP,
+        'panel_id': PANEL_ID_KOBIOPS,
         'name': 'Rehber',
         'summary': 'Müşteri, firma ve ilişki merkezi — parçacıklarla özelleştirilir.',
         'access_perm': 'access.contact',
@@ -45,6 +50,7 @@ MODULES: tuple[dict, ...] = (
     {
         'slug': 'services',
         'kind': MODULE_KIND_APP,
+        'panel_id': PANEL_ID_KOBIOPS,
         'name': 'Yardım Masası',
         'summary': 'Servis / iş emri, saha ve durum takibi.',
         'access_perm': 'access.services',
@@ -62,6 +68,7 @@ MODULES: tuple[dict, ...] = (
     {
         'slug': 'accounting',
         'kind': MODULE_KIND_APP,
+        'panel_id': PANEL_ID_KOBIOPS,
         'name': 'Satış Birimi',
         'summary': 'Satış, tahsilat ve finans takıbi — maaş, kasa ve stok parçacıklarıyla.',
         'access_perm': 'access.accounting',
@@ -85,6 +92,7 @@ MODULES: tuple[dict, ...] = (
     {
         'slug': 'outreach',
         'kind': MODULE_KIND_APP,
+        'panel_id': PANEL_ID_KOBIOPS,
         'name': 'İletişim Merkezi',
         'summary': 'Kampanya ve toplu WhatsApp gönderimi.',
         'access_perm': 'access.outreach',
@@ -102,8 +110,9 @@ MODULES: tuple[dict, ...] = (
     {
         'slug': 'restaurant',
         'kind': MODULE_KIND_APP,
-        'name': 'Restoran POS',
-        'summary': 'Menü, masa, sipariş ve mutfak — BiDoluPos migrasyonu.',
+        'panel_id': PANEL_ID_KOBIPOS,
+        'name': 'KobiPOS',
+        'summary': 'Menü, masa, sipariş, mutfak ve franchise — restoran yönetim modülü.',
         'access_perm': 'access.restaurant',
         'hub_url_name': 'restaurant_hub',
         'icon': 'utensils',
@@ -233,6 +242,7 @@ MODULES: tuple[dict, ...] = (
     {
         'slug': 'settings',
         'kind': MODULE_KIND_APP,
+        'panel_id': PANEL_ID_KOBIOPS,
         'name': 'Site Ayarları',
         'summary': 'Katalog, durumlar, AI ve firma bilgileri.',
         'access_perm': 'access.settings',

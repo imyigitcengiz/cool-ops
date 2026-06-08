@@ -29,6 +29,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+RUN apt-get update && apt-get install -y --no-install-recommends nodejs npm \
+    && cd frontend/restaurant-pos && npm ci && npm run build \
+    && apt-get purge -y npm && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
+
 ARG KOBIOPS_BUILD_COMMIT=unknown
 RUN echo "${KOBIOPS_BUILD_COMMIT}" > /app/.build_commit
 

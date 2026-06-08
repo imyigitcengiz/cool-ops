@@ -12,13 +12,13 @@ User = get_user_model()
 
 
 class Command(BaseCommand):
-    help = 'İlk kurulumda süper admin oluşturur (varsayılan: admin/admin). Mevcut hesabın şifresini değiştirmez.'
+    help = 'İlk kurulumda süper admin oluşturur. Üretimde DJANGO_SUPERADMIN_PASSWORD zorunludur.'
 
     def add_arguments(self, parser):
         parser.add_argument(
             '--reset-password',
             action='store_true',
-            help='admin kullanıcısının şifresini yeni rastgele değerle sıfırlar',
+            help='admin kullanıcısının şifresini ortam değişkenindeki değerle sıfırlar',
         )
 
     def handle(self, *args, **options):
@@ -46,7 +46,14 @@ class Command(BaseCommand):
                 user.role = admin_role
 
         if created or options['reset_password']:
-            password = os.environ.get('DJANGO_SUPERADMIN_PASSWORD', '').strip() or 'admin'
+            password = os.environ.get('DJANGO_SUPERADMIN_PASSWORD', '').strip()
+            if not password:
+                if settings.DEBUG:
+                    password = 'admin'
+                else:
+                    raise CommandError(
+                        'Üretim ortamında DJANGO_SUPERADMIN_PASSWORD ortam değişkeni zorunludur.'
+                    )
             if not settings.DEBUG and password == 'admin':
                 raise CommandError(
                     'Üretim ortamında varsayılan admin şifresi kullanılamaz. '
@@ -58,7 +65,8 @@ class Command(BaseCommand):
             try:
                 data_dir.mkdir(parents=True, exist_ok=True)
                 pwd_file.write_text(
-                    f'username: admin\npassword: {password}\n',
+                    'username: admin\n'
+                    '(şifre ortam değişkeninde — güvenlik için bu dosyada saklanmaz)\n',
                     encoding='utf-8',
                 )
                 os.chmod(pwd_file, 0o600)
@@ -66,16 +74,17 @@ class Command(BaseCommand):
             except OSError:
                 pwd_hint = '(dosyaya yazılamadı)'
 
-            if password == 'admin':
+            if settings.DEBUG and password == 'admin':
                 self.stdout.write(
                     self.style.WARNING(
-                        f'İlk giriş — kullanıcı: admin, şifre: admin (kayıt: {pwd_hint})'
+                        'İlk giriş — kullanıcı: admin, şifre: admin (yalnızca geliştirme)'
                     )
                 )
             else:
                 self.stdout.write(
                     self.style.WARNING(
-                        f'İlk giriş — kullanıcı: admin, şifre: {password} (kayıt: {pwd_hint})'
+                        f'Süper admin şifresi ayarlandı (kullanıcı: admin). '
+                        f'Kayıt: {pwd_hint} — şifre loglanmadı.'
                     )
                 )
 

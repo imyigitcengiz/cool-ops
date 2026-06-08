@@ -1,0 +1,156 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+  --bg-dark: #f8fafc;
+  --bg-darker: #ffffff;
+  --panel-bg: rgba(255, 255, 255, 0.85);
+  --panel-border: rgba(0, 0, 0, 0.06);
+  --text-main: #0f172a;
+  --text-muted: #64748b;
+  --primary: #4f46e5;
+  --primary-hover: #4338ca;
+  --primary-glow: rgba(79, 70, 229, 0.08);
+  --success: #10b981;
+  --success-glow: rgba(16, 185, 129, 0.08);
+  --warning: #fbbf24;
+  --warning-glow: rgba(251, 191, 36, 0.08);
+  --danger: #ef4444;
+  --danger-glow: rgba(239, 68, 68, 0.08);
+  --accent: #8b5cf6;
+  --glass-blur: blur(16px);
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --font: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --shadow: 0 4px 20px 0 rgba(0, 0, 0, 0.04), 0 1px 2px 0 rgba(0, 0, 0, 0.02);
+  --radius: 12px;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font);
+  background-color: var(--bg-dark);
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.03) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.02) 0px, transparent 50%);
+  color: var(--text-main);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-darker);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
+/* ──────────────────────────────────────────────────────────
+   PREMIUM LIGHT THEME OVERRIDES FOR CANLI EDITÖR PANELS
+   ────────────────────────────────────────────────────────── */
+
+.editor-sidebar-container {
+  background-color: #ffffff !important;
+  border-right: 1px solid rgba(0, 0, 0, 0.06) !important;
+}
+
+/* Override dark cards (rgb(30, 41, 59) is #1e293b) to B2B white cards */
+.editor-sidebar-container div[style*="background: rgb(30, 41, 59)"],
+.editor-sidebar-container div[style*="background: rgba(30, 41, 59"],
+.editor-sidebar-container div[style*="background: #1e293b"] {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02), 0 1px 2px rgba(0, 0, 0, 0.01) !important;
+}
+
+.editor-sidebar-container div[style*="background: rgb(30, 41, 59)"]:hover,
+.editor-sidebar-container div[style*="background: rgba(30, 41, 59"]:hover {
+  background-color: #f8fafc !important;
+  border-color: rgba(79, 70, 229, 0.15) !important;
+}
+
+/* Target all sidebar inputs, textareas, and selects */
+.editor-sidebar-container input,
+.editor-sidebar-container textarea,
+.editor-sidebar-container select {
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  box-shadow: none !important;
+}
+
+.editor-sidebar-container input:focus,
+.editor-sidebar-container textarea:focus,
+.editor-sidebar-container select:focus {
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.08) !important;
+  outline: none !important;
+}
+
+/* Sidebar labels and headings color correction */
+.editor-sidebar-container label,
+.editor-sidebar-container h3,
+.editor-sidebar-container h4 {
+  color: #475569 !important;
+}
+
+/* Ensure white text becomes dark slate inside light panel items */
+.editor-sidebar-container span[style*="color: rgb(255, 255, 255)"],
+.editor-sidebar-container span[style*="color: #fff"],
+.editor-sidebar-container strong[style*="color: rgb(255, 255, 255)"],
+.editor-sidebar-container strong[style*="color: #fff"] {
+  color: #0f172a !important;
+}
+
+/* Customize details like the drag-handle icons, quick icons, etc. */
+.editor-sidebar-container button[style*="background: rgba(255, 255, 255, 0.04)"] {
+  background-color: rgba(0, 0, 0, 0.02) !important;
+  color: #475569 !important;
+}
+
+.editor-sidebar-container button[style*="background: rgba(255, 255, 255, 0.04)"]:hover {
+  background-color: rgba(0, 0, 0, 0.05) !important;
+}
+
+/* ──────────────────────────────────────────────────────────
+   EDITOR PROPERTIES PANEL — Force light-mode on all inputs
+   ────────────────────────────────────────────────────────── */
+
+.editor-properties-panel input,
+.editor-properties-panel textarea,
+.editor-properties-panel select {
+  background: #f8fafc !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #0f172a !important;
+  font-family: 'Outfit', sans-serif;
+}
+
+.editor-properties-panel input:focus,
+.editor-properties-panel textarea:focus,
+.editor-properties-panel select:focus {
+  border-color: #4f46e5 !important;
+  box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1) !important;
+  outline: none !important;
+}
+
+.editor-properties-panel label {
+  color: #64748b !important;
+}
